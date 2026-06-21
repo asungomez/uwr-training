@@ -8,17 +8,21 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.orm import DeclarativeBase
 
-DATABASE_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql+asyncpg://uwr:uwr@localhost:5432/uwr",
-)
+DEFAULT_DATABASE_URL = "postgresql+asyncpg://uwr:uwr@localhost:5432/uwr"
 
-# Render (and most providers) hand out a `postgresql://` URL, but the async engine
-# needs the asyncpg driver. Normalize the scheme so one env var works everywhere.
-if DATABASE_URL.startswith("postgresql://"):
-    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
-elif DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+
+def normalize_db_url(url: str) -> str:
+    """Render (and most providers) hand out a `postgresql://` URL, but the async
+    engine needs the asyncpg driver. Normalize the scheme so one URL works
+    everywhere."""
+    if url.startswith("postgresql://"):
+        return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    if url.startswith("postgres://"):
+        return url.replace("postgres://", "postgresql+asyncpg://", 1)
+    return url
+
+
+DATABASE_URL = normalize_db_url(os.environ.get("DATABASE_URL", DEFAULT_DATABASE_URL))
 
 engine = create_async_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False)

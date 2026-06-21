@@ -60,6 +60,8 @@ make check
 This builds the checker image (first run only), then runs all hooks against every
 tracked file. On the first run it also installs the front-end dependencies into a
 named Docker volume. Subsequent runs reuse the cached image and hook environments.
+The checker container is removed when it finishes, and any running dev stack
+(`make run`) is left untouched.
 
 ### Optional: run on every commit automatically
 
@@ -78,10 +80,11 @@ This is independent of the Docker setup — it runs hooks on your host using the
 
 | Target                      | What it does                                               |
 | --------------------------- | ---------------------------------------------------------- |
-| `make run`                  | Start the full dev stack (front-end + api) in the background. |
-| `make run service=<name>`   | Start a single service (`front-end`, `frontend`, or `api`). |
+| `make run`                  | Start the full dev stack (front-end + api + db) in the background. |
+| `make run service=<name>`   | Start a single service (`front-end`, `frontend`, `api`, or `db`). |
 | `make logs`                 | Follow live logs from all running containers.              |
 | `make logs service=<name>`  | Follow logs from a single service.                         |
+| `make admin command='...'`  | Run an admin CLI command (e.g. `create-admin`) in a one-off container. |
 | `make stop`                 | Stop and remove all running containers.                    |
 | `make check`                | Run all pre-commit hooks in the checker container.         |
 | `make pre-commit`           | Same as `make check`.                                      |
@@ -151,6 +154,28 @@ docker compose -f docker/docker-compose.yml exec api \
 ```
 
 `GET /db-health` runs `SELECT 1` to confirm connectivity.
+
+### Authentication & admin users
+
+Auth is **invitation-only**: there's no public sign-up. Admins invite other users;
+the `users` and `invitations` tables back this. Passwords are hashed with bcrypt.
+
+Because there's no first admin to send the first invite (and Render's free tier has
+no shell), bootstrap an admin with the `make admin` CLI, which runs in a one-off
+container:
+
+```bash
+# Against the local dev database (prompts for a password):
+make admin command='create-admin you@example.com'
+
+# Against a remote database (e.g. Render's *external* connection string):
+make admin command='create-admin you@example.com' \
+  db-connection-string='postgresql://user:pass@host/db'
+```
+
+`create-admin` lowercases the email, hashes the password, and creates the admin —
+or, if the user already exists, promotes them to an active admin (idempotent). Pass
+`--password` inside `command` to skip the prompt (avoid in shared shells).
 
 ## Configuration
 

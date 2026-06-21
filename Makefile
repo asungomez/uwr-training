@@ -1,15 +1,15 @@
 COMPOSE := docker compose -f docker/docker-compose.yml
 
-.PHONY: check pre-commit run logs stop build shell clean
+.PHONY: check pre-commit run logs admin stop build shell clean
 
 ## check: run all pre-commit hooks inside an ad-hoc container
 check: pre-commit
 
 ## pre-commit: build (if needed) and run pre-commit on all files
+## `run --rm` removes the checker container on exit; the dev stack is left running.
 pre-commit:
 	$(COMPOSE) build checker
 	$(COMPOSE) run --rm checker
-	$(COMPOSE) down --remove-orphans
 
 # `service` is optional. Unset → bring up the whole dev stack (frontend + api + db).
 # Override to run just one, e.g. `make run service=front-end` or `make run service=db`.
@@ -26,6 +26,13 @@ run:
 ## logs service=<name>: follow a single service (frontend|front-end|api|db).
 logs:
 	$(COMPOSE) logs --follow $(SERVICE)
+
+# `make admin command='create-admin a@b.c'` runs the admin CLI in a one-off
+# container against the local db. Pass db-connection-string='<url>' to target a
+# remote DB (e.g. Render's external connection string). Quote args with spaces.
+admin:
+	@test -n "$(command)" || { echo "usage: make admin command='create-admin a@b.c' [db-connection-string='<url>']"; exit 1; }
+	ADMIN_DATABASE_URL='$(db-connection-string)' $(COMPOSE) run --rm admin uv run python -m app.cli $(command)
 
 ## stop: stop and remove all running containers
 stop:

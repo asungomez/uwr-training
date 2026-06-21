@@ -63,3 +63,4 @@ repos:
           - pydantic>=2.0.0
           - sqlalchemy[asyncio]>=2.0.0
           - asyncpg>=0.30.0
+          - bcrypt>=4.2.0

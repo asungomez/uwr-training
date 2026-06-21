@@ -57,6 +57,20 @@ services:
     command:
       ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
+  # One-off admin CLI (`make admin`). `profiles` keeps it out of `make run`.
+  admin:
+    build:
+      context: ..
+      dockerfile: docker/api.Dockerfile
+    image: uwr-training-api
+    profiles: ["tools"]
+    environment:
+      # Defaults to the local db; `make admin db-connection-string=...` overrides.
+      DATABASE_URL: ${ADMIN_DATABASE_URL:-postgresql+asyncpg://uwr:uwr@db:5432/uwr}
+    volumes:
+      - ../api:/app/api
+    working_dir: /app/api
+
   db:
     image: postgres:16
     container_name: db
