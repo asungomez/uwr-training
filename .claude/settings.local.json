@@ -36,7 +36,12 @@
       "Read(//tmp/**)",
       "Bash(curl -s -i -H \"Origin: http://localhost:5173\" http://localhost:8000/)",
       "Bash(npx tsc *)",
-      "Bash(npx eslint *)"
+      "Bash(npx eslint *)",
+      "Bash(curl -s -w \"\\\\nHTTP %{http_code}\\\\n\" http://localhost:8000/db-health)",
+      "Bash(make -n run service=db)",
+      "Bash(git add *)",
+      "Bash(curl -s -w \" [%{http_code}]\\\\n\" http://localhost:8000/db-health)",
+      "Bash(curl -s -o /dev/null -w \"frontend [%{http_code}]\\\\n\" http://localhost:5173/)"
     ]
   }
 }

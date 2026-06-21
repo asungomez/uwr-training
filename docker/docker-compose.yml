@@ -38,6 +38,12 @@ services:
     container_name: api
     ports:
       - "8000:8000"
+    environment:
+      # asyncpg driver; host `db` is the compose service name.
+      DATABASE_URL: postgresql+asyncpg://uwr:uwr@db:5432/uwr
+    depends_on:
+      db:
+        condition: service_healthy
     volumes:
       # Live source for uvicorn --reload. The venv lives at /opt/venv (outside
       # this mount), so the host bind doesn't shadow installed dependencies.
@@ -46,6 +52,24 @@ services:
     command:
       ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
+  db:
+    image: postgres:16
+    container_name: db
+    environment:
+      POSTGRES_USER: uwr
+      POSTGRES_PASSWORD: uwr
+      POSTGRES_DB: uwr
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U uwr -d uwr"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
 volumes:
   precommit-cache:
   frontend-node-modules:
+  db-data:

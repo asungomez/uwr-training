@@ -1,8 +1,13 @@
 import os
+from typing import Annotated
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db import get_session
 
 app = FastAPI(title="uwr-training-api")
 
@@ -28,4 +33,12 @@ async def root() -> dict[str, str]:
 
 @app.get("/health")
 async def health() -> HealthResponse:
+    return HealthResponse(status="ok")
+
+
+@app.get("/db-health")
+async def db_health(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> HealthResponse:
+    await session.execute(text("SELECT 1"))
     return HealthResponse(status="ok")

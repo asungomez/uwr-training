@@ -11,19 +11,19 @@ pre-commit:
 	$(COMPOSE) run --rm checker
 	$(COMPOSE) down --remove-orphans
 
-# `service` is optional. Unset → bring up the whole dev stack (frontend + api).
-# Override to run just one, e.g. `make run service=front-end` or `make run service=api`.
+# `service` is optional. Unset → bring up the whole dev stack (frontend + api + db).
+# Override to run just one, e.g. `make run service=front-end` or `make run service=db`.
 # `front-end` is accepted as an alias for the `frontend` compose service.
 service ?=
-SERVICE := $(if $(service),$(patsubst front-end,frontend,$(service)),frontend api)
+SERVICE := $(if $(service),$(patsubst front-end,frontend,$(service)),frontend api db)
 
-## run: start the dev stack (front-end + api) in the background with live reload.
-## run service=<name>: start a single service (frontend|front-end|api).
+## run: start the dev stack (front-end + api + db) in the background with live reload.
+## run service=<name>: start a single service (frontend|front-end|api|db).
 run:
 	$(COMPOSE) up --build --detach $(SERVICE)
 
 ## logs: follow live logs from the running containers.
-## logs service=<name>: follow a single service (frontend|front-end|api).
+## logs service=<name>: follow a single service (frontend|front-end|api|db).
 logs:
 	$(COMPOSE) logs --follow $(SERVICE)
 

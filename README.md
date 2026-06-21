@@ -1,17 +1,16 @@
 # uwr-training
 
-Monorepo for a web app: a Vite/React SPA front-end and a FastAPI back-end.
+Monorepo for a web app: a Vite/React SPA front-end, a FastAPI back-end, and a
+Postgres database.
 
 ```
 .
 ├── front-end/    # Vite + React + TypeScript + Tailwind SPA
-├── api/          # FastAPI back-end (uv + ruff + mypy)
+├── api/          # FastAPI back-end (uv + ruff + mypy + SQLAlchemy/Alembic)
 ├── docker/       # Dockerfiles + compose for the dev stack and checker
 ├── Makefile      # entry points: make run / make check
-└── render.yaml   # Render Blueprint (front-end static site)
+└── render.yaml   # Render Blueprint (front-end, api, database)
 ```
-
-Postgres is planned but not yet wired up.
 
 ## Prerequisites
 
@@ -25,9 +24,10 @@ installed on your host — only Docker.
 From the repo root:
 
 ```bash
-make run                    # start everything: front-end + api (live reload)
+make run                    # start everything: front-end + api + db (live reload)
 make run service=front-end  # start only the front-end
-make run service=api        # start only the api
+make run service=api        # start only the api (also starts db, its dependency)
+make run service=db         # start only the database
 make logs                   # follow live logs from all running containers
 make logs service=api       # follow logs from a single service
 make stop                   # stop and remove all containers
@@ -35,6 +35,7 @@ make stop                   # stop and remove all containers
 
 - Front-end: <http://localhost:5173>
 - API: <http://localhost:8000> (docs at <http://localhost:8000/docs>)
+- Database: Postgres on `localhost:5432` (user/password/db all `uwr`)
 
 `make run` starts the containers **in the background** and returns to your prompt;
 use `make logs` to follow their output. Both services hot-reload when you edit
@@ -132,10 +133,39 @@ uv sync                              # install deps (incl. dev group)
 uv run uvicorn app.main:app --reload # run locally
 uv run ruff check .                  # lint
 uv run ruff format .                 # format
-uv run mypy .                        # type-check (strict)
+uv run mypy app                      # type-check (strict)
 ```
 
+### Database & migrations
+
+The API uses **SQLAlchemy 2.0 (async, asyncpg)** with **Alembic** for migrations.
+Models live in [`api/app/models.py`](api/app/models.py); migrations in
+`api/alembic/versions/`. With the stack running, manage schema from inside the
+api container:
+
+```bash
+docker compose -f docker/docker-compose.yml exec api \
+  uv run alembic revision --autogenerate -m "describe change"   # create a migration
+docker compose -f docker/docker-compose.yml exec api \
+  uv run alembic upgrade head                                   # apply migrations
+```
+
+`GET /db-health` runs `SELECT 1` to confirm connectivity.
+
 ## Configuration
+
+The front-end talks to the API via an env var; the API restricts CORS and connects
+to Postgres via others. All have sensible localhost defaults, so **no setup is
+needed for local Docker dev**.
+
+| Variable        | Service    | Default                                        | Purpose                                     |
+| --------------- | ---------- | ---------------------------------------------- | ------------------------------------------- |
+| `VITE_API_URL`  | front-end  | `http://localhost:8000`                        | Base URL the SPA calls (baked at build).    |
+| `CORS_ORIGINS`  | api        | `http://localhost:5173`                        | Comma-separated front-end origins to allow. |
+| `DATABASE_URL`  | api        | `postgresql+asyncpg://uwr:uwr@localhost:5432/uwr` | Postgres connection string. A `postgresql://` scheme is auto-rewritten for asyncpg. |
+
+For local overrides, copy [`front-end/.env.example`](front-end/.env.example) to
+`front-end/.env`. On Render, these are set in [`render.yaml`](render.yaml).
 
 The front-end talks to the API via an env var; the API restricts CORS via another.
 Both have sensible localhost defaults, so **no setup is needed for local Docker dev**.
@@ -150,11 +180,20 @@ For local overrides, copy [`front-end/.env.example`](front-end/.env.example) to
 
 ## Deployment
 
-Both services deploy to [Render](https://render.com) via the
+Everything deploys to [Render](https://render.com) via the
 [`render.yaml`](render.yaml) Blueprint, auto-deploying on push to the default branch:
 
 - **`uwr-training-frontend`** — static site built from `front-end/`. Its `VITE_API_URL`
   points at the deployed API.
 - **`uwr-training-api`** — Python web service from `api/`, built with `uv sync` and served
   by uvicorn on Render's `$PORT` (health check at `/health`). Its `CORS_ORIGINS`
-  allows the front-end's origin.
+  allows the front-end's origin, and `DATABASE_URL` is injected from the database.
+  The start command runs `alembic upgrade head` before launching, so migrations
+  apply on each deploy.
+- **`uwr-training-db`** — managed Postgres (free plan). `DATABASE_URL` is wired into
+  the api automatically via `fromDatabase`.
+
+> [!NOTE]
+> On Render's free tier the web service spins down when idle (slow first request),
+> and free Postgres databases expire after a set period — fine for dev/demo, not
+> production.
