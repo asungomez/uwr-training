@@ -85,6 +85,7 @@ This is independent of the Docker setup — it runs hooks on your host using the
 | `make logs`                 | Follow live logs from all running containers.              |
 | `make logs service=<name>`  | Follow logs from a single service.                         |
 | `make admin command='...'`  | Run an admin CLI command (e.g. `create-admin`) in a one-off container. |
+| `make gen-api`              | Regenerate front-end TS types from the API's OpenAPI spec. |
 | `make stop`                 | Stop and remove all running containers.                    |
 | `make check`                | Run all pre-commit hooks in the checker container.         |
 | `make pre-commit`           | Same as `make check`.                                      |
@@ -125,6 +126,30 @@ npm run build    # type-check and build for production
 npm run lint     # ESLint
 npm run format   # Prettier
 ```
+
+### API client (typed, SWR)
+
+The front-end talks to the API through a **typed client generated from the API's
+OpenAPI spec** — no hand-written types or fetchers:
+
+- [`openapi-typescript`](https://openapi-ts.dev/) generates `src/api/schema.d.ts`
+  from `/openapi.json` (committed; types only, no runtime code).
+- [`openapi-fetch`](https://openapi-ts.dev/openapi-fetch/) + [`swr-openapi`](https://github.com/htunnicliff/swr-openapi)
+  provide the typed client and SWR hooks in `src/api/client.ts`.
+
+Regenerate the types whenever the API contract changes (requires the api running):
+
+```bash
+make gen-api
+```
+
+Auth state lives in a global context ([`src/auth/`](front-end/src/auth/)):
+`AuthProvider` uses SWR on `/auth/me` as the source of truth, and exposes
+`useAuth()` with `user`, `isLoading`, `login`, and `logout`. All requests send the
+session cookie (`credentials: include`).
+
+Forms use [React Hook Form](https://react-hook-form.com/) with
+[Zod](https://zod.dev/) schemas (via `@hookform/resolvers`) for validation.
 
 ## API
 
@@ -177,6 +202,21 @@ make admin command='create-admin you@example.com' \
 or, if the user already exists, promotes them to an active admin (idempotent). Pass
 `--password` inside `command` to skip the prompt (avoid in shared shells).
 
+#### Login
+
+`POST /auth/login` takes `{email, password}` and, on success, sets an **HTTP-only
+session cookie** holding a signed JWT (no server-side session store). Related routes:
+
+| Route               | Purpose                                              |
+| ------------------- | ---------------------------------------------------- |
+| `POST /auth/login`  | Validate credentials, set the session cookie.        |
+| `GET /auth/me`      | Return the current user (401 if no/invalid cookie).  |
+| `POST /auth/logout` | Clear the session cookie.                            |
+
+The cookie is signed with `SECRET_KEY` and marked `Secure` unless `COOKIE_SECURE=false`
+(set that for local plain-HTTP testing in a browser). The front-end isn't wired to
+these endpoints yet.
+
 ## Configuration
 
 The front-end calls the API at the **same-origin `/api` path**, which is proxied to
@@ -191,6 +231,8 @@ for local Docker dev**.
 | `VITE_API_URL`      | front-end  | `/api`                                            | Optional override to call an absolute API URL instead of the proxy.     |
 | `CORS_ORIGINS`      | api        | `http://localhost:5173`                           | Comma-separated origins allowed by CORS (only matters for direct, cross-origin calls; unused in the proxy setup). |
 | `DATABASE_URL`      | api        | `postgresql+asyncpg://uwr:uwr@localhost:5432/uwr` | Postgres connection string. A `postgresql://` scheme is auto-rewritten for asyncpg. |
+| `SECRET_KEY`        | api        | `dev-secret-change-me`                            | Signs session-cookie JWTs. On Render, generated and kept stable. **Set a real value in any non-local env.** |
+| `COOKIE_SECURE`     | api        | `true`                                            | When `true`, the session cookie is `Secure` (HTTPS only). Set `false` for local plain-HTTP browser testing. |
 
 For local overrides, copy [`front-end/.env.example`](front-end/.env.example) to
 `front-end/.env`. On Render, these are set in [`render.yaml`](render.yaml).

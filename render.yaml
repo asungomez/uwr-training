@@ -43,6 +43,10 @@ services:
         fromDatabase:
           name: uwr-training-db
           property: connectionString
+      # Signs session-cookie JWTs. Generated once by Render and kept stable so
+      # existing sessions survive restarts/deploys.
+      - key: SECRET_KEY
+        generateValue: true
 
 databases:
   - name: uwr-training-db

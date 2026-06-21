@@ -62,7 +62,18 @@
       "Bash(curl -s -w \"api/db-health: %{http_code}\\\\n\" -o /dev/null http://localhost:5173/api/db-health)",
       "Bash(make admin *)",
       "Bash(grep -n \"make logs\\\\`\" README.md)",
-      "Bash(grep -n \"^| \\\\`make\" README.md)"
+      "Bash(grep -n \"^| \\\\`make\" README.md)",
+      "Bash(curl -s -o /dev/null -w \"api health [%{http_code}]\\\\n\" http://localhost:8000/health)",
+      "Bash(curl -s -o /dev/null -w '%{http_code}\\\\n' -X POST __TRACKED_VAR__/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"coach@uwr.test\",\"password\":\"wrong\"}')",
+      "Bash(curl -s -o /dev/null -w '%{http_code}\\\\n' __TRACKED_VAR__/auth/me)",
+      "Bash(curl -s -c jar.txt -w '\\\\n[%{http_code}]\\\\n' -X POST __TRACKED_VAR__/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"COACH@uwr.test\",\"password\":\"secret123\"}')",
+      "Bash(rm -f jar.txt)",
+      "Bash(curl -s -o /dev/null -w '%{http_code}\\\\n' -X POST __TRACKED_VAR__/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"coach@example.com\",\"password\":\"wrong\"}')",
+      "Bash(curl -s -c jar.txt -w '\\\\n[%{http_code}]\\\\n' -X POST __TRACKED_VAR__/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"Coach@Example.com\",\"password\":\"secret123\"}')",
+      "Bash(make gen-api *)",
+      "Bash(node -e \"console.log\\(Object.keys\\(require\\('swr-openapi'\\)\\)\\)\")",
+      "Bash(node -e \"const p=require\\('./node_modules/swr-openapi/package.json'\\); console.log\\('main:',p.main,'module:',p.module,'types:',p.types\\); console.log\\('exports:',JSON.stringify\\(p.exports\\)\\)\")",
+      "Bash(node *)"
     ]
   }
 }

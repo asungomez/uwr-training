@@ -46,6 +46,8 @@ services:
     environment:
       # asyncpg driver; host `db` is the compose service name.
       DATABASE_URL: postgresql+asyncpg://uwr:uwr@db:5432/uwr
+      # Local dev is plain HTTP, so don't mark the session cookie Secure.
+      COOKIE_SECURE: "false"
     depends_on:
       db:
         condition: service_healthy

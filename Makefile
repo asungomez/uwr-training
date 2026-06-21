@@ -1,6 +1,6 @@
 COMPOSE := docker compose -f docker/docker-compose.yml
 
-.PHONY: check pre-commit run logs admin stop build shell clean
+.PHONY: check pre-commit run logs admin gen-api stop build shell clean
 
 ## check: run all pre-commit hooks inside an ad-hoc container
 check: pre-commit
@@ -33,6 +33,11 @@ logs:
 admin:
 	@test -n "$(command)" || { echo "usage: make admin command='create-admin a@b.c' [db-connection-string='<url>']"; exit 1; }
 	ADMIN_DATABASE_URL='$(db-connection-string)' $(COMPOSE) run --rm admin uv run python -m app.cli $(command)
+
+## gen-api: regenerate front-end TypeScript types from the API's OpenAPI spec.
+## Requires the api service running (`make run`); reads the spec over the compose network.
+gen-api:
+	$(COMPOSE) exec -e API_OPENAPI_URL=http://api:8000/openapi.json frontend npm run gen:api
 
 ## stop: stop and remove all running containers
 stop:
