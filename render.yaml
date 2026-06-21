@@ -24,6 +24,7 @@ services:
   - type: web
     name: uwr-training-api
     runtime: python
+    plan: free
     rootDir: api
     # uv manages deps; install it, then sync from the locked versions.
     buildCommand: pip install uv && uv sync --frozen
