@@ -36,7 +36,7 @@ services:
     envVars:
       # Front-end origin(s) allowed by CORS.
       - key: CORS_ORIGINS
-        value: https://uwr-training-frontend.onrender.com
+        value: https://uwr-training-frontend-tu0v.onrender.com/
       # Connection string injected from the managed Postgres instance below.
       - key: DATABASE_URL
         fromDatabase:
