@@ -8,7 +8,13 @@
       "Bash(chmod +x /Users/marg/Personal/uwr-training/docker/entrypoint.sh)",
       "Bash(docker version *)",
       "Bash(echo \"exit:$?\")",
-      "Bash(make check *)"
+      "Bash(make check *)",
+      "Bash(make run *)",
+      "Bash(echo \"started in background, pid $!\")",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:5173/)",
+      "Bash(curl -s http://localhost:5173/)",
+      "Bash(curl -s http://localhost:5173/src/App.tsx)",
+      "Bash(make stop *)"
     ]
   }
 }
