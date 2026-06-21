@@ -5,14 +5,15 @@ services:
     rootDir: front-end
     buildCommand: npm ci && npm run build
     staticPublishPath: ./dist
-    envVars:
-      # Baked into the build; points the SPA at the deployed API.
-      # fromService only exposes the bare host (no scheme), and Vite needs a full
-      # URL, so we use the predictable Render URL for the uwr-training-api service.
-      - key: VITE_API_URL
-        value: https://uwr-training-api-tu0v.onrender.com
-    # SPA: serve index.html for client-side routes instead of 404.
+    # The SPA calls same-origin /api/* (no VITE_API_URL needed). Routes are
+    # evaluated top-to-bottom, so proxy /api before the SPA catch-all.
     routes:
+      # Proxy API calls to the back-end. `*` in the destination is replaced by
+      # whatever /api/ captured, so /api/db-health -> <api>/db-health.
+      - type: rewrite
+        source: /api/*
+        destination: https://uwr-training-api-tu0v.onrender.com/*
+      # SPA: serve index.html for client-side routes instead of 404.
       - type: rewrite
         source: /*
         destination: /index.html
@@ -34,9 +35,9 @@ services:
     startCommand: uv run alembic upgrade head && uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
-      # Front-end origin(s) allowed by CORS.
-      - key: CORS_ORIGINS
-        value: https://uwr-training-frontend-tu0v.onrender.com/
+      # No CORS_ORIGINS needed: the front-end proxies /api same-origin, so the
+      # browser never makes a cross-origin request. (The CORS middleware stays in
+      # the app with a localhost default for direct/local access.)
       # Connection string injected from the managed Postgres instance below.
       - key: DATABASE_URL
         fromDatabase:

@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+// Same-origin: requests to /api are proxied to the back-end (Vite in dev,
+// a Render rewrite in prod), so no absolute API URL is needed.
+const API_BASE = import.meta.env.VITE_API_URL ?? '/api'
 
 function App() {
   const [message, setMessage] = useState('…')
 
   useEffect(() => {
-    fetch(`${API_URL}/`)
+    fetch(`${API_BASE}/`)
       .then((res) => res.json() as Promise<{ message: string }>)
       .then((data) => setMessage(data.message))
       .catch(() => setMessage('Could not reach the API'))

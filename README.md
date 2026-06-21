@@ -154,44 +154,42 @@ docker compose -f docker/docker-compose.yml exec api \
 
 ## Configuration
 
-The front-end talks to the API via an env var; the API restricts CORS and connects
-to Postgres via others. All have sensible localhost defaults, so **no setup is
-needed for local Docker dev**.
+The front-end calls the API at the **same-origin `/api` path**, which is proxied to
+the back-end — by the Vite dev server locally, and by a Render rewrite in production.
+This means the front-end needs no API URL and there's no cross-origin request (so no
+CORS to configure). Every variable has a sensible default, so **no setup is needed
+for local Docker dev**.
 
-| Variable        | Service    | Default                                        | Purpose                                     |
-| --------------- | ---------- | ---------------------------------------------- | ------------------------------------------- |
-| `VITE_API_URL`  | front-end  | `http://localhost:8000`                        | Base URL the SPA calls (baked at build).    |
-| `CORS_ORIGINS`  | api        | `http://localhost:5173`                        | Comma-separated front-end origins to allow. |
-| `DATABASE_URL`  | api        | `postgresql+asyncpg://uwr:uwr@localhost:5432/uwr` | Postgres connection string. A `postgresql://` scheme is auto-rewritten for asyncpg. |
+| Variable            | Service    | Default                                           | Purpose                                                                 |
+| ------------------- | ---------- | ------------------------------------------------- | ----------------------------------------------------------------------- |
+| `API_PROXY_TARGET`  | front-end  | `http://localhost:8000` (compose: `http://api:8000`) | Dev-only: where the Vite dev server forwards `/api`.                 |
+| `VITE_API_URL`      | front-end  | `/api`                                            | Optional override to call an absolute API URL instead of the proxy.     |
+| `CORS_ORIGINS`      | api        | `http://localhost:5173`                           | Comma-separated origins allowed by CORS (only matters for direct, cross-origin calls; unused in the proxy setup). |
+| `DATABASE_URL`      | api        | `postgresql+asyncpg://uwr:uwr@localhost:5432/uwr` | Postgres connection string. A `postgresql://` scheme is auto-rewritten for asyncpg. |
 
 For local overrides, copy [`front-end/.env.example`](front-end/.env.example) to
 `front-end/.env`. On Render, these are set in [`render.yaml`](render.yaml).
-
-The front-end talks to the API via an env var; the API restricts CORS via another.
-Both have sensible localhost defaults, so **no setup is needed for local Docker dev**.
-
-| Variable        | Service    | Default                 | Purpose                                   |
-| --------------- | ---------- | ----------------------- | ----------------------------------------- |
-| `VITE_API_URL`  | front-end  | `http://localhost:8000` | Base URL the SPA calls (baked at build).  |
-| `CORS_ORIGINS`  | api        | `http://localhost:5173` | Comma-separated front-end origins to allow. |
-
-For local overrides, copy [`front-end/.env.example`](front-end/.env.example) to
-`front-end/.env`. On Render, both are set in [`render.yaml`](render.yaml).
 
 ## Deployment
 
 Everything deploys to [Render](https://render.com) via the
 [`render.yaml`](render.yaml) Blueprint, auto-deploying on push to the default branch:
 
-- **`uwr-training-frontend`** — static site built from `front-end/`. Its `VITE_API_URL`
-  points at the deployed API.
+- **`uwr-training-frontend`** — static site built from `front-end/`. A rewrite rule
+  proxies `/api/*` to the API service, so the SPA stays same-origin and needs no API
+  URL of its own.
 - **`uwr-training-api`** — Python web service from `api/`, built with `uv sync` and served
-  by uvicorn on Render's `$PORT` (health check at `/health`). Its `CORS_ORIGINS`
-  allows the front-end's origin, and `DATABASE_URL` is injected from the database.
-  The start command runs `alembic upgrade head` before launching, so migrations
-  apply on each deploy.
+  by uvicorn on Render's `$PORT` (health check at `/health`). `DATABASE_URL` is injected
+  from the database. The start command runs `alembic upgrade head` before launching, so
+  migrations apply on each deploy.
 - **`uwr-training-db`** — managed Postgres (free plan). `DATABASE_URL` is wired into
   the api automatically via `fromDatabase`.
+
+> [!NOTE]
+> The front-end's `/api/*` rewrite destination in `render.yaml` is the one place the
+> API's public URL is referenced. Render can't inject a service's public URL into a
+> static site, so if you rename the API service or its URL changes, update that
+> destination.
 
 > [!NOTE]
 > On Render's free tier the web service spins down when idle (slow first request),

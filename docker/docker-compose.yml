@@ -22,6 +22,11 @@ services:
     container_name: frontend
     ports:
       - "5173:5173"
+    environment:
+      # Vite dev proxy forwards /api here (compose service name on the network).
+      API_PROXY_TARGET: http://api:8000
+    depends_on:
+      - api
     volumes:
       # Live source for hot-reload. Anonymous volume on node_modules keeps the
       # container's Linux-native deps from being shadowed by the host mount.
