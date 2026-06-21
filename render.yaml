@@ -10,7 +10,7 @@ services:
       # fromService only exposes the bare host (no scheme), and Vite needs a full
       # URL, so we use the predictable Render URL for the uwr-training-api service.
       - key: VITE_API_URL
-        value: https://uwr-training-api.onrender.com
+        value: https://uwr-training-api-tu0v.onrender.com
     # SPA: serve index.html for client-side routes instead of 404.
     routes:
       - type: rewrite
