@@ -19,19 +19,20 @@ repos:
       - id: check-added-large-files
       - id: mixed-line-ending
 
-  # Front-end: ESLint + Prettier, scoped to front-end/ and run via its own deps
+  # Front-end: ESLint + Prettier. The wrapper runs them in a container (the
+  # checker image), so neither the host nor a running dev stack needs node_modules.
   - repo: local
     hooks:
       - id: eslint
         name: eslint (front-end)
         language: system
-        entry: bash -c 'cd front-end && npx eslint --fix --no-warn-ignored "${@#front-end/}"' --
+        entry: docker/precommit-frontend.sh eslint
         files: ^front-end/.*\.(ts|tsx|js|jsx)$
         require_serial: true
       - id: prettier
         name: prettier (front-end)
         language: system
-        entry: bash -c 'cd front-end && npx prettier --write --ignore-unknown "${@#front-end/}"' --
+        entry: docker/precommit-frontend.sh prettier
         files: ^front-end/.*\.(ts|tsx|js|jsx|css|html|json|md|yml|yaml)$
         require_serial: true
 

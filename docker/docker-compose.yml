@@ -5,6 +5,10 @@ services:
       dockerfile: docker/Dockerfile
     image: uwr-training-checker
     container_name: pre_commit
+    environment:
+      # Tells docker/precommit-frontend.sh it's already in a container, so it runs
+      # eslint/prettier directly instead of trying to launch another container.
+      PRECOMMIT_IN_CONTAINER: "1"
     volumes:
       - ..:/repo
       - precommit-cache:/cache/pre-commit
