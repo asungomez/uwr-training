@@ -1,23 +1,10 @@
-import { useEffect, useState } from 'react'
-
-// Same-origin: requests to /api are proxied to the back-end (Vite in dev,
-// a Render rewrite in prod), so no absolute API URL is needed.
-const API_BASE = import.meta.env.VITE_API_URL ?? '/api'
+import LoginForm from './LoginForm'
 
 function App() {
-  const [message, setMessage] = useState('…')
-
-  useEffect(() => {
-    fetch(`${API_BASE}/`)
-      .then((res) => res.json() as Promise<{ message: string }>)
-      .then((data) => setMessage(data.message))
-      .catch(() => setMessage('Could not reach the API'))
-  }, [])
-
   return (
-    <main className="flex min-h-svh flex-col items-center justify-center gap-4 bg-slate-900 text-slate-100">
-      <h1 className="text-4xl font-semibold tracking-tight">{message}</h1>
-      <p className="text-slate-400">Vite + React + TypeScript + Tailwind</p>
+    <main className="flex min-h-svh flex-col items-center justify-center gap-8 bg-slate-900 px-4 text-slate-100">
+      <h1 className="text-4xl font-semibold tracking-tight">UWR entrenamiento</h1>
+      <LoginForm />
     </main>
   )
 }
