@@ -35,15 +35,27 @@ repos:
         files: ^front-end/.*\.(ts|tsx|js|jsx|css|html|json|md|yml|yaml)$
         require_serial: true
 
-  # Back-end (Python): Ruff lint + format, scoped to back-end/.
-  # Active once back-end/ exists; until then no files match so it's a no-op.
+  # API (Python): Ruff lint + format, scoped to api/.
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.14.0
     hooks:
       - id: ruff
-        name: ruff (back-end)
+        name: ruff (api)
         args: [--fix]
-        files: ^back-end/.*\.py$
+        files: ^api/.*\.py$
       - id: ruff-format
-        name: ruff-format (back-end)
-        files: ^back-end/.*\.py$
+        name: ruff-format (api)
+        files: ^api/.*\.py$
+
+  # API (Python): mypy in strict mode. additional_dependencies give it the
+  # type stubs it needs to resolve imports in its isolated hook env.
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.13.0
+    hooks:
+      - id: mypy
+        name: mypy (api)
+        files: ^api/.*\.py$
+        args: [--strict, --config-file=api/pyproject.toml]
+        additional_dependencies:
+          - fastapi>=0.115.0
+          - pydantic>=2.0.0

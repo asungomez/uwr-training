@@ -14,7 +14,29 @@
       "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:5173/)",
       "Bash(curl -s http://localhost:5173/)",
       "Bash(curl -s http://localhost:5173/src/App.tsx)",
-      "Bash(make stop *)"
+      "Bash(make stop *)",
+      "Bash(uv --version)",
+      "Bash(curl -s http://localhost:8000/)",
+      "Bash(curl -s http://localhost:8000/health)",
+      "Bash(docker compose *)",
+      "Bash(make -n run)",
+      "Bash(make -n run service=front-end)",
+      "Bash(make -n run service=api)",
+      "Bash(echo \"started pid $!\")",
+      "Bash(curl -s -o /dev/null -w \"frontend: HTTP %{http_code}\\\\n\" http://localhost:5173/)",
+      "Bash(curl -s -w \"api: \" http://localhost:8000/health)",
+      "Bash(make -n logs)",
+      "Bash(make -n logs service=api)",
+      "Bash(make -n logs service=front-end)",
+      "Bash(timeout 5 make logs)",
+      "Bash(timeout 4 make logs service=api)",
+      "Bash(ls -la src/vite-env.d.ts)",
+      "Bash(ls -la .env*)",
+      "Bash(cat src/vite-env.d.ts)",
+      "Read(//tmp/**)",
+      "Bash(curl -s -i -H \"Origin: http://localhost:5173\" http://localhost:8000/)",
+      "Bash(npx tsc *)",
+      "Bash(npx eslint *)"
     ]
   }
 }

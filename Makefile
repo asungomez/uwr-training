@@ -1,6 +1,6 @@
 COMPOSE := docker compose -f docker/docker-compose.yml
 
-.PHONY: check pre-commit run stop build shell clean
+.PHONY: check pre-commit run logs stop build shell clean
 
 ## check: run all pre-commit hooks inside an ad-hoc container
 check: pre-commit
@@ -11,11 +11,23 @@ pre-commit:
 	$(COMPOSE) run --rm checker
 	$(COMPOSE) down --remove-orphans
 
-## run: start the front-end dev server (hot-reload) at http://localhost:5173
-run:
-	$(COMPOSE) up --build frontend
+# `service` is optional. Unset → bring up the whole dev stack (frontend + api).
+# Override to run just one, e.g. `make run service=front-end` or `make run service=api`.
+# `front-end` is accepted as an alias for the `frontend` compose service.
+service ?=
+SERVICE := $(if $(service),$(patsubst front-end,frontend,$(service)),frontend api)
 
-## stop: stop and remove the front-end container
+## run: start the dev stack (front-end + api) in the background with live reload.
+## run service=<name>: start a single service (frontend|front-end|api).
+run:
+	$(COMPOSE) up --build --detach $(SERVICE)
+
+## logs: follow live logs from the running containers.
+## logs service=<name>: follow a single service (frontend|front-end|api).
+logs:
+	$(COMPOSE) logs --follow $(SERVICE)
+
+## stop: stop and remove all running containers
 stop:
 	$(COMPOSE) down --remove-orphans
 
