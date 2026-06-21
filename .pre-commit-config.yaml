@@ -1,0 +1,49 @@
+# Monorepo pre-commit hooks. Runs only on changed files.
+# Install once with:  pre-commit install
+# Run on everything:  pre-commit run --all-files
+minimum_pre_commit_version: '3.5.0'
+
+repos:
+  # Generic, language-agnostic hygiene
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+        # tsconfig files are JSONC (comments allowed); skip the strict JSON parse.
+        exclude: ^front-end/tsconfig.*\.json$
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+      - id: mixed-line-ending
+
+  # Front-end: ESLint + Prettier, scoped to front-end/ and run via its own deps
+  - repo: local
+    hooks:
+      - id: eslint
+        name: eslint (front-end)
+        language: system
+        entry: bash -c 'cd front-end && npx eslint --fix --no-warn-ignored "${@#front-end/}"' --
+        files: ^front-end/.*\.(ts|tsx|js|jsx)$
+        require_serial: true
+      - id: prettier
+        name: prettier (front-end)
+        language: system
+        entry: bash -c 'cd front-end && npx prettier --write --ignore-unknown "${@#front-end/}"' --
+        files: ^front-end/.*\.(ts|tsx|js|jsx|css|html|json|md|yml|yaml)$
+        require_serial: true
+
+  # Back-end (Python): Ruff lint + format, scoped to back-end/.
+  # Active once back-end/ exists; until then no files match so it's a no-op.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.0
+    hooks:
+      - id: ruff
+        name: ruff (back-end)
+        args: [--fix]
+        files: ^back-end/.*\.py$
+      - id: ruff-format
+        name: ruff-format (back-end)
+        files: ^back-end/.*\.py$

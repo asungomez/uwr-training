@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --version)",
+      "Bash(npm create *)",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(chmod +x /Users/marg/Personal/uwr-training/docker/entrypoint.sh)",
+      "Bash(docker version *)",
+      "Bash(echo \"exit:$?\")",
+      "Bash(make check *)"
+    ]
+  }
+}

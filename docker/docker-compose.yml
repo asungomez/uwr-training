@@ -1,0 +1,19 @@
+services:
+  checker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: uwr-training-checker
+    container_name: pre_commit
+    volumes:
+      - ..:/repo
+      - precommit-cache:/cache/pre-commit
+      # Linux-native front-end deps live in this volume so they don't clash
+      # with the host's macOS-built node_modules.
+      - frontend-node-modules:/repo/front-end/node_modules
+    working_dir: /repo
+    entrypoint: ["/repo/docker/entrypoint.sh"]
+
+volumes:
+  precommit-cache:
+  frontend-node-modules:
