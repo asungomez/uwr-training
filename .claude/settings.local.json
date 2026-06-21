@@ -47,7 +47,16 @@
       "Bash(curl -s -w \" [%{http_code}]\\\\n\" http://localhost:5173/api/db-health)",
       "Bash(curl -s -w \" [%{http_code}]\\\\n\" http://localhost:5173/api/health)",
       "Bash(curl -s -o /dev/null -w \"[%{http_code}]\\\\n\" http://localhost:5173/)",
-      "Bash(curl -s -o /dev/null -w \"[%{http_code}]\\\\n\" http://localhost:5173/some/spa/route)"
+      "Bash(curl -s -o /dev/null -w \"[%{http_code}]\\\\n\" http://localhost:5173/some/spa/route)",
+      "Bash(curl -s -o /dev/null -w 'HTTP %{http_code}  \\(%{time_total}s\\)\\\\n' https://uwr-training-frontend-tu0v.onrender.com/)",
+      "Bash(curl -s -w '\\\\nHTTP %{http_code}  \\(%{time_total}s\\)\\\\n' https://uwr-training-frontend-tu0v.onrender.com/api/)",
+      "Bash(curl -s -w '\\\\nHTTP %{http_code}\\\\n' https://uwr-training-frontend-tu0v.onrender.com/api/health)",
+      "Bash(curl -s -w '\\\\nHTTP %{http_code}\\\\n' https://uwr-training-frontend-tu0v.onrender.com/api/db-health)",
+      "Bash(curl -s https://uwr-training-frontend-tu0v.onrender.com/)",
+      "Bash('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --headless --disable-gpu --no-sandbox --virtual-time-budget=8000 --enable-logging=stderr --v=1 https://uwr-training-frontend-tu0v.onrender.com/)",
+      "Bash(curl -s https://uwr-training-frontend-tu0v.onrender.com/assets/index-ShPblGjW.js)",
+      "Bash(rm -rf front-end/dist)",
+      "Bash(curl -s -o /dev/null -w \"FE HTTP %{http_code}\\\\n\" http://localhost:5173/)"
     ]
   }
 }

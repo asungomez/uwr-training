@@ -1,1 +1,7 @@
 @import 'tailwindcss';
+
+/* Dark-only UI: dark base before React mounts + native dark form controls/scrollbars. */
+html {
+  color-scheme: dark;
+  background-color: theme(--color-slate-900);
+}
