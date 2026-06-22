@@ -7,8 +7,9 @@ Postgres database.
 .
 ├── front-end/    # Vite + React + TypeScript + Tailwind SPA
 ├── api/          # FastAPI back-end (uv + ruff + mypy + SQLAlchemy/Alembic)
+├── tests/        # Playwright + testcontainers e2e suite (Python)
 ├── docker/       # Dockerfiles + compose for the dev stack and checker
-├── Makefile      # entry points: make run / make check
+├── Makefile      # entry points: make run / make check / make test
 └── render.yaml   # Render Blueprint (front-end, api, database)
 ```
 
@@ -86,6 +87,7 @@ This is independent of the Docker setup — it runs hooks on your host using the
 | `make logs service=<name>`  | Follow logs from a single service.                         |
 | `make admin command='...'`  | Run an admin CLI command (e.g. `create-admin`) in a one-off container. |
 | `make gen-api`              | Regenerate front-end TS types from the API's OpenAPI spec. |
+| `make test`                 | Run the e2e suite (auto-creates the test venv on first run). |
 | `make stop`                 | Stop and remove all running containers.                    |
 | `make check`                | Run all pre-commit hooks in the checker container.         |
 | `make pre-commit`           | Same as `make check`.                                      |
@@ -248,6 +250,51 @@ returned link manually (copy-paste).
 Invitations are member-only, expire after 7 days, and can be accepted once. Validation
 errors: `404` unknown/used token, `410` expired, `409` email already a user, `403`
 non-admin create.
+
+## Tests
+
+End-to-end tests live in [`tests/`](tests/) — **Playwright** driving a real browser
+against the full stack, which [testcontainers](https://testcontainers.com/) spins up
+just for the run. Tests are grouped by area (e.g. [`tests/auth/`](tests/auth/)) and
+follow a **given / when / then** structure: arrange the system (seed the DB,
+authenticate…), interact with the UI, then assert on the UI.
+
+```bash
+make test
+```
+
+`tests/` is a [uv](https://docs.astral.sh/uv/) project (`pyproject.toml` + `uv.lock`,
+pinned to Python 3.12 to match the API). The first `make test` runs `uv sync` —
+fetching Python 3.12 if needed, installing the locked deps and the `api` package
+editable (so tests reuse its SQLAlchemy models) — plus the Playwright browser, then
+runs `pytest`. Subsequent runs reuse the synced env.
+
+How it works ([`tests/conftest.py`](tests/conftest.py)):
+
+- A session fixture starts `db`, `api`, and `frontend` containers on a **private
+  network** (built from the same `docker/dockerfiles/*`), then runs
+  `alembic upgrade head` in the api container.
+- Containers bind to **random host ports**, so `make test` runs fine alongside a
+  live `make run` dev stack — nothing clashes on 5173/8000/5432.
+- An autouse fixture **truncates every table** before each test, so tests start
+  from an empty database.
+
+### Test data factories
+
+Seeding lives under [`tests/seeding/`](tests/seeding/), one package per model (e.g.
+`seeding/user/` with `factory.py` + `fixtures.py`). Factories build model instances
+with mandatory fields auto-filled by [Faker](https://faker.readthedocs.io/); pass
+overrides only for what the test cares about. The user fixtures (registered via
+`pytest_plugins`):
+
+- **`generate_user(**overrides)`** — returns an **in-memory** `User` (not persisted).
+- **`create_user(**overrides)`** — persists one and returns the detached instance.
+
+```python
+def test_admin_thing(create_user):
+    admin = create_user(role="admin")   # email/password/… auto-filled
+    # log in with factories.DEFAULT_PASSWORD
+```
 
 ## Configuration
 

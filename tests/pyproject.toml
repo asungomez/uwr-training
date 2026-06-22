@@ -1,0 +1,28 @@
+[project]
+name = "uwr-training-e2e"
+version = "0.1.0"
+description = "End-to-end tests (Playwright + testcontainers)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "pytest>=8.3.0",
+    "pytest-playwright>=0.6.0",
+    "testcontainers>=4.9.0",
+    "docker>=7.1.0",
+    "psycopg2-binary>=2.9.0",
+    "sqlalchemy>=2.0.0",
+    "faker>=33.0.0",
+    # Reuse the API's SQLAlchemy models for seeding (see [tool.uv.sources]).
+    "uwr-training-api",
+]
+
+[tool.uv.sources]
+uwr-training-api = { path = "../api", editable = true }
+
+[tool.pytest.ini_options]
+addopts = "-v"
+testpaths = ["."]
+filterwarnings = [
+    # testcontainers' string log-predicate works fine for our needs; its
+    # structured-wait replacement is version-unstable. Silence the nudge.
+    "ignore:The wait_for_logs function with string or callable predicates is deprecated:DeprecationWarning",
+]

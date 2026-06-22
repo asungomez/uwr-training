@@ -13,6 +13,10 @@ venv/
 dist/
 build/
 
+# Test artifacts
+test-results/
+playwright-report/
+
 # Env / secrets
 .env
 .env.*

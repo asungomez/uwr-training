@@ -1,6 +1,15 @@
 COMPOSE := docker compose -f docker/docker-compose.yml
 
-.PHONY: check pre-commit run logs admin gen-api stop build shell clean
+.PHONY: check pre-commit run logs admin gen-api test test-setup stop build shell clean
+
+## test: run the e2e suite. uv syncs the locked env (fetching Python 3.12 if
+## needed) on first run; containers use random ports so a live dev stack is safe.
+test: test-setup
+	cd tests && uv run pytest
+
+# Sync the locked test env + ensure the Playwright browser is installed.
+test-setup:
+	cd tests && uv sync && uv run playwright install chromium
 
 ## check: run all pre-commit hooks inside an ad-hoc container
 check: pre-commit
