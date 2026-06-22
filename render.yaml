@@ -26,6 +26,7 @@ services:
     name: uwr-training-api
     runtime: python
     plan: free
+    region: frankfurt
     rootDir: api
     # uv manages deps; install it, then sync from the locked versions.
     buildCommand: pip install uv && uv sync --frozen
@@ -51,5 +52,6 @@ services:
 databases:
   - name: uwr-training-db
     plan: free
+    region: frankfurt
     databaseName: uwr
     user: uwr
