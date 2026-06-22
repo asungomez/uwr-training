@@ -1,4 +1,4 @@
-function EntrenamientosPage() {
+function TrainingsPage() {
   return (
     <section>
       <h2 className="text-2xl font-semibold tracking-tight">Entrenamientos</h2>
@@ -7,4 +7,4 @@ function EntrenamientosPage() {
   )
 }
 
-export default EntrenamientosPage
+export default TrainingsPage

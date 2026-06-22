@@ -1,10 +1,12 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 
 import LoginForm from './LoginForm'
+import AdminRoute from './auth/AdminRoute'
 import { useAuth } from './auth/context'
 import AppLayout from './layout/AppLayout'
-import EntrenamientosPage from './pages/EntrenamientosPage'
-import UsuariosPage from './pages/UsuariosPage'
+import TrainingsPage from './pages/TrainingsPage'
+import UserDetailPage from './pages/UserDetailPage'
+import UsersPage from './pages/UsersPage'
 
 function App() {
   const { user, isLoading } = useAuth()
@@ -26,17 +28,15 @@ function App() {
     )
   }
 
-  const isAdmin = user.role === 'admin'
-
   return (
     <Routes>
       <Route element={<AppLayout />}>
         <Route index element={<Navigate to="/entrenamientos" replace />} />
-        <Route path="/entrenamientos" element={<EntrenamientosPage />} />
-        <Route
-          path="/usuarios"
-          element={isAdmin ? <UsuariosPage /> : <Navigate to="/entrenamientos" replace />}
-        />
+        <Route path="/entrenamientos" element={<TrainingsPage />} />
+        <Route path="/usuarios" element={<AdminRoute />}>
+          <Route index element={<UsersPage />} />
+          <Route path=":id" element={<UserDetailPage />} />
+        </Route>
         <Route path="*" element={<Navigate to="/entrenamientos" replace />} />
       </Route>
     </Routes>

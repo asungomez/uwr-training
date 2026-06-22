@@ -1,11 +1,13 @@
 import { UserPlus } from 'lucide-react'
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 import { useQuery } from '../api/client'
 import type { components } from '../api/schema'
 import FilterSelect from '../components/FilterSelect'
 import Pagination from '../components/Pagination'
 import SearchInput from '../components/SearchInput'
+import { RoleBadge, StatusBadge } from '../components/userBadges'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import InviteUserModal from './InviteUserModal'
 
@@ -15,46 +17,7 @@ type DirectoryEntry = components['schemas']['DirectoryEntryResponse']
 type Role = DirectoryEntry['role']
 type Status = DirectoryEntry['status']
 
-const roleLabel: Record<Role, string> = {
-  admin: 'Administrador',
-  member: 'Miembro',
-}
-
-const statusConfig: Record<Status, { label: string; styles: string }> = {
-  active: { label: 'Activo', styles: 'bg-green-500/15 text-green-300 ring-green-500/30' },
-  inactive: { label: 'Inactivo', styles: 'bg-red-500/15 text-red-300 ring-red-500/30' },
-  invitation_pending: {
-    label: 'Invitación pendiente',
-    styles: 'bg-amber-500/15 text-amber-300 ring-amber-500/30',
-  },
-  invitation_expired: {
-    label: 'Invitación expirada',
-    styles: 'bg-slate-500/15 text-slate-400 ring-slate-500/30',
-  },
-}
-
-function RoleBadge({ role }: { role: Role }) {
-  const styles =
-    role === 'admin'
-      ? 'bg-indigo-500/15 text-indigo-300 ring-indigo-500/30'
-      : 'bg-slate-500/15 text-slate-300 ring-slate-500/30'
-  return (
-    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${styles}`}>
-      {roleLabel[role]}
-    </span>
-  )
-}
-
-function StatusBadge({ status }: { status: Status }) {
-  const { label, styles } = statusConfig[status]
-  return (
-    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${styles}`}>
-      {label}
-    </span>
-  )
-}
-
-function UsuariosPage() {
+function UsersPage() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [role, setRole] = useState<Role | ''>('')
@@ -97,6 +60,7 @@ function UsuariosPage() {
   const totalCount = data?.total_count ?? 0
   const pageCount = Math.ceil(totalCount / PAGE_SIZE)
   const [inviteOpen, setInviteOpen] = useState(false)
+  const navigate = useNavigate()
 
   return (
     <section>
@@ -168,7 +132,11 @@ function UsuariosPage() {
             </thead>
             <tbody>
               {entries.map((entry) => (
-                <tr key={entry.id} className="border-b border-slate-800">
+                <tr
+                  key={entry.id}
+                  onClick={() => void navigate(`/usuarios/${entry.id}`)}
+                  className="cursor-pointer border-b border-slate-800 transition-colors hover:bg-slate-800/50"
+                >
                   <td className="py-3 pr-4 text-slate-200">{entry.email}</td>
                   <td className="py-3 pr-4">
                     <RoleBadge role={entry.role} />
@@ -184,15 +152,18 @@ function UsuariosPage() {
           {/* Mobile: stacked cards */}
           <ul className="mt-6 flex flex-col gap-3 md:hidden">
             {entries.map((entry) => (
-              <li
-                key={entry.id}
-                className="flex flex-col gap-2 rounded-lg border border-slate-700 bg-slate-800 p-4"
-              >
-                <span className="break-all font-medium text-slate-100">{entry.email}</span>
-                <div className="flex flex-wrap gap-2">
-                  <RoleBadge role={entry.role} />
-                  <StatusBadge status={entry.status} />
-                </div>
+              <li key={entry.id}>
+                <button
+                  type="button"
+                  onClick={() => void navigate(`/usuarios/${entry.id}`)}
+                  className="flex w-full flex-col gap-2 rounded-lg border border-slate-700 bg-slate-800 p-4 text-left transition-colors hover:bg-slate-700"
+                >
+                  <span className="break-all font-medium text-slate-100">{entry.email}</span>
+                  <div className="flex flex-wrap gap-2">
+                    <RoleBadge role={entry.role} />
+                    <StatusBadge status={entry.status} />
+                  </div>
+                </button>
               </li>
             ))}
           </ul>
@@ -204,4 +175,4 @@ function UsuariosPage() {
   )
 }
 
-export default UsuariosPage
+export default UsersPage

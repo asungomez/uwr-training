@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, datetime
 from typing import Annotated
 
@@ -14,6 +15,7 @@ from app.auth.schemas import (
     InvitationInfo,
     InvitationResponse,
     LoginRequest,
+    UserDetailResponse,
     UserListParams,
     UserResponse,
 )
@@ -140,6 +142,54 @@ async def list_users(
 
     entries.sort(key=lambda entry: entry.email)
     return paginate(entries, params)
+
+
+async def _inviter_email(session: AsyncSession, email: str) -> str | None:
+    """Email of whoever invited the person with this email, or None if there was
+    no invitation (e.g. created programmatically via the CLI)."""
+    invitation = await session.scalar(select(Invitation).where(Invitation.email == email))
+    if invitation is None:
+        return None
+    inviter = await session.get(User, invitation.invited_by)
+    return inviter.email if inviter is not None else None
+
+
+@router.get("/users/{entry_id}", response_model=UserDetailResponse)
+async def get_user_detail(
+    entry_id: uuid.UUID,
+    _admin: Annotated[User, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> UserDetailResponse:
+    """Detail for a directory entry — the id may be a user or an invitation."""
+    user = await session.get(User, entry_id)
+    if user is not None:
+        return UserDetailResponse(
+            id=user.id,
+            email=user.email,
+            role=user.role,
+            status=DirectoryStatus.active if user.is_active else DirectoryStatus.inactive,
+            created_at=user.created_at,
+            invited_by_email=await _inviter_email(session, user.email),
+        )
+
+    invitation = await session.get(Invitation, entry_id)
+    if invitation is not None and invitation.accepted_at is None:
+        is_pending = invitation.expires_at >= datetime.now(UTC)
+        inviter = await session.get(User, invitation.invited_by)
+        return UserDetailResponse(
+            id=invitation.id,
+            email=invitation.email,
+            role=invitation.role,
+            status=(
+                DirectoryStatus.invitation_pending
+                if is_pending
+                else DirectoryStatus.invitation_expired
+            ),
+            invited_by_email=inviter.email if inviter is not None else None,
+            expires_at=invitation.expires_at if is_pending else None,
+        )
+
+    raise api_error(status.HTTP_404_NOT_FOUND, ErrorCode.user_not_found, "User not found")
 
 
 @router.post(

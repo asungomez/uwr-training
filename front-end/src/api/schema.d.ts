@@ -128,6 +128,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/users/{entry_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get User Detail
+         * @description Detail for a directory entry — the id may be a user or an invitation.
+         */
+        get: operations["get_user_detail_auth_users__entry_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/invitations": {
         parameters: {
             query?: never;
@@ -267,6 +287,24 @@ export interface components {
             items: components["schemas"]["DirectoryEntryResponse"][];
             /** Total Count */
             total_count: number;
+        };
+        /**
+         * UserDetailResponse
+         * @description Full detail for a single directory entry (a user or an invitation).
+         */
+        UserDetailResponse: {
+            /** Id */
+            id: string;
+            /** Email */
+            email: string;
+            role: components["schemas"]["UserRole"];
+            status: components["schemas"]["DirectoryStatus"];
+            /** Created At */
+            created_at?: string | null;
+            /** Invited By Email */
+            invited_by_email?: string | null;
+            /** Expires At */
+            expires_at?: string | null;
         };
         /** UserResponse */
         UserResponse: {
@@ -477,6 +515,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Page_DirectoryEntryResponse_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_user_detail_auth_users__entry_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entry_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDetailResponse"];
                 };
             };
             /** @description Validation Error */

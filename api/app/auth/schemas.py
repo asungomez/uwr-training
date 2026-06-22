@@ -57,6 +57,25 @@ class DirectoryEntryResponse(BaseModel):
         return str(value)
 
 
+class UserDetailResponse(BaseModel):
+    """Full detail for a single directory entry (a user or an invitation)."""
+
+    id: uuid.UUID
+    email: str
+    role: UserRole
+    status: DirectoryStatus
+    # Only real users have a creation timestamp; null for invitations.
+    created_at: datetime | None = None
+    # Email of whoever invited them; null if created programmatically.
+    invited_by_email: str | None = None
+    # Only meaningful for a pending invitation; null otherwise.
+    expires_at: datetime | None = None
+
+    @field_serializer("id")
+    def serialize_id(self, value: uuid.UUID) -> str:
+        return str(value)
+
+
 class CreateInvitationRequest(BaseModel):
     email: EmailStr
 
