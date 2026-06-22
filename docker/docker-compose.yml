@@ -2,11 +2,11 @@ services:
   checker:
     build:
       context: ..
-      dockerfile: docker/Dockerfile
+      dockerfile: docker/dockerfiles/checker.Dockerfile
     image: uwr-training-checker
     container_name: pre_commit
     environment:
-      # Tells docker/precommit-frontend.sh it's already in a container, so it runs
+      # Tells front-end/precommit.sh it's already in a container, so it runs
       # eslint/prettier directly instead of trying to launch another container.
       PRECOMMIT_IN_CONTAINER: "1"
     volumes:
@@ -16,12 +16,12 @@ services:
       # with the host's macOS-built node_modules.
       - frontend-node-modules:/repo/front-end/node_modules
     working_dir: /repo
-    entrypoint: ["/repo/docker/entrypoint.sh"]
+    entrypoint: ["/repo/docker/entrypoints/checker.sh"]
 
   frontend:
     build:
       context: ..
-      dockerfile: docker/frontend.Dockerfile
+      dockerfile: docker/dockerfiles/frontend.Dockerfile
     image: uwr-training-frontend
     container_name: frontend
     ports:
@@ -42,7 +42,7 @@ services:
   api:
     build:
       context: ..
-      dockerfile: docker/api.Dockerfile
+      dockerfile: docker/dockerfiles/api.Dockerfile
     image: uwr-training-api
     container_name: api
     ports:
@@ -67,7 +67,7 @@ services:
   admin:
     build:
       context: ..
-      dockerfile: docker/api.Dockerfile
+      dockerfile: docker/dockerfiles/api.Dockerfile
     image: uwr-training-api
     profiles: ["tools"]
     environment:

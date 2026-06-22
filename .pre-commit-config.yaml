@@ -26,13 +26,13 @@ repos:
       - id: eslint
         name: eslint (front-end)
         language: system
-        entry: docker/precommit-frontend.sh eslint
+        entry: front-end/precommit.sh eslint
         files: ^front-end/.*\.(ts|tsx|js|jsx)$
         require_serial: true
       - id: prettier
         name: prettier (front-end)
         language: system
-        entry: docker/precommit-frontend.sh prettier
+        entry: front-end/precommit.sh prettier
         files: ^front-end/.*\.(ts|tsx|js|jsx|css|html|json|md|yml|yaml)$
         require_serial: true
 

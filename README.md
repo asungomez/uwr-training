@@ -95,24 +95,33 @@ This is independent of the Docker setup — it runs hooks on your host using the
 
 ## How it works
 
-The `docker/` directory holds three pieces:
+The `docker/` directory is laid out as:
 
-- **`Dockerfile`** + **`entrypoint.sh`** — the pre-commit **checker**
-  (`python:3.12-slim` with git, Node 22, and the `pre-commit` framework). The
-  entrypoint installs front-end deps on first run, then runs
-  `pre-commit run --all-files`. `PRE_COMMIT_HOME` points at a cache volume so hook
-  environments aren't rebuilt each run.
-- **`frontend.Dockerfile`** — `node:22-slim` running the Vite dev server on port
-  5173.
-- **`api.Dockerfile`** — `python:3.12-slim` with [uv](https://docs.astral.sh/uv/),
-  running `uvicorn --reload` on port 8000. Dependencies live in a venv at
-  `/opt/venv`, outside the source mount.
-- **`docker-compose.yml`** — defines the `frontend`, `api`, and `checker` services.
-  Source is bind-mounted for live reload; named volumes keep Linux-native
-  `node_modules` and the pre-commit cache separate from the host.
+```
+docker/
+  docker-compose.yml
+  dockerfiles/   checker · frontend · api  (one .Dockerfile per service)
+  entrypoints/   checker.sh
+```
 
-The `.pre-commit-config.yaml` hooks are scoped by path so front-end hooks only
-touch `front-end/` and Python hooks (Ruff + mypy strict) only touch `api/`.
+- **`dockerfiles/checker.Dockerfile`** + **`entrypoints/checker.sh`** — the
+  pre-commit **checker** (`python:3.12-slim` with git, Node 22, and the
+  `pre-commit` framework). The entrypoint installs front-end deps on first run,
+  then runs `pre-commit run --all-files`. `PRE_COMMIT_HOME` points at a cache
+  volume so hook environments aren't rebuilt each run.
+- **`dockerfiles/frontend.Dockerfile`** — `node:22-slim` running the Vite dev
+  server on port 5173.
+- **`dockerfiles/api.Dockerfile`** — `python:3.12-slim` with
+  [uv](https://docs.astral.sh/uv/), running `uvicorn --reload` on port 8000.
+  Dependencies live in a venv at `/opt/venv`, outside the source mount.
+- **`docker-compose.yml`** — defines the `frontend`, `api`, `db`, `checker`, and
+  one-off `admin` services. Source is bind-mounted for live reload; named volumes
+  keep Linux-native `node_modules` and the pre-commit cache separate from the host.
+
+The `.pre-commit-config.yaml` hooks are scoped by path so Python hooks (Ruff + mypy
+strict) only touch `api/`. The front-end ESLint/Prettier hooks run via
+[`front-end/precommit.sh`](front-end/precommit.sh), which executes them in the
+checker image — so neither the host nor a running dev stack needs `node_modules`.
 
 ## Front-end
 

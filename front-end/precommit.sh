@@ -23,7 +23,7 @@ case "$tool" in
   eslint) cmd="npx eslint --fix --no-warn-ignored" ;;
   prettier) cmd="npx prettier --write --ignore-unknown" ;;
   *)
-    echo "precommit-frontend: unknown tool '$tool'" >&2
+    echo "precommit: unknown tool '$tool'" >&2
     exit 2
     ;;
 esac
@@ -39,4 +39,4 @@ fi
 # Re-invoke this same script inside the container (PRECOMMIT_IN_CONTAINER short-circuit).
 exec docker compose -f docker/docker-compose.yml run --rm -T \
   -e PRECOMMIT_IN_CONTAINER=1 checker \
-  /repo/docker/precommit-frontend.sh "$tool" "${files[@]}"
+  /repo/front-end/precommit.sh "$tool" "${files[@]}"
