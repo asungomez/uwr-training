@@ -12,7 +12,7 @@ services:
       # whatever /api/ captured, so /api/db-health -> <api>/db-health.
       - type: rewrite
         source: /api/*
-        destination: https://uwr-training-api-tu0v.onrender.com/*
+        destination: https://uwr-training-api.onrender.com/*
       # SPA: serve index.html for client-side routes instead of 404.
       - type: rewrite
         source: /*
