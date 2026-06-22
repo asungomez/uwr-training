@@ -37,9 +37,11 @@ class DirectoryStatus(enum.StrEnum):
 
 
 class UserListParams(PaginationParams):
-    """Query params for the admin users directory: pagination + email search."""
+    """Query params for the admin users directory: pagination + filters."""
 
     search: str | None = None
+    role: UserRole | None = None
+    status: DirectoryStatus | None = None
 
 
 class DirectoryEntryResponse(BaseModel):

@@ -76,41 +76,68 @@ async def list_users(
     session: Annotated[AsyncSession, Depends(get_session)],
     params: Annotated[UserListParams, Query()],
 ) -> Page[DirectoryEntryResponse]:
-    """Existing users plus invitations that haven't been accepted yet,
-    optionally filtered by a case-insensitive partial email match."""
-    users_query = select(User)
-    pending_query = select(Invitation).where(Invitation.accepted_at.is_(None))
-    if params.search:
-        pattern = f"%{params.search.strip()}%"
-        users_query = users_query.where(User.email.ilike(pattern))
-        pending_query = pending_query.where(Invitation.email.ilike(pattern))
-
-    users = await session.scalars(users_query)
-    pending = await session.scalars(pending_query)
-
+    """Existing users plus invitations that haven't been accepted yet, optionally
+    filtered. `status` scopes the result: active/inactive look at users only,
+    invitation_pending/expired look at invitations only."""
     now = datetime.now(UTC)
-    entries = [
-        DirectoryEntryResponse(
-            id=user.id,
-            email=user.email,
-            role=user.role,
-            status=(DirectoryStatus.active if user.is_active else DirectoryStatus.inactive),
-        )
-        for user in users
-    ]
-    entries += [
-        DirectoryEntryResponse(
-            id=invitation.id,
-            email=invitation.email,
-            role=invitation.role,
-            status=(
-                DirectoryStatus.invitation_pending
-                if invitation.expires_at >= now
-                else DirectoryStatus.invitation_expired
-            ),
-        )
-        for invitation in pending
-    ]
+    user_statuses = {DirectoryStatus.active, DirectoryStatus.inactive}
+    invitation_statuses = {
+        DirectoryStatus.invitation_pending,
+        DirectoryStatus.invitation_expired,
+    }
+    include_users = params.status is None or params.status in user_statuses
+    include_invitations = params.status is None or params.status in invitation_statuses
+
+    entries: list[DirectoryEntryResponse] = []
+
+    if include_users:
+        users_query = select(User)
+        if params.search:
+            users_query = users_query.where(User.email.ilike(f"%{params.search.strip()}%"))
+        if params.role is not None:
+            users_query = users_query.where(User.role == params.role)
+        if params.status == DirectoryStatus.active:
+            users_query = users_query.where(User.is_active.is_(True))
+        elif params.status == DirectoryStatus.inactive:
+            users_query = users_query.where(User.is_active.is_(False))
+        users = await session.scalars(users_query)
+        entries += [
+            DirectoryEntryResponse(
+                id=user.id,
+                email=user.email,
+                role=user.role,
+                status=(DirectoryStatus.active if user.is_active else DirectoryStatus.inactive),
+            )
+            for user in users
+        ]
+
+    if include_invitations:
+        pending_query = select(Invitation).where(Invitation.accepted_at.is_(None))
+        if params.search:
+            pending_query = pending_query.where(
+                Invitation.email.ilike(f"%{params.search.strip()}%")
+            )
+        if params.role is not None:
+            pending_query = pending_query.where(Invitation.role == params.role)
+        if params.status == DirectoryStatus.invitation_pending:
+            pending_query = pending_query.where(Invitation.expires_at >= now)
+        elif params.status == DirectoryStatus.invitation_expired:
+            pending_query = pending_query.where(Invitation.expires_at < now)
+        pending = await session.scalars(pending_query)
+        entries += [
+            DirectoryEntryResponse(
+                id=invitation.id,
+                email=invitation.email,
+                role=invitation.role,
+                status=(
+                    DirectoryStatus.invitation_pending
+                    if invitation.expires_at >= now
+                    else DirectoryStatus.invitation_expired
+                ),
+            )
+            for invitation in pending
+        ]
+
     entries.sort(key=lambda entry: entry.email)
     return paginate(entries, params)
 

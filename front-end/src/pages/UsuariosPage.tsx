@@ -3,6 +3,7 @@ import { useState } from 'react'
 
 import { useQuery } from '../api/client'
 import type { components } from '../api/schema'
+import FilterSelect from '../components/FilterSelect'
 import Pagination from '../components/Pagination'
 import SearchInput from '../components/SearchInput'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
@@ -56,11 +57,23 @@ function StatusBadge({ status }: { status: Status }) {
 function UsuariosPage() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
+  const [role, setRole] = useState<Role | ''>('')
+  const [status, setStatus] = useState<Status | ''>('')
   const debouncedSearch = useDebouncedValue(search.trim(), 300)
 
   // Searching changes the result set, so jump back to the first page.
   function handleSearchChange(value: string) {
     setSearch(value)
+    setPage(1)
+  }
+
+  function handleRoleChange(value: string) {
+    setRole(value as Role | '')
+    setPage(1)
+  }
+
+  function handleStatusChange(value: string) {
+    setStatus(value as Status | '')
     setPage(1)
   }
 
@@ -71,8 +84,10 @@ function UsuariosPage() {
         query: {
           page,
           page_size: PAGE_SIZE,
-          // Omit when empty so the SWR key (and request) stays clean.
+          // Omit empties so the SWR key (and request) stays clean.
           ...(debouncedSearch ? { search: debouncedSearch } : {}),
+          ...(role ? { role } : {}),
+          ...(status ? { status } : {}),
         },
       },
     },
@@ -99,11 +114,33 @@ function UsuariosPage() {
 
       <InviteUserModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
 
-      <div className="mt-4">
+      <div className="mt-4 flex flex-wrap items-center gap-3">
         <SearchInput
           value={search}
           onChange={handleSearchChange}
           placeholder="Buscar por correo…"
+        />
+        <FilterSelect
+          value={role}
+          onChange={handleRoleChange}
+          label="Filtrar por rol"
+          options={[
+            { value: '', label: 'Todos los roles' },
+            { value: 'admin', label: 'Administrador' },
+            { value: 'member', label: 'Miembro' },
+          ]}
+        />
+        <FilterSelect
+          value={status}
+          onChange={handleStatusChange}
+          label="Filtrar por estado"
+          options={[
+            { value: '', label: 'Todos los estados' },
+            { value: 'active', label: 'Activo' },
+            { value: 'inactive', label: 'Inactivo' },
+            { value: 'invitation_pending', label: 'Invitación pendiente' },
+            { value: 'invitation_expired', label: 'Invitación expirada' },
+          ]}
         />
       </div>
 

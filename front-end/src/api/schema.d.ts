@@ -115,8 +115,9 @@ export interface paths {
         };
         /**
          * List Users
-         * @description Existing users plus invitations that haven't been accepted yet,
-         *     optionally filtered by a case-insensitive partial email match.
+         * @description Existing users plus invitations that haven't been accepted yet, optionally
+         *     filtered. `status` scopes the result: active/inactive look at users only,
+         *     invitation_pending/expired look at invitations only.
          */
         get: operations["list_users_auth_users_get"];
         put?: never;
@@ -458,6 +459,8 @@ export interface operations {
                 page?: number;
                 page_size?: number;
                 search?: string | null;
+                role?: components["schemas"]["UserRole"] | null;
+                status?: components["schemas"]["DirectoryStatus"] | null;
             };
             header?: never;
             path?: never;
