@@ -5,8 +5,15 @@ with random host ports (so a running dev stack on 5173/8000/5432 is untouched).
 Migrations run once per session; every table is truncated before each test.
 """
 
+import os
 from collections.abc import Iterator
 from pathlib import Path
+
+# The session-cookie JWT is signed host-side (log_in_as) and verified in the api
+# container, so both must share SECRET_KEY. Set it before any `app.*` import so
+# app.settings picks it up.
+SECRET_KEY = "test-secret-key-at-least-32-bytes-long"
+os.environ["SECRET_KEY"] = SECRET_KEY
 
 import pytest
 import sqlalchemy
@@ -15,7 +22,7 @@ from testcontainers.core.container import DockerContainer
 from testcontainers.core.network import Network
 from testcontainers.core.waiting_utils import wait_for_logs
 
-# Seeding fixtures (generate_user, create_user, …) live in dedicated modules.
+# Seeding fixtures (generate_user, create_user, log_in_as, …) live in dedicated modules.
 pytest_plugins = ["seeding.user.fixtures"]
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -72,7 +79,7 @@ def _api(_network: Network, _db: DockerContainer) -> Iterator[DockerContainer]:
     container = (
         DockerContainer("uwr-training-api:test")
         .with_env("DATABASE_URL", INTERNAL_DB_URL)
-        .with_env("SECRET_KEY", "test-secret")
+        .with_env("SECRET_KEY", SECRET_KEY)
         .with_env("COOKIE_SECURE", "false")
         .with_exposed_ports(8000)
         .with_network(_network)
