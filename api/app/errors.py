@@ -12,6 +12,7 @@ class ErrorCode(enum.StrEnum):
     invalid_credentials = "invalid_credentials"
     admin_required = "admin_required"
     user_not_found = "user_not_found"
+    invalid_status = "invalid_status"
     email_already_exists = "email_already_exists"
     invitation_already_exists = "invitation_already_exists"
     invitation_not_found = "invitation_not_found"

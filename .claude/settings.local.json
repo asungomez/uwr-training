@@ -95,7 +95,8 @@
       "Bash(rm -f /tmp/cdp-clear.mjs /tmp/cnt.mjs /tmp/search-clear.png /tmp/search-box.png /tmp/cl.jar /tmp/cc.log /tmp/cc2.log)",
       "Bash(rm -rf /tmp/cdpc /tmp/cdpc2)",
       "Bash(sed -i '' 's/UsuariosPage/UsersPage/g' UsersPage.tsx)",
-      "Bash(sed -i '' 's/EntrenamientosPage/TrainingsPage/g' TrainingsPage.tsx)"
+      "Bash(sed -i '' 's/EntrenamientosPage/TrainingsPage/g' TrainingsPage.tsx)",
+      "Bash(../tests/.venv/bin/python -m pytest auth/test_user_activation.py::test_no_activation_button_for_invitation -x)"
     ]
   }
 }

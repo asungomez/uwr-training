@@ -15,6 +15,7 @@ from app.auth.schemas import (
     InvitationInfo,
     InvitationResponse,
     LoginRequest,
+    UpdateUserRequest,
     UserDetailResponse,
     UserListParams,
     UserResponse,
@@ -154,6 +155,17 @@ async def _inviter_email(session: AsyncSession, email: str) -> str | None:
     return inviter.email if inviter is not None else None
 
 
+async def _user_detail(session: AsyncSession, user: User) -> UserDetailResponse:
+    return UserDetailResponse(
+        id=user.id,
+        email=user.email,
+        role=user.role,
+        status=DirectoryStatus.active if user.is_active else DirectoryStatus.inactive,
+        created_at=user.created_at,
+        invited_by_email=await _inviter_email(session, user.email),
+    )
+
+
 @router.get("/users/{entry_id}", response_model=UserDetailResponse)
 async def get_user_detail(
     entry_id: uuid.UUID,
@@ -163,14 +175,7 @@ async def get_user_detail(
     """Detail for a directory entry — the id may be a user or an invitation."""
     user = await session.get(User, entry_id)
     if user is not None:
-        return UserDetailResponse(
-            id=user.id,
-            email=user.email,
-            role=user.role,
-            status=DirectoryStatus.active if user.is_active else DirectoryStatus.inactive,
-            created_at=user.created_at,
-            invited_by_email=await _inviter_email(session, user.email),
-        )
+        return await _user_detail(session, user)
 
     invitation = await session.get(Invitation, entry_id)
     if invitation is not None and invitation.accepted_at is None:
@@ -190,6 +195,32 @@ async def get_user_detail(
         )
 
     raise api_error(status.HTTP_404_NOT_FOUND, ErrorCode.user_not_found, "User not found")
+
+
+@router.patch("/users/{user_id}", response_model=UserDetailResponse)
+async def update_user(
+    user_id: uuid.UUID,
+    body: UpdateUserRequest,
+    _admin: Annotated[User, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> UserDetailResponse:
+    """Partially update a user. Only real users are updatable (not invitations)."""
+    user = await session.get(User, user_id)
+    if user is None:
+        raise api_error(status.HTTP_404_NOT_FOUND, ErrorCode.user_not_found, "User not found")
+
+    if body.status is not None:
+        if body.status not in (DirectoryStatus.active, DirectoryStatus.inactive):
+            raise api_error(
+                status.HTTP_400_BAD_REQUEST,
+                ErrorCode.invalid_status,
+                "A user's status can only be active or inactive",
+            )
+        user.is_active = body.status == DirectoryStatus.active
+
+    await session.commit()
+    await session.refresh(user)
+    return await _user_detail(session, user)
 
 
 @router.post(

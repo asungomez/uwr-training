@@ -148,6 +148,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/users/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update User
+         * @description Partially update a user. Only real users are updatable (not invitations).
+         */
+        patch: operations["update_user_auth_users__user_id__patch"];
+        trace?: never;
+    };
     "/auth/invitations": {
         parameters: {
             query?: never;
@@ -287,6 +307,13 @@ export interface components {
             items: components["schemas"]["DirectoryEntryResponse"][];
             /** Total Count */
             total_count: number;
+        };
+        /**
+         * UpdateUserRequest
+         * @description Partial update for a user. Only `status` for now; more fields can be added.
+         */
+        UpdateUserRequest: {
+            status?: components["schemas"]["DirectoryStatus"] | null;
         };
         /**
          * UserDetailResponse
@@ -540,6 +567,43 @@ export interface operations {
             };
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_user_auth_users__user_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateUserRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

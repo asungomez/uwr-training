@@ -76,6 +76,12 @@ class UserDetailResponse(BaseModel):
         return str(value)
 
 
+class UpdateUserRequest(BaseModel):
+    """Partial update for a user. Only `status` for now; more fields can be added."""
+
+    status: DirectoryStatus | None = None
+
+
 class CreateInvitationRequest(BaseModel):
     email: EmailStr
 

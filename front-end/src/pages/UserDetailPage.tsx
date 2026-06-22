@@ -1,7 +1,9 @@
 import { ChevronRight } from 'lucide-react'
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
-import { useQuery } from '../api/client'
+import { api, useMutate, useQuery } from '../api/client'
+import { errorMessage } from '../api/errors'
 import { RoleBadge, StatusBadge } from '../components/userBadges'
 
 function formatDate(value: string): string {
@@ -24,9 +26,33 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function UserDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const entryId = id ?? ''
   const { data, isLoading, error } = useQuery('/auth/users/{entry_id}', {
-    params: { path: { entry_id: id ?? '' } },
+    params: { path: { entry_id: entryId } },
   })
+  const mutate = useMutate()
+  const [updating, setUpdating] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
+
+  // Only real users can be (de)activated; invitations have no such action.
+  const isUser = data?.status === 'active' || data?.status === 'inactive'
+
+  async function toggleActive() {
+    if (!data) return
+    const nextStatus = data.status === 'active' ? 'inactive' : 'active'
+    setUpdating(true)
+    setActionError(null)
+    const { error: patchError } = await api.PATCH('/auth/users/{user_id}', {
+      params: { path: { user_id: entryId } },
+      body: { status: nextStatus },
+    })
+    setUpdating(false)
+    if (patchError) {
+      setActionError(errorMessage(patchError))
+      return
+    }
+    await mutate(['/auth/users/{entry_id}', { params: { path: { entry_id: entryId } } }])
+  }
 
   return (
     <section>
@@ -56,6 +82,28 @@ function UserDetailPage() {
             {data.expires_at ? formatDate(data.expires_at) : BLANK}
           </Field>
         </dl>
+      )}
+
+      {data && isUser && (
+        <div className="mt-6 flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => void toggleActive()}
+            disabled={updating}
+            className={`w-fit rounded-md px-4 py-2 text-sm font-medium text-white transition-colors focus:ring-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 ${
+              data.status === 'active'
+                ? 'bg-red-600 hover:bg-red-500 focus:ring-red-400'
+                : 'bg-green-600 hover:bg-green-500 focus:ring-green-400'
+            }`}
+          >
+            {data.status === 'active' ? 'Desactivar' : 'Activar'}
+          </button>
+          {actionError && (
+            <p role="alert" className="text-sm text-red-400">
+              {actionError}
+            </p>
+          )}
+        </div>
       )}
     </section>
   )
