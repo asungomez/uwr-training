@@ -62,11 +62,10 @@ def test_invited_user_appears_as_pending(
     page.get_by_role("button", name="Enviar invitación").click()
     expect(page.get_by_label("Enlace de invitación")).to_be_visible()
 
-    # When I close the modal and the list reloads.
+    # When I close the modal (no manual reload — the table revalidates itself).
     page.get_by_role("button", name="Cerrar").click()
-    page.reload()
 
-    # Then the invitee shows in the table with a pending status.
+    # Then the invitee shows in the table with a pending status, live.
     row = page.get_by_role("row").filter(has_text="pending@example.com")
     expect(row).to_contain_text("Invitación pendiente")
 
@@ -91,6 +90,33 @@ def test_invite_existing_user_shows_spanish_error(
     # Then the modal shows the localized (Spanish) error from the error code.
     expect(page.get_by_role("alert")).to_have_text(
         "Ya existe un usuario con este correo electrónico."
+    )
+
+
+def test_invite_duplicate_email_shows_spanish_error(
+    page: Page,
+    app_url: str,
+    create_user: Callable[..., User],
+    log_in_as: Callable[[User], None],
+) -> None:
+    # Given a logged-in admin who has already invited an email.
+    admin = create_user(role="admin")
+    log_in_as(admin)
+    page.goto(f"{app_url}/usuarios")
+    page.get_by_role("button", name="Invitar nuevo usuario").click()
+    page.get_by_label("Correo electrónico").fill("dup@example.com")
+    page.get_by_role("button", name="Enviar invitación").click()
+    expect(page.get_by_label("Enlace de invitación")).to_be_visible()
+    page.get_by_role("button", name="Cerrar").click()
+
+    # When I try to invite the same email again.
+    page.get_by_role("button", name="Invitar nuevo usuario").click()
+    page.get_by_label("Correo electrónico").fill("dup@example.com")
+    page.get_by_role("button", name="Enviar invitación").click()
+
+    # Then the modal shows the localized duplicate-invitation error.
+    expect(page.get_by_role("alert")).to_have_text(
+        "Ya existe una invitación para este correo electrónico."
     )
 
 

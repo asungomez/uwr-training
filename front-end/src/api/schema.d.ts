@@ -199,6 +199,8 @@ export interface components {
          * @description A row in the admin users table: an existing user or a pending invitation.
          */
         DirectoryEntryResponse: {
+            /** Id */
+            id: string;
             /** Email */
             email: string;
             role: components["schemas"]["UserRole"];
@@ -256,6 +258,13 @@ export interface components {
             email: string;
             /** Password */
             password: string;
+        };
+        /** Page[DirectoryEntryResponse] */
+        Page_DirectoryEntryResponse_: {
+            /** Items */
+            items: components["schemas"]["DirectoryEntryResponse"][];
+            /** Total Count */
+            total_count: number;
         };
         /** UserResponse */
         UserResponse: {
@@ -444,7 +453,10 @@ export interface operations {
     };
     list_users_auth_users_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
             header?: never;
             path?: never;
             cookie?: {
@@ -459,7 +471,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DirectoryEntryResponse"][];
+                    "application/json": components["schemas"]["Page_DirectoryEntryResponse_"];
                 };
             };
             /** @description Validation Error */

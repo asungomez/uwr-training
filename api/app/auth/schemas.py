@@ -38,9 +38,14 @@ class DirectoryStatus(enum.StrEnum):
 class DirectoryEntryResponse(BaseModel):
     """A row in the admin users table: an existing user or a pending invitation."""
 
+    id: uuid.UUID
     email: str
     role: UserRole
     status: DirectoryStatus
+
+    @field_serializer("id")
+    def serialize_id(self, value: uuid.UUID) -> str:
+        return str(value)
 
 
 class CreateInvitationRequest(BaseModel):

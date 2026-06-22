@@ -3,7 +3,10 @@ import { useState } from 'react'
 
 import { useQuery } from '../api/client'
 import type { components } from '../api/schema'
+import Pagination from '../components/Pagination'
 import InviteUserModal from './InviteUserModal'
+
+const PAGE_SIZE = 10
 
 type DirectoryEntry = components['schemas']['DirectoryEntryResponse']
 type Role = DirectoryEntry['role']
@@ -49,7 +52,15 @@ function StatusBadge({ status }: { status: Status }) {
 }
 
 function UsuariosPage() {
-  const { data: entries, isLoading, error } = useQuery('/auth/users', {})
+  const [page, setPage] = useState(1)
+  const { data, isLoading, error } = useQuery(
+    '/auth/users',
+    { params: { query: { page, page_size: PAGE_SIZE } } },
+    { keepPreviousData: true },
+  )
+  const entries = data?.items
+  const totalCount = data?.total_count ?? 0
+  const pageCount = Math.ceil(totalCount / PAGE_SIZE)
   const [inviteOpen, setInviteOpen] = useState(false)
 
   return (
@@ -86,7 +97,7 @@ function UsuariosPage() {
             </thead>
             <tbody>
               {entries.map((entry) => (
-                <tr key={entry.email} className="border-b border-slate-800">
+                <tr key={entry.id} className="border-b border-slate-800">
                   <td className="py-3 pr-4 text-slate-200">{entry.email}</td>
                   <td className="py-3 pr-4">
                     <RoleBadge role={entry.role} />
@@ -103,7 +114,7 @@ function UsuariosPage() {
           <ul className="mt-6 flex flex-col gap-3 md:hidden">
             {entries.map((entry) => (
               <li
-                key={entry.email}
+                key={entry.id}
                 className="flex flex-col gap-2 rounded-lg border border-slate-700 bg-slate-800 p-4"
               >
                 <span className="break-all font-medium text-slate-100">{entry.email}</span>
@@ -114,6 +125,8 @@ function UsuariosPage() {
               </li>
             ))}
           </ul>
+
+          <Pagination page={page} pageCount={pageCount} onPageChange={setPage} />
         </>
       )}
     </section>

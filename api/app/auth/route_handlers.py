@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,6 +24,7 @@ from app.auth.utils import (
 from app.db import get_session
 from app.errors import ErrorCode, api_error
 from app.models import Invitation, User, UserRole
+from app.pagination import Page, PaginationParams, paginate
 from app.security import (
     INVITATION_MAX_AGE,
     generate_invitation_token,
@@ -68,11 +69,12 @@ async def logout(response: Response) -> dict[str, str]:
     return {"status": "ok"}
 
 
-@router.get("/users", response_model=list[DirectoryEntryResponse])
+@router.get("/users")
 async def list_users(
     _admin: Annotated[User, Depends(require_admin)],
     session: Annotated[AsyncSession, Depends(get_session)],
-) -> list[DirectoryEntryResponse]:
+    pagination: Annotated[PaginationParams, Query()],
+) -> Page[DirectoryEntryResponse]:
     """Existing users plus invitations that haven't been accepted yet."""
     users = await session.scalars(select(User))
     pending = await session.scalars(select(Invitation).where(Invitation.accepted_at.is_(None)))
@@ -80,6 +82,7 @@ async def list_users(
     now = datetime.now(UTC)
     entries = [
         DirectoryEntryResponse(
+            id=user.id,
             email=user.email,
             role=user.role,
             status=(DirectoryStatus.active if user.is_active else DirectoryStatus.inactive),
@@ -88,6 +91,7 @@ async def list_users(
     ]
     entries += [
         DirectoryEntryResponse(
+            id=invitation.id,
             email=invitation.email,
             role=invitation.role,
             status=(
@@ -99,7 +103,7 @@ async def list_users(
         for invitation in pending
     ]
     entries.sort(key=lambda entry: entry.email)
-    return entries
+    return paginate(entries, pagination)
 
 
 @router.post(
@@ -120,6 +124,14 @@ async def create_invitation(
             status.HTTP_409_CONFLICT,
             ErrorCode.email_already_exists,
             "A user with this email already exists",
+        )
+
+    existing_invitation = await session.scalar(select(Invitation).where(Invitation.email == email))
+    if existing_invitation is not None:
+        raise api_error(
+            status.HTTP_409_CONFLICT,
+            ErrorCode.invitation_already_exists,
+            "An invitation for this email already exists",
         )
 
     token = generate_invitation_token()

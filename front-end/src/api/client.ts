@@ -1,5 +1,5 @@
 import createClient from 'openapi-fetch'
-import { createQueryHook } from 'swr-openapi'
+import { createMutateHook, createQueryHook } from 'swr-openapi'
 
 import type { paths } from './schema'
 
@@ -12,4 +12,16 @@ export const api = createClient<paths>({
   credentials: 'include',
 })
 
+// Deep partial-match: does `subset` appear within `value`? Used to match SWR keys
+// by path (and optionally a params subset) for revalidation.
+function isMatch(value: unknown, subset: unknown): boolean {
+  if (subset === value) return true
+  if (typeof subset !== 'object' || subset === null) return false
+  if (typeof value !== 'object' || value === null) return false
+  return Object.entries(subset).every(([key, sub]) =>
+    isMatch((value as Record<string, unknown>)[key], sub),
+  )
+}
+
 export const useQuery = createQueryHook(api, 'api')
+export const useMutate = createMutateHook(api, 'api', isMatch)

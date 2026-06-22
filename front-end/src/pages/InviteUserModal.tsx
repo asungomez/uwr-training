@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
-import { api } from '../api/client'
+import { api, useMutate } from '../api/client'
 import { errorMessage } from '../api/errors'
 import Modal from '../components/Modal'
 
@@ -31,6 +31,7 @@ function InviteUserModal({ open, onClose }: InviteUserModalProps) {
     setError,
     formState: { errors, isSubmitting },
   } = useForm<InviteValues>({ resolver: zodResolver(schema) })
+  const mutate = useMutate()
   const [link, setLink] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
@@ -50,6 +51,8 @@ function InviteUserModal({ open, onClose }: InviteUserModalProps) {
       return
     }
     setLink(inviteUrl(data.token))
+    // Revalidate the users directory so the new pending invitation shows live.
+    await mutate(['/auth/users'])
   }
 
   async function copyLink() {

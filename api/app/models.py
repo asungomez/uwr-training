@@ -44,7 +44,7 @@ class Invitation(Base):
     __tablename__ = "invitations"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    email: Mapped[str] = mapped_column(index=True)
+    email: Mapped[str] = mapped_column(unique=True, index=True)
     token_hash: Mapped[str] = mapped_column(unique=True, index=True)
     role: Mapped[UserRole]
     invited_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
