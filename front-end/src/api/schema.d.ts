@@ -106,6 +106,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Users */
+        get: operations["list_users_auth_users_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/invitations": {
         parameters: {
             query?: never;
@@ -227,6 +244,8 @@ export interface components {
             /** Email */
             email: string;
             role: components["schemas"]["UserRole"];
+            /** Is Active */
+            is_active: boolean;
         };
         /**
          * UserRole
@@ -399,6 +418,37 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
+                };
+            };
+        };
+    };
+    list_users_auth_users_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

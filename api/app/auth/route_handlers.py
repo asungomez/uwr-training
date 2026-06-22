@@ -66,6 +66,15 @@ async def logout(response: Response) -> dict[str, str]:
     return {"status": "ok"}
 
 
+@router.get("/users", response_model=list[UserResponse])
+async def list_users(
+    _admin: Annotated[User, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[User]:
+    result = await session.scalars(select(User).order_by(User.email))
+    return list(result.all())
+
+
 @router.post(
     "/invitations",
     response_model=InvitationResponse,

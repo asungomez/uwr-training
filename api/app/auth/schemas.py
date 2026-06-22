@@ -17,6 +17,7 @@ class UserResponse(BaseModel):
     id: uuid.UUID
     email: str
     role: UserRole
+    is_active: bool
 
     @field_serializer("id")
     def serialize_id(self, value: uuid.UUID) -> str:

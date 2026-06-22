@@ -89,7 +89,8 @@
       "Bash(make test *)",
       "Bash(curl -s -o /dev/null -w \"dev frontend :5173 -> %{http_code}\\\\n\" http://localhost:5173/)",
       "Bash(curl -s -o /dev/null -w \"dev api :8000 -> %{http_code}\\\\n\" http://localhost:8000/health)",
-      "Bash(tests/.venv/bin/pip install *)"
+      "Bash(tests/.venv/bin/pip install *)",
+      "Bash(curl -s http://localhost:9222/json/version)"
     ]
   }
 }
