@@ -66,3 +66,4 @@ repos:
           - asyncpg>=0.30.0
           - bcrypt>=4.2.0
           - pyjwt>=2.10.0
+          - pydantic-settings>=2.6.0

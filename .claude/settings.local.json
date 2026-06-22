@@ -73,7 +73,14 @@
       "Bash(make gen-api *)",
       "Bash(node -e \"console.log\\(Object.keys\\(require\\('swr-openapi'\\)\\)\\)\")",
       "Bash(node -e \"const p=require\\('./node_modules/swr-openapi/package.json'\\); console.log\\('main:',p.main,'module:',p.module,'types:',p.types\\); console.log\\('exports:',JSON.stringify\\(p.exports\\)\\)\")",
-      "Bash(node *)"
+      "Bash(node *)",
+      "Bash(curl -s -o /dev/null -w \"/health: %{http_code}\\\\n\" http://localhost:8000/health)",
+      "Bash(curl -s -o /dev/null -w \"/db-health: %{http_code}\\\\n\" http://localhost:8000/db-health)",
+      "Bash(curl -s -o /dev/null -w \"/auth/me \\(no cookie, expect 401\\): %{http_code}\\\\n\" http://localhost:8000/auth/me)",
+      "Bash(rm cli.py)",
+      "Bash(rm app/cli.py)",
+      "Bash(mkdir -p app/cli)",
+      "Bash(echo \"exit: $?\")"
     ]
   }
 }

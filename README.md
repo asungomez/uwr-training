@@ -150,6 +150,14 @@ session cookie (`credentials: include`).
 
 Forms use [React Hook Form](https://react-hook-form.com/) with
 [Zod](https://zod.dev/) schemas (via `@hookform/resolvers`) for validation.
+Icons come from [lucide-react](https://lucide.dev/).
+
+Routing uses [React Router](https://reactrouter.com/). Unauthenticated users see the
+login screen; authenticated users get the app shell ([`src/layout/`](front-end/src/layout/)):
+a top navbar (app name centered, user menu with logout on the right), a left sidebar
+(collapsible via a hamburger on mobile), and the routed page content. The sidebar's
+"Administración" section (e.g. Usuarios) and its routes are admin-only — members are
+redirected away.
 
 ## API
 
@@ -214,8 +222,23 @@ session cookie** holding a signed JWT (no server-side session store). Related ro
 | `POST /auth/logout` | Clear the session cookie.                            |
 
 The cookie is signed with `SECRET_KEY` and marked `Secure` unless `COOKIE_SECURE=false`
-(set that for local plain-HTTP testing in a browser). The front-end isn't wired to
-these endpoints yet.
+(set that for local plain-HTTP testing in a browser).
+
+#### Invitations
+
+After the first admin exists, further users join by invitation (no public sign-up).
+The flow is API-only for now — there's **no email integration**; the admin shares the
+returned link manually (copy-paste).
+
+| Route                                  | Auth        | Purpose                                                                 |
+| -------------------------------------- | ----------- | ----------------------------------------------------------------------- |
+| `POST /auth/invitations`               | Admin       | Create a member invitation; returns the raw `token` **once** (only its hash is stored). |
+| `GET /auth/invitations/{token}`        | Public      | Validate a token and return the invitee email/role for the accept screen. |
+| `POST /auth/invitations/{token}/accept`| Public      | Set a password → create the member user and consume the invitation.     |
+
+Invitations are member-only, expire after 7 days, and can be accepted once. Validation
+errors: `404` unknown/used token, `410` expired, `409` email already a user, `403`
+non-admin create.
 
 ## Configuration
 
@@ -233,6 +256,10 @@ for local Docker dev**.
 | `DATABASE_URL`      | api        | `postgresql+asyncpg://uwr:uwr@localhost:5432/uwr` | Postgres connection string. A `postgresql://` scheme is auto-rewritten for asyncpg. |
 | `SECRET_KEY`        | api        | `dev-secret-change-me`                            | Signs session-cookie JWTs. On Render, generated and kept stable. **Set a real value in any non-local env.** |
 | `COOKIE_SECURE`     | api        | `true`                                            | When `true`, the session cookie is `Secure` (HTTPS only). Set `false` for local plain-HTTP browser testing. |
+
+The api's settings are centralized and typed in
+[`api/app/settings.py`](api/app/settings.py) (`pydantic-settings`); each variable
+above maps to a field there with its type and default.
 
 For local overrides, copy [`front-end/.env.example`](front-end/.env.example) to
 `front-end/.env`. On Render, these are set in [`render.yaml`](render.yaml).
