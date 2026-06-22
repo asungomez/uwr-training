@@ -115,7 +115,8 @@ export interface paths {
         };
         /**
          * List Users
-         * @description Existing users plus invitations that haven't been accepted yet.
+         * @description Existing users plus invitations that haven't been accepted yet,
+         *     optionally filtered by a case-insensitive partial email match.
          */
         get: operations["list_users_auth_users_get"];
         put?: never;
@@ -456,6 +457,7 @@ export interface operations {
             query?: {
                 page?: number;
                 page_size?: number;
+                search?: string | null;
             };
             header?: never;
             path?: never;

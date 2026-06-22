@@ -14,6 +14,7 @@ from app.auth.schemas import (
     InvitationInfo,
     InvitationResponse,
     LoginRequest,
+    UserListParams,
     UserResponse,
 )
 from app.auth.utils import (
@@ -24,7 +25,7 @@ from app.auth.utils import (
 from app.db import get_session
 from app.errors import ErrorCode, api_error
 from app.models import Invitation, User, UserRole
-from app.pagination import Page, PaginationParams, paginate
+from app.pagination import Page, paginate
 from app.security import (
     INVITATION_MAX_AGE,
     generate_invitation_token,
@@ -73,11 +74,19 @@ async def logout(response: Response) -> dict[str, str]:
 async def list_users(
     _admin: Annotated[User, Depends(require_admin)],
     session: Annotated[AsyncSession, Depends(get_session)],
-    pagination: Annotated[PaginationParams, Query()],
+    params: Annotated[UserListParams, Query()],
 ) -> Page[DirectoryEntryResponse]:
-    """Existing users plus invitations that haven't been accepted yet."""
-    users = await session.scalars(select(User))
-    pending = await session.scalars(select(Invitation).where(Invitation.accepted_at.is_(None)))
+    """Existing users plus invitations that haven't been accepted yet,
+    optionally filtered by a case-insensitive partial email match."""
+    users_query = select(User)
+    pending_query = select(Invitation).where(Invitation.accepted_at.is_(None))
+    if params.search:
+        pattern = f"%{params.search.strip()}%"
+        users_query = users_query.where(User.email.ilike(pattern))
+        pending_query = pending_query.where(Invitation.email.ilike(pattern))
+
+    users = await session.scalars(users_query)
+    pending = await session.scalars(pending_query)
 
     now = datetime.now(UTC)
     entries = [
@@ -103,7 +112,7 @@ async def list_users(
         for invitation in pending
     ]
     entries.sort(key=lambda entry: entry.email)
-    return paginate(entries, pagination)
+    return paginate(entries, params)
 
 
 @router.post(

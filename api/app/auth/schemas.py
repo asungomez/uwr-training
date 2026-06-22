@@ -5,6 +5,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, EmailStr, field_serializer
 
 from app.models import UserRole
+from app.pagination import PaginationParams
 
 
 class LoginRequest(BaseModel):
@@ -33,6 +34,12 @@ class DirectoryStatus(enum.StrEnum):
     inactive = "inactive"
     invitation_pending = "invitation_pending"
     invitation_expired = "invitation_expired"
+
+
+class UserListParams(PaginationParams):
+    """Query params for the admin users directory: pagination + email search."""
+
+    search: str | None = None
 
 
 class DirectoryEntryResponse(BaseModel):

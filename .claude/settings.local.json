@@ -90,7 +90,10 @@
       "Bash(curl -s -o /dev/null -w \"dev frontend :5173 -> %{http_code}\\\\n\" http://localhost:5173/)",
       "Bash(curl -s -o /dev/null -w \"dev api :8000 -> %{http_code}\\\\n\" http://localhost:8000/health)",
       "Bash(tests/.venv/bin/pip install *)",
-      "Bash(curl -s http://localhost:9222/json/version)"
+      "Bash(curl -s http://localhost:9222/json/version)",
+      "Bash(pkill -f \"remote-debugging-port=9222\")",
+      "Bash(rm -f /tmp/cdp-clear.mjs /tmp/cnt.mjs /tmp/search-clear.png /tmp/search-box.png /tmp/cl.jar /tmp/cc.log /tmp/cc2.log)",
+      "Bash(rm -rf /tmp/cdpc /tmp/cdpc2)"
     ]
   }
 }

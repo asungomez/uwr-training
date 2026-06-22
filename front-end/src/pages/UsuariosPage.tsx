@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { useQuery } from '../api/client'
 import type { components } from '../api/schema'
 import Pagination from '../components/Pagination'
+import SearchInput from '../components/SearchInput'
+import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import InviteUserModal from './InviteUserModal'
 
 const PAGE_SIZE = 10
@@ -53,9 +55,27 @@ function StatusBadge({ status }: { status: Status }) {
 
 function UsuariosPage() {
   const [page, setPage] = useState(1)
+  const [search, setSearch] = useState('')
+  const debouncedSearch = useDebouncedValue(search.trim(), 300)
+
+  // Searching changes the result set, so jump back to the first page.
+  function handleSearchChange(value: string) {
+    setSearch(value)
+    setPage(1)
+  }
+
   const { data, isLoading, error } = useQuery(
     '/auth/users',
-    { params: { query: { page, page_size: PAGE_SIZE } } },
+    {
+      params: {
+        query: {
+          page,
+          page_size: PAGE_SIZE,
+          // Omit when empty so the SWR key (and request) stays clean.
+          ...(debouncedSearch ? { search: debouncedSearch } : {}),
+        },
+      },
+    },
     { keepPreviousData: true },
   )
   const entries = data?.items
@@ -79,10 +99,24 @@ function UsuariosPage() {
 
       <InviteUserModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
 
+      <div className="mt-4">
+        <SearchInput
+          value={search}
+          onChange={handleSearchChange}
+          placeholder="Buscar por correo…"
+        />
+      </div>
+
       {isLoading && <p className="mt-4 text-slate-400">Cargando…</p>}
       {error && <p className="mt-4 text-red-400">No se pudieron cargar los usuarios.</p>}
 
-      {entries?.length === 0 && <p className="mt-4 text-slate-400">Todavía no hay usuarios.</p>}
+      {entries?.length === 0 && (
+        <p className="mt-4 text-slate-400">
+          {debouncedSearch
+            ? 'No hay usuarios que coincidan con la búsqueda.'
+            : 'Todavía no hay usuarios.'}
+        </p>
+      )}
 
       {entries && entries.length > 0 && (
         <>
