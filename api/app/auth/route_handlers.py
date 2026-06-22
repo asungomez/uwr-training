@@ -271,6 +271,41 @@ async def create_invitation(
     )
 
 
+@router.post("/invitations/{invitation_id}/regenerate", response_model=InvitationResponse)
+async def regenerate_invitation(
+    invitation_id: uuid.UUID,
+    _admin: Annotated[User, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> InvitationResponse:
+    """Issue a fresh token and reset the expiry for an existing invitation
+    (e.g. when the previous link expired). Returns the new link once."""
+    invitation = await session.get(Invitation, invitation_id)
+    if invitation is None:
+        raise api_error(
+            status.HTTP_404_NOT_FOUND,
+            ErrorCode.invitation_not_found,
+            "Invitation not found",
+        )
+    if invitation.accepted_at is not None:
+        raise api_error(
+            status.HTTP_409_CONFLICT,
+            ErrorCode.invitation_already_accepted,
+            "This invitation has already been accepted",
+        )
+
+    token = generate_invitation_token()
+    invitation.token_hash = hash_token(token)
+    invitation.expires_at = datetime.now(UTC) + INVITATION_MAX_AGE
+    await session.commit()
+
+    return InvitationResponse(
+        email=invitation.email,
+        role=invitation.role,
+        token=token,
+        expires_at=invitation.expires_at,
+    )
+
+
 @router.get("/invitations/{token}", response_model=InvitationInfo)
 async def get_invitation(
     token: str,
@@ -286,6 +321,13 @@ async def accept_invitation(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> User:
     invitation = await get_pending_invitation(token, session)
+
+    if body.email.strip().lower() != invitation.email:
+        raise api_error(
+            status.HTTP_400_BAD_REQUEST,
+            ErrorCode.invitation_email_mismatch,
+            "The email does not match this invitation",
+        )
 
     if await session.scalar(select(User).where(User.email == invitation.email)):
         raise api_error(

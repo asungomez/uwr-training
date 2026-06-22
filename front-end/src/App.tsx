@@ -1,9 +1,10 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 
-import LoginForm from './LoginForm'
 import AdminRoute from './auth/AdminRoute'
 import { useAuth } from './auth/context'
 import AppLayout from './layout/AppLayout'
+import AcceptInvitationPage from './pages/AcceptInvitationPage'
+import LoginPage from './pages/LoginPage'
 import TrainingsPage from './pages/TrainingsPage'
 import UserDetailPage from './pages/UserDetailPage'
 import UsersPage from './pages/UsersPage'
@@ -19,26 +20,24 @@ function App() {
     )
   }
 
-  if (!user) {
-    return (
-      <main className="flex min-h-svh flex-col items-center justify-center gap-8 bg-slate-900 px-4 text-slate-100">
-        <h1 className="text-4xl font-semibold tracking-tight">UWR entrenamiento</h1>
-        <LoginForm />
-      </main>
-    )
-  }
-
   return (
     <Routes>
-      <Route element={<AppLayout />}>
-        <Route index element={<Navigate to="/entrenamientos" replace />} />
-        <Route path="/entrenamientos" element={<TrainingsPage />} />
-        <Route path="/usuarios" element={<AdminRoute />}>
-          <Route index element={<UsersPage />} />
-          <Route path=":id" element={<UserDetailPage />} />
+      {/* Public: reachable whether or not you're logged in. */}
+      <Route path="/aceptar-invitacion/:token" element={<AcceptInvitationPage />} />
+
+      {!user ? (
+        <Route path="*" element={<LoginPage />} />
+      ) : (
+        <Route element={<AppLayout />}>
+          <Route index element={<Navigate to="/entrenamientos" replace />} />
+          <Route path="/entrenamientos" element={<TrainingsPage />} />
+          <Route path="/usuarios" element={<AdminRoute />}>
+            <Route index element={<UsersPage />} />
+            <Route path=":id" element={<UserDetailPage />} />
+          </Route>
+          <Route path="*" element={<Navigate to="/entrenamientos" replace />} />
         </Route>
-        <Route path="*" element={<Navigate to="/entrenamientos" replace />} />
-      </Route>
+      )}
     </Routes>
   )
 }

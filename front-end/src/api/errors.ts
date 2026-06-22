@@ -10,6 +10,8 @@ const messages: Record<string, string> = {
   invalid_status: 'El estado indicado no es válido.',
   email_already_exists: 'Ya existe un usuario con este correo electrónico.',
   invitation_already_exists: 'Ya existe una invitación para este correo electrónico.',
+  invitation_already_accepted: 'Esta invitación ya ha sido aceptada.',
+  invitation_email_mismatch: 'El correo electrónico no coincide con la invitación.',
   invitation_not_found: 'La invitación no existe o ya fue utilizada.',
   invitation_expired: 'La invitación ha caducado.',
 }

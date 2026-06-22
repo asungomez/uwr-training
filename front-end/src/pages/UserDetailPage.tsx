@@ -5,6 +5,7 @@ import { Link, useParams } from 'react-router-dom'
 import { api, useMutate, useQuery } from '../api/client'
 import { errorMessage } from '../api/errors'
 import { RoleBadge, StatusBadge } from '../components/userBadges'
+import RegeneratedInvitationModal from './RegeneratedInvitationModal'
 
 function formatDate(value: string): string {
   return new Date(value).toLocaleString('es-ES', {
@@ -33,9 +34,12 @@ function UserDetailPage() {
   const mutate = useMutate()
   const [updating, setUpdating] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [regeneratedToken, setRegeneratedToken] = useState<string | null>(null)
 
-  // Only real users can be (de)activated; invitations have no such action.
+  // Only real users can be (de)activated; invitations can be regenerated.
   const isUser = data?.status === 'active' || data?.status === 'inactive'
+  const isInvitation =
+    data?.status === 'invitation_pending' || data?.status === 'invitation_expired'
 
   async function toggleActive() {
     if (!data) return
@@ -51,6 +55,23 @@ function UserDetailPage() {
       setActionError(errorMessage(patchError))
       return
     }
+    await mutate(['/auth/users/{entry_id}', { params: { path: { entry_id: entryId } } }])
+  }
+
+  async function regenerateInvitation() {
+    setUpdating(true)
+    setActionError(null)
+    const { data: result, error: postError } = await api.POST(
+      '/auth/invitations/{invitation_id}/regenerate',
+      { params: { path: { invitation_id: entryId } } },
+    )
+    setUpdating(false)
+    if (postError) {
+      setActionError(errorMessage(postError))
+      return
+    }
+    setRegeneratedToken(result.token)
+    // The expiry changed, so refresh the detail.
     await mutate(['/auth/users/{entry_id}', { params: { path: { entry_id: entryId } } }])
   }
 
@@ -84,20 +105,32 @@ function UserDetailPage() {
         </dl>
       )}
 
-      {data && isUser && (
+      {data && (isUser || isInvitation) && (
         <div className="mt-6 flex flex-col gap-2">
-          <button
-            type="button"
-            onClick={() => void toggleActive()}
-            disabled={updating}
-            className={`w-fit rounded-md px-4 py-2 text-sm font-medium text-white transition-colors focus:ring-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 ${
-              data.status === 'active'
-                ? 'bg-red-600 hover:bg-red-500 focus:ring-red-400'
-                : 'bg-green-600 hover:bg-green-500 focus:ring-green-400'
-            }`}
-          >
-            {data.status === 'active' ? 'Desactivar' : 'Activar'}
-          </button>
+          {isUser && (
+            <button
+              type="button"
+              onClick={() => void toggleActive()}
+              disabled={updating}
+              className={`w-fit rounded-md px-4 py-2 text-sm font-medium text-white transition-colors focus:ring-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 ${
+                data.status === 'active'
+                  ? 'bg-red-600 hover:bg-red-500 focus:ring-red-400'
+                  : 'bg-green-600 hover:bg-green-500 focus:ring-green-400'
+              }`}
+            >
+              {data.status === 'active' ? 'Desactivar' : 'Activar'}
+            </button>
+          )}
+          {isInvitation && (
+            <button
+              type="button"
+              onClick={() => void regenerateInvitation()}
+              disabled={updating}
+              className="w-fit rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 focus:ring-2 focus:ring-indigo-400 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Generar nueva invitación
+            </button>
+          )}
           {actionError && (
             <p role="alert" className="text-sm text-red-400">
               {actionError}
@@ -105,6 +138,11 @@ function UserDetailPage() {
           )}
         </div>
       )}
+
+      <RegeneratedInvitationModal
+        token={regeneratedToken}
+        onClose={() => setRegeneratedToken(null)}
+      />
     </section>
   )
 }

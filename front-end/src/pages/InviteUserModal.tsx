@@ -1,11 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Check, Copy } from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
 import { api, useMutate } from '../api/client'
 import { errorMessage } from '../api/errors'
+import InvitationLink from '../components/InvitationLink'
 import Modal from '../components/Modal'
 
 const schema = z.object({
@@ -19,10 +19,6 @@ interface InviteUserModalProps {
   onClose: () => void
 }
 
-function inviteUrl(token: string): string {
-  return `${window.location.origin}/aceptar-invitacion/${token}`
-}
-
 function InviteUserModal({ open, onClose }: InviteUserModalProps) {
   const {
     register,
@@ -32,13 +28,11 @@ function InviteUserModal({ open, onClose }: InviteUserModalProps) {
     formState: { errors, isSubmitting },
   } = useForm<InviteValues>({ resolver: zodResolver(schema) })
   const mutate = useMutate()
-  const [link, setLink] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
+  const [token, setToken] = useState<string | null>(null)
 
   function handleClose() {
     reset()
-    setLink(null)
-    setCopied(false)
+    setToken(null)
     onClose()
   }
 
@@ -50,20 +44,14 @@ function InviteUserModal({ open, onClose }: InviteUserModalProps) {
       setError('root', { message: errorMessage(error) })
       return
     }
-    setLink(inviteUrl(data.token))
+    setToken(data.token)
     // Revalidate the users directory so the new pending invitation shows live.
     await mutate(['/auth/users'])
   }
 
-  async function copyLink() {
-    if (link === null) return
-    await navigator.clipboard.writeText(link)
-    setCopied(true)
-  }
-
   return (
     <Modal open={open} onClose={handleClose} title="Invitar nuevo usuario">
-      {link === null ? (
+      {token === null ? (
         <form
           onSubmit={(event) => void handleSubmit(onSubmit)(event)}
           noValidate
@@ -103,22 +91,7 @@ function InviteUserModal({ open, onClose }: InviteUserModalProps) {
           <p className="text-sm text-slate-300">
             Invitación creada. Comparte este enlace con la persona invitada:
           </p>
-          <div className="flex gap-2">
-            <input
-              readOnly
-              value={link}
-              aria-label="Enlace de invitación"
-              className="flex-1 rounded-md border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:outline-none"
-            />
-            <button
-              type="button"
-              onClick={() => void copyLink()}
-              className="inline-flex items-center gap-1 rounded-md border border-slate-600 px-3 py-2 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-700 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
-            >
-              {copied ? <Check size={16} /> : <Copy size={16} />}
-              {copied ? 'Copiado' : 'Copiar'}
-            </button>
-          </div>
+          <InvitationLink token={token} />
         </div>
       )}
     </Modal>

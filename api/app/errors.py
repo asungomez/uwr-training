@@ -15,6 +15,8 @@ class ErrorCode(enum.StrEnum):
     invalid_status = "invalid_status"
     email_already_exists = "email_already_exists"
     invitation_already_exists = "invitation_already_exists"
+    invitation_already_accepted = "invitation_already_accepted"
+    invitation_email_mismatch = "invitation_email_mismatch"
     invitation_not_found = "invitation_not_found"
     invitation_expired = "invitation_expired"
 

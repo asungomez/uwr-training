@@ -104,4 +104,6 @@ class InvitationInfo(BaseModel):
 
 
 class AcceptInvitationRequest(BaseModel):
+    # Email is verified against the invitation; the URL token alone isn't enough.
+    email: EmailStr
     password: str
