@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react'
 
 import { api, useQuery } from '../api/client'
+import { ApiError } from '../api/errors'
 import { AuthContext } from './context'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -21,7 +22,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       body: { email, password },
     })
     if (loginError) {
-      throw new Error('Credenciales inválidas')
+      throw new ApiError(loginError)
     }
     await mutate(loggedIn, { revalidate: false })
   }

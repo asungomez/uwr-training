@@ -1,5 +1,9 @@
+import { UserPlus } from 'lucide-react'
+import { useState } from 'react'
+
 import { useQuery } from '../api/client'
 import type { components } from '../api/schema'
+import InviteUserModal from './InviteUserModal'
 
 type User = components['schemas']['UserResponse']
 
@@ -33,10 +37,23 @@ function StatusBadge({ active }: { active: boolean }) {
 
 function UsuariosPage() {
   const { data: users, isLoading, error } = useQuery('/auth/users', {})
+  const [inviteOpen, setInviteOpen] = useState(false)
 
   return (
     <section>
-      <h2 className="text-2xl font-semibold tracking-tight">Usuarios</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-2xl font-semibold tracking-tight">Usuarios</h2>
+        <button
+          type="button"
+          onClick={() => setInviteOpen(true)}
+          className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+        >
+          <UserPlus size={16} />
+          Invitar nuevo usuario
+        </button>
+      </div>
+
+      <InviteUserModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
 
       {isLoading && <p className="mt-4 text-slate-400">Cargando…</p>}
       {error && <p className="mt-4 text-red-400">No se pudieron cargar los usuarios.</p>}

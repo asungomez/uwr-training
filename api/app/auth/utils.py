@@ -1,9 +1,10 @@
 from datetime import UTC, datetime
 
-from fastapi import HTTPException, Response, status
+from fastapi import Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.errors import ErrorCode, api_error
 from app.models import Invitation, User
 from app.security import (
     SESSION_COOKIE,
@@ -35,13 +36,11 @@ async def get_pending_invitation(token: str, session: AsyncSession) -> Invitatio
         select(Invitation).where(Invitation.token_hash == hash_token(token))
     )
     if invitation is None or invitation.accepted_at is not None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Invitation not found",
+        raise api_error(
+            status.HTTP_404_NOT_FOUND, ErrorCode.invitation_not_found, "Invitation not found"
         )
     if invitation.expires_at < datetime.now(UTC):
-        raise HTTPException(
-            status_code=status.HTTP_410_GONE,
-            detail="Invitation has expired",
+        raise api_error(
+            status.HTTP_410_GONE, ErrorCode.invitation_expired, "Invitation has expired"
         )
     return invitation

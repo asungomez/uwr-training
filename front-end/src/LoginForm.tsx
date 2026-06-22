@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
+import { errorMessage } from './api/errors'
 import { useAuth } from './auth/context'
 
 const schema = z.object({
@@ -23,8 +24,8 @@ function LoginForm() {
   async function onSubmit(values: LoginValues) {
     try {
       await login(values.email, values.password)
-    } catch {
-      setError('root', { message: 'Correo electrónico o contraseña incorrectos' })
+    } catch (error) {
+      setError('root', { message: errorMessage(error) })
     }
   }
 

@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,6 +20,7 @@ from app.auth.utils import (
     set_session_cookie,
 )
 from app.db import get_session
+from app.errors import ErrorCode, api_error
 from app.models import Invitation, User, UserRole
 from app.security import (
     INVITATION_MAX_AGE,
@@ -46,9 +47,8 @@ async def login(
         or not verify_password(body.password, user.hashed_password)
     )
     if invalid:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials",
+        raise api_error(
+            status.HTTP_401_UNAUTHORIZED, ErrorCode.invalid_credentials, "Invalid credentials"
         )
     assert user is not None  # guaranteed by the `invalid` check above
     set_session_cookie(response, user)
@@ -89,9 +89,10 @@ async def create_invitation(
 
     existing_user = await session.scalar(select(User).where(User.email == email))
     if existing_user is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="A user with this email already exists",
+        raise api_error(
+            status.HTTP_409_CONFLICT,
+            ErrorCode.email_already_exists,
+            "A user with this email already exists",
         )
 
     token = generate_invitation_token()
@@ -131,9 +132,10 @@ async def accept_invitation(
     invitation = await get_pending_invitation(token, session)
 
     if await session.scalar(select(User).where(User.email == invitation.email)):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="A user with this email already exists",
+        raise api_error(
+            status.HTTP_409_CONFLICT,
+            ErrorCode.email_already_exists,
+            "A user with this email already exists",
         )
 
     user = User(
