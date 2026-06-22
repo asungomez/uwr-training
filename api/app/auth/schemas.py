@@ -1,3 +1,4 @@
+import enum
 import uuid
 from datetime import datetime
 
@@ -22,6 +23,24 @@ class UserResponse(BaseModel):
     @field_serializer("id")
     def serialize_id(self, value: uuid.UUID) -> str:
         return str(value)
+
+
+class DirectoryStatus(enum.StrEnum):
+    """Status shown in the admin users table — covers both real users and the
+    pending/expired invitations that haven't become users yet."""
+
+    active = "active"
+    inactive = "inactive"
+    invitation_pending = "invitation_pending"
+    invitation_expired = "invitation_expired"
+
+
+class DirectoryEntryResponse(BaseModel):
+    """A row in the admin users table: an existing user or a pending invitation."""
+
+    email: str
+    role: UserRole
+    status: DirectoryStatus
 
 
 class CreateInvitationRequest(BaseModel):

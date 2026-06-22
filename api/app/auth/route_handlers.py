@@ -9,6 +9,8 @@ from app.auth.dependencies import current_user, require_admin
 from app.auth.schemas import (
     AcceptInvitationRequest,
     CreateInvitationRequest,
+    DirectoryEntryResponse,
+    DirectoryStatus,
     InvitationInfo,
     InvitationResponse,
     LoginRequest,
@@ -66,13 +68,38 @@ async def logout(response: Response) -> dict[str, str]:
     return {"status": "ok"}
 
 
-@router.get("/users", response_model=list[UserResponse])
+@router.get("/users", response_model=list[DirectoryEntryResponse])
 async def list_users(
     _admin: Annotated[User, Depends(require_admin)],
     session: Annotated[AsyncSession, Depends(get_session)],
-) -> list[User]:
-    result = await session.scalars(select(User).order_by(User.email))
-    return list(result.all())
+) -> list[DirectoryEntryResponse]:
+    """Existing users plus invitations that haven't been accepted yet."""
+    users = await session.scalars(select(User))
+    pending = await session.scalars(select(Invitation).where(Invitation.accepted_at.is_(None)))
+
+    now = datetime.now(UTC)
+    entries = [
+        DirectoryEntryResponse(
+            email=user.email,
+            role=user.role,
+            status=(DirectoryStatus.active if user.is_active else DirectoryStatus.inactive),
+        )
+        for user in users
+    ]
+    entries += [
+        DirectoryEntryResponse(
+            email=invitation.email,
+            role=invitation.role,
+            status=(
+                DirectoryStatus.invitation_pending
+                if invitation.expires_at >= now
+                else DirectoryStatus.invitation_expired
+            ),
+        )
+        for invitation in pending
+    ]
+    entries.sort(key=lambda entry: entry.email)
+    return entries
 
 
 @router.post(

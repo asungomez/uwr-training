@@ -47,6 +47,30 @@ def test_admin_can_invite_user(
     expect(link).to_have_value(re.compile(r"/aceptar-invitacion/.+"))
 
 
+def test_invited_user_appears_as_pending(
+    page: Page,
+    app_url: str,
+    create_user: Callable[..., User],
+    log_in_as: Callable[[User], None],
+) -> None:
+    # Given a logged-in admin who invites a new email.
+    admin = create_user(role="admin")
+    log_in_as(admin)
+    page.goto(f"{app_url}/usuarios")
+    page.get_by_role("button", name="Invitar nuevo usuario").click()
+    page.get_by_label("Correo electrónico").fill("pending@example.com")
+    page.get_by_role("button", name="Enviar invitación").click()
+    expect(page.get_by_label("Enlace de invitación")).to_be_visible()
+
+    # When I close the modal and the list reloads.
+    page.get_by_role("button", name="Cerrar").click()
+    page.reload()
+
+    # Then the invitee shows in the table with a pending status.
+    row = page.get_by_role("row").filter(has_text="pending@example.com")
+    expect(row).to_contain_text("Invitación pendiente")
+
+
 def test_invite_existing_user_shows_spanish_error(
     page: Page,
     app_url: str,

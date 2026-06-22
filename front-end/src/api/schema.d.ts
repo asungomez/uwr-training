@@ -113,7 +113,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Users */
+        /**
+         * List Users
+         * @description Existing users plus invitations that haven't been accepted yet.
+         */
         get: operations["list_users_auth_users_get"];
         put?: never;
         post?: never;
@@ -191,6 +194,23 @@ export interface components {
              */
             email: string;
         };
+        /**
+         * DirectoryEntryResponse
+         * @description A row in the admin users table: an existing user or a pending invitation.
+         */
+        DirectoryEntryResponse: {
+            /** Email */
+            email: string;
+            role: components["schemas"]["UserRole"];
+            status: components["schemas"]["DirectoryStatus"];
+        };
+        /**
+         * DirectoryStatus
+         * @description Status shown in the admin users table — covers both real users and the
+         *     pending/expired invitations that haven't become users yet.
+         * @enum {string}
+         */
+        DirectoryStatus: "active" | "inactive" | "invitation_pending" | "invitation_expired";
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -439,7 +459,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserResponse"][];
+                    "application/json": components["schemas"]["DirectoryEntryResponse"][];
                 };
             };
             /** @description Validation Error */

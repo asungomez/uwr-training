@@ -5,14 +5,29 @@ import { useQuery } from '../api/client'
 import type { components } from '../api/schema'
 import InviteUserModal from './InviteUserModal'
 
-type User = components['schemas']['UserResponse']
+type DirectoryEntry = components['schemas']['DirectoryEntryResponse']
+type Role = DirectoryEntry['role']
+type Status = DirectoryEntry['status']
 
-const roleLabel: Record<User['role'], string> = {
+const roleLabel: Record<Role, string> = {
   admin: 'Administrador',
   member: 'Miembro',
 }
 
-function RoleBadge({ role }: { role: User['role'] }) {
+const statusConfig: Record<Status, { label: string; styles: string }> = {
+  active: { label: 'Activo', styles: 'bg-green-500/15 text-green-300 ring-green-500/30' },
+  inactive: { label: 'Inactivo', styles: 'bg-red-500/15 text-red-300 ring-red-500/30' },
+  invitation_pending: {
+    label: 'Invitación pendiente',
+    styles: 'bg-amber-500/15 text-amber-300 ring-amber-500/30',
+  },
+  invitation_expired: {
+    label: 'Invitación expirada',
+    styles: 'bg-slate-500/15 text-slate-400 ring-slate-500/30',
+  },
+}
+
+function RoleBadge({ role }: { role: Role }) {
   const styles =
     role === 'admin'
       ? 'bg-indigo-500/15 text-indigo-300 ring-indigo-500/30'
@@ -24,19 +39,17 @@ function RoleBadge({ role }: { role: User['role'] }) {
   )
 }
 
-function StatusBadge({ active }: { active: boolean }) {
-  const styles = active
-    ? 'bg-green-500/15 text-green-300 ring-green-500/30'
-    : 'bg-red-500/15 text-red-300 ring-red-500/30'
+function StatusBadge({ status }: { status: Status }) {
+  const { label, styles } = statusConfig[status]
   return (
     <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${styles}`}>
-      {active ? 'Activo' : 'Inactivo'}
+      {label}
     </span>
   )
 }
 
 function UsuariosPage() {
-  const { data: users, isLoading, error } = useQuery('/auth/users', {})
+  const { data: entries, isLoading, error } = useQuery('/auth/users', {})
   const [inviteOpen, setInviteOpen] = useState(false)
 
   return (
@@ -58,9 +71,9 @@ function UsuariosPage() {
       {isLoading && <p className="mt-4 text-slate-400">Cargando…</p>}
       {error && <p className="mt-4 text-red-400">No se pudieron cargar los usuarios.</p>}
 
-      {users?.length === 0 && <p className="mt-4 text-slate-400">Todavía no hay usuarios.</p>}
+      {entries?.length === 0 && <p className="mt-4 text-slate-400">Todavía no hay usuarios.</p>}
 
-      {users && users.length > 0 && (
+      {entries && entries.length > 0 && (
         <>
           {/* Desktop: table */}
           <table className="mt-6 hidden w-full border-collapse text-left text-sm md:table">
@@ -72,14 +85,14 @@ function UsuariosPage() {
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => (
-                <tr key={user.id} className="border-b border-slate-800">
-                  <td className="py-3 pr-4 text-slate-200">{user.email}</td>
+              {entries.map((entry) => (
+                <tr key={entry.email} className="border-b border-slate-800">
+                  <td className="py-3 pr-4 text-slate-200">{entry.email}</td>
                   <td className="py-3 pr-4">
-                    <RoleBadge role={user.role} />
+                    <RoleBadge role={entry.role} />
                   </td>
                   <td className="py-3">
-                    <StatusBadge active={user.is_active} />
+                    <StatusBadge status={entry.status} />
                   </td>
                 </tr>
               ))}
@@ -88,15 +101,15 @@ function UsuariosPage() {
 
           {/* Mobile: stacked cards */}
           <ul className="mt-6 flex flex-col gap-3 md:hidden">
-            {users.map((user) => (
+            {entries.map((entry) => (
               <li
-                key={user.id}
+                key={entry.email}
                 className="flex flex-col gap-2 rounded-lg border border-slate-700 bg-slate-800 p-4"
               >
-                <span className="break-all font-medium text-slate-100">{user.email}</span>
+                <span className="break-all font-medium text-slate-100">{entry.email}</span>
                 <div className="flex flex-wrap gap-2">
-                  <RoleBadge role={user.role} />
-                  <StatusBadge active={user.is_active} />
+                  <RoleBadge role={entry.role} />
+                  <StatusBadge status={entry.status} />
                 </div>
               </li>
             ))}
