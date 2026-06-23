@@ -13,6 +13,12 @@ class CreateExerciseRequest(BaseModel):
     type: ExerciseType
 
 
+class UpdateExerciseRequest(BaseModel):
+    name: str
+    description: str | None = None
+    type: ExerciseType
+
+
 class ExerciseListParams(PaginationParams):
     """Query params for the exercises directory: pagination + filters."""
 

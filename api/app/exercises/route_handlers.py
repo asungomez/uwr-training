@@ -1,3 +1,4 @@
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
@@ -11,6 +12,7 @@ from app.exercises.schemas import (
     CreateExerciseRequest,
     ExerciseListParams,
     ExerciseResponse,
+    UpdateExerciseRequest,
 )
 from app.models import Exercise, User
 from app.pagination import Page
@@ -67,3 +69,55 @@ async def create_exercise(
     await session.commit()
     await session.refresh(exercise)
     return exercise
+
+
+@router.put("/{exercise_id}", response_model=ExerciseResponse)
+async def update_exercise(
+    exercise_id: uuid.UUID,
+    body: UpdateExerciseRequest,
+    _admin: Annotated[User, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> Exercise:
+    exercise = await session.get(Exercise, exercise_id)
+    if exercise is None:
+        raise api_error(
+            status.HTTP_404_NOT_FOUND,
+            ErrorCode.exercise_not_found,
+            "Exercise not found",
+        )
+
+    name = body.name.strip()
+    clash = await session.scalar(
+        select(Exercise).where(Exercise.name == name, Exercise.id != exercise_id)
+    )
+    if clash is not None:
+        raise api_error(
+            status.HTTP_409_CONFLICT,
+            ErrorCode.exercise_already_exists,
+            "An exercise with this name already exists",
+        )
+
+    description = body.description.strip() if body.description else None
+    exercise.name = name
+    exercise.description = description or None
+    exercise.type = body.type
+    await session.commit()
+    await session.refresh(exercise)
+    return exercise
+
+
+@router.delete("/{exercise_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_exercise(
+    exercise_id: uuid.UUID,
+    _admin: Annotated[User, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> None:
+    exercise = await session.get(Exercise, exercise_id)
+    if exercise is None:
+        raise api_error(
+            status.HTTP_404_NOT_FOUND,
+            ErrorCode.exercise_not_found,
+            "Exercise not found",
+        )
+    await session.delete(exercise)
+    await session.commit()

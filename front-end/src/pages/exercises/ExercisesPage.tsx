@@ -1,13 +1,17 @@
-import { Plus } from 'lucide-react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 
-import { useQuery } from '@/api/client'
+import { api, useMutate, useQuery } from '@/api/client'
+import { errorMessage } from '@/api/errors'
 import type { components } from '@/api/schema'
+import ConfirmDialog from '@/components/molecules/ConfirmDialog'
 import FilterSelect from '@/components/molecules/FilterSelect'
 import Pagination from '@/components/molecules/Pagination'
 import SearchInput from '@/components/molecules/SearchInput'
 import { useAuth } from '@/auth/context'
+import { useToast } from '@/components/toast/context'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
+import EditExerciseModal from '@/components/features/exercises/EditExerciseModal'
 import NewExerciseModal from '@/components/features/exercises/NewExerciseModal'
 
 const PAGE_SIZE = 12
@@ -28,7 +32,14 @@ const typeConfig: Record<ExerciseType, { label: string; card: string; badge: str
   },
 }
 
-function ExerciseCard({ exercise }: { exercise: Exercise }) {
+interface ExerciseCardProps {
+  exercise: Exercise
+  isAdmin: boolean
+  onEdit: (exercise: Exercise) => void
+  onDelete: (exercise: Exercise) => void
+}
+
+function ExerciseCard({ exercise, isAdmin, onEdit, onDelete }: ExerciseCardProps) {
   const { label, card, badge } = typeConfig[exercise.type]
   return (
     <article className={`flex flex-col gap-2 rounded-lg border p-4 ${card}`}>
@@ -39,6 +50,28 @@ function ExerciseCard({ exercise }: { exercise: Exercise }) {
         </span>
       </div>
       {exercise.description && <p className="text-sm text-slate-300">{exercise.description}</p>}
+      {isAdmin && (
+        <div className="mt-auto flex justify-end gap-1 pt-2">
+          <button
+            type="button"
+            onClick={() => onEdit(exercise)}
+            aria-label={`Editar ${exercise.name}`}
+            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-300 transition-colors hover:bg-slate-700/60 hover:text-white focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+          >
+            <Pencil size={14} />
+            Editar
+          </button>
+          <button
+            type="button"
+            onClick={() => onDelete(exercise)}
+            aria-label={`Eliminar ${exercise.name}`}
+            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-300 transition-colors hover:bg-red-500/15 hover:text-red-200 focus:ring-2 focus:ring-red-400 focus:outline-none"
+          >
+            <Trash2 size={14} />
+            Eliminar
+          </button>
+        </div>
+      )}
     </article>
   )
 }
@@ -46,7 +79,13 @@ function ExerciseCard({ exercise }: { exercise: Exercise }) {
 function ExercisesPage() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
+  const toast = useToast()
+  const mutate = useMutate()
   const [modalOpen, setModalOpen] = useState(false)
+  const [editing, setEditing] = useState<Exercise | null>(null)
+  const [deleting, setDeleting] = useState<Exercise | null>(null)
+  const [deletePending, setDeletePending] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | undefined>(undefined)
 
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
@@ -61,6 +100,28 @@ function ExercisesPage() {
   function handleTypeChange(value: string) {
     setType(value as ExerciseType | '')
     setPage(1)
+  }
+
+  function requestDelete(exercise: Exercise) {
+    setDeleteError(undefined)
+    setDeleting(exercise)
+  }
+
+  async function confirmDelete() {
+    if (!deleting) return
+    setDeletePending(true)
+    setDeleteError(undefined)
+    const { error } = await api.DELETE('/exercises/{exercise_id}', {
+      params: { path: { exercise_id: deleting.id } },
+    })
+    setDeletePending(false)
+    if (error) {
+      setDeleteError(errorMessage(error))
+      return
+    }
+    toast.success('Ejercicio eliminado.')
+    await mutate(['/exercises'])
+    setDeleting(null)
   }
 
   const { data, isLoading, error } = useQuery(
@@ -96,7 +157,23 @@ function ExercisesPage() {
         )}
       </div>
 
-      {isAdmin && <NewExerciseModal open={modalOpen} onClose={() => setModalOpen(false)} />}
+      {isAdmin && (
+        <>
+          <NewExerciseModal open={modalOpen} onClose={() => setModalOpen(false)} />
+          <EditExerciseModal exercise={editing} onClose={() => setEditing(null)} />
+          <ConfirmDialog
+            open={deleting !== null}
+            title="Eliminar ejercicio"
+            message={`¿Seguro que quieres eliminar «${deleting?.name ?? ''}»? Esta acción no se puede deshacer.`}
+            confirmLabel={deletePending ? 'Eliminando…' : 'Eliminar'}
+            pending={deletePending}
+            destructive
+            error={deleteError}
+            onConfirm={() => void confirmDelete()}
+            onCancel={() => setDeleting(null)}
+          />
+        </>
+      )}
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <SearchInput
@@ -131,7 +208,13 @@ function ExercisesPage() {
         <>
           <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {exercises.map((exercise) => (
-              <ExerciseCard key={exercise.id} exercise={exercise} />
+              <ExerciseCard
+                key={exercise.id}
+                exercise={exercise}
+                isAdmin={isAdmin}
+                onEdit={setEditing}
+                onDelete={requestDelete}
+              />
             ))}
           </div>
           <Pagination page={page} pageCount={pageCount} onPageChange={setPage} />

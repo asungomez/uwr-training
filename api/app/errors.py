@@ -21,6 +21,7 @@ class ErrorCode(enum.StrEnum):
     invitation_not_found = "invitation_not_found"
     invitation_expired = "invitation_expired"
     exercise_already_exists = "exercise_already_exists"
+    exercise_not_found = "exercise_not_found"
 
 
 def api_error(status_code: int, code: ErrorCode, message: str) -> HTTPException:

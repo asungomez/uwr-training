@@ -14,6 +14,7 @@ const messages: Record<string, string> = {
   invitation_already_accepted: 'Esta invitación ya ha sido aceptada.',
   invitation_email_mismatch: 'El correo electrónico no coincide con la invitación.',
   exercise_already_exists: 'Ya existe un ejercicio con este nombre.',
+  exercise_not_found: 'No se ha encontrado el ejercicio.',
   invitation_not_found: 'La invitación no existe o ya fue utilizada.',
   invitation_expired: 'La invitación ha caducado.',
 }
