@@ -47,13 +47,21 @@ _EXTENSIONS = {
 
 @lru_cache
 def _client() -> "S3Client":
-    """A boto3 S3 client. Cached; signs URLs locally (no network on presign)."""
+    """A boto3 S3 client. Cached; signs URLs locally (no network on presign).
+
+    With no custom endpoint (real AWS), pin the regional endpoint explicitly. The
+    default global endpoint (s3.amazonaws.com) 307-redirects to the bucket's region
+    for non-us-east-1 buckets, and that redirect lacks CORS headers — so a browser
+    upload to it fails as a (misleading) "CORS" error. Addressing the region
+    directly avoids the redirect entirely.
+    """
+    endpoint_url = settings.s3_endpoint_url or f"https://s3.{settings.s3_region}.amazonaws.com"
     return boto3.client(
         "s3",
         region_name=settings.s3_region,
         aws_access_key_id=settings.s3_access_key_id,
         aws_secret_access_key=settings.s3_secret_access_key,
-        endpoint_url=settings.s3_endpoint_url or None,
+        endpoint_url=endpoint_url,
         config=Config(signature_version="s3v4"),
     )
 
