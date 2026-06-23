@@ -16,6 +16,11 @@ class UserRole(enum.Enum):
     member = "member"
 
 
+class ExerciseType(enum.StrEnum):
+    gym = "gym"
+    pool = "pool"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -42,4 +47,14 @@ class Invitation(Base):
     invited_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     expires_at: Mapped[datetime] = mapped_column(_TZ)
     accepted_at: Mapped[datetime | None] = mapped_column(_TZ, default=None)
+    created_at: Mapped[datetime] = mapped_column(_TZ, server_default=func.now())
+
+
+class Exercise(Base):
+    __tablename__ = "exercises"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(unique=True, index=True)
+    description: Mapped[str | None] = mapped_column(default=None)
+    type: Mapped[ExerciseType]
     created_at: Mapped[datetime] = mapped_column(_TZ, server_default=func.now())

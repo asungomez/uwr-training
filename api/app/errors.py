@@ -19,6 +19,7 @@ class ErrorCode(enum.StrEnum):
     invitation_email_mismatch = "invitation_email_mismatch"
     invitation_not_found = "invitation_not_found"
     invitation_expired = "invitation_expired"
+    exercise_already_exists = "exercise_already_exists"
 
 
 def api_error(status_code: int, code: ErrorCode, message: str) -> HTTPException:

@@ -240,6 +240,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/exercises": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Exercise */
+        post: operations["create_exercise_exercises_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -253,6 +270,14 @@ export interface components {
             email: string;
             /** Password */
             password: string;
+        };
+        /** CreateExerciseRequest */
+        CreateExerciseRequest: {
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            type: components["schemas"]["ExerciseType"];
         };
         /** CreateInvitationRequest */
         CreateInvitationRequest: {
@@ -281,6 +306,26 @@ export interface components {
          * @enum {string}
          */
         DirectoryStatus: "active" | "inactive" | "invitation_pending" | "invitation_expired";
+        /** ExerciseResponse */
+        ExerciseResponse: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string | null;
+            type: components["schemas"]["ExerciseType"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * ExerciseType
+         * @enum {string}
+         */
+        ExerciseType: "gym" | "pool";
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -772,6 +817,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_exercise_exercises_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateExerciseRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExerciseResponse"];
                 };
             };
             /** @description Validation Error */
