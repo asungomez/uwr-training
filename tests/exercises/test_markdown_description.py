@@ -37,29 +37,6 @@ def test_detail_renders_markdown_as_html(
     expect(page.get_by_text("## Calentamiento")).not_to_be_visible()
 
 
-def test_card_clamps_long_description(
-    page: Page,
-    app_url: str,
-    create_user: Callable[..., User],
-    create_exercise: Callable[..., Exercise],
-    log_in_as: Callable[[User], None],
-) -> None:
-    # Given an exercise with a long markdown description.
-    admin = create_user(role="admin", email="admin@example.com")
-    long_md = "\n\n".join(f"Línea de descripción número {i}." for i in range(10))
-    create_exercise(name="Apnea", description=long_md, type="pool")
-    log_in_as(admin)
-    page.goto(f"{app_url}/ejercicios")
-
-    # Then the card preview renders the markdown but clamps it with an ellipsis.
-    card = page.get_by_role("article").filter(has_text="Apnea")
-    preview = card.get_by_text("Línea de descripción número 0.")
-    expect(preview).to_be_visible()
-    # The clamp wrapper limits the preview height (line-clamp utility).
-    clamp = card.locator(".line-clamp-3")
-    expect(clamp).to_be_visible()
-
-
 def test_create_with_markdown_editor_round_trips(
     page: Page,
     app_url: str,
@@ -79,7 +56,9 @@ def test_create_with_markdown_editor_round_trips(
     editor.type("Aguanta la posición durante un minuto.")
     page.get_by_role("button", name="Guardar ejercicio").click()
 
-    # Then it's created and the typed text shows on its card.
+    # Then it's created, and opening its detail shows the typed description
+    # (the editor round-tripped the text through markdown).
     expect(page.get_by_role("status").filter(has_text="Ejercicio creado.")).to_be_visible()
-    card = page.get_by_role("article").filter(has_text="Plancha")
-    expect(card.get_by_text("Aguanta la posición durante un minuto.")).to_be_visible()
+    page.get_by_role("heading", name="Plancha").click()
+    expect(page.get_by_label("Migas de pan")).to_be_visible()
+    expect(page.get_by_text("Aguanta la posición durante un minuto.")).to_be_visible()

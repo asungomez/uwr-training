@@ -209,6 +209,12 @@ docker compose -f docker/docker-compose.yml exec api \
   uv run alembic upgrade head                                   # apply migrations
 ```
 
+In production the api's start command runs `python -m app.cli migrate` before
+launching uvicorn. Unlike a bare `alembic upgrade head`, that command first checks
+whether the database is already at the script head and skips the upgrade if so — so
+routine restarts (free-tier cold-start wake-ups, crashes) don't pay the migration
+delay, while a genuine new migration still applies before any request is served.
+
 `GET /db-health` runs `SELECT 1` to confirm connectivity.
 
 ### Authentication & admin users
