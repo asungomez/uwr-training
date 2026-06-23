@@ -4,12 +4,20 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, field_serializer
 
 from app.models import ExerciseType
+from app.pagination import PaginationParams
 
 
 class CreateExerciseRequest(BaseModel):
     name: str
     description: str | None = None
     type: ExerciseType
+
+
+class ExerciseListParams(PaginationParams):
+    """Query params for the exercises directory: pagination + filters."""
+
+    search: str | None = None
+    type: ExerciseType | None = None
 
 
 class ExerciseResponse(BaseModel):

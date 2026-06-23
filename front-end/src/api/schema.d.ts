@@ -247,7 +247,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List Exercises
+         * @description All exercises, filterable by name search and type. Visible to any user.
+         */
+        get: operations["list_exercises_exercises_get"];
         put?: never;
         /** Create Exercise */
         post: operations["create_exercise_exercises_post"];
@@ -376,6 +380,13 @@ export interface components {
         Page_DirectoryEntryResponse_: {
             /** Items */
             items: components["schemas"]["DirectoryEntryResponse"][];
+            /** Total Count */
+            total_count: number;
+        };
+        /** Page[ExerciseResponse] */
+        Page_ExerciseResponse_: {
+            /** Items */
+            items: components["schemas"]["ExerciseResponse"][];
             /** Total Count */
             total_count: number;
         };
@@ -817,6 +828,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_exercises_exercises_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+                search?: string | null;
+                type?: components["schemas"]["ExerciseType"] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_ExerciseResponse_"];
                 };
             };
             /** @description Validation Error */

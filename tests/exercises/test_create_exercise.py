@@ -24,7 +24,7 @@ def test_admin_creates_exercise(
     # When they fill the form and submit.
     page.get_by_label("Nombre").fill("Sentadilla")
     page.get_by_label("Descripción").fill("Trabajo de piernas")
-    page.get_by_label("Tipo").select_option(label="Gimnasio")
+    page.get_by_label("Tipo", exact=True).select_option(label="Gimnasio")
     page.get_by_role("button", name="Crear ejercicio").click()
 
     # Then a success toast confirms it and the modal closes.
@@ -43,14 +43,14 @@ def test_duplicate_exercise_shows_spanish_error(
     log_in_as(admin)
     _open_new_exercise_modal(page, app_url)
     page.get_by_label("Nombre").fill("Apnea")
-    page.get_by_label("Tipo").select_option(label="Piscina")
+    page.get_by_label("Tipo", exact=True).select_option(label="Piscina")
     page.get_by_role("button", name="Crear ejercicio").click()
     expect(page.get_by_role("status").filter(has_text="Ejercicio creado.")).to_be_visible()
 
     # When I try to create another with the same name.
     _open_new_exercise_modal(page, app_url)
     page.get_by_label("Nombre").fill("Apnea")
-    page.get_by_label("Tipo").select_option(label="Piscina")
+    page.get_by_label("Tipo", exact=True).select_option(label="Piscina")
     page.get_by_role("button", name="Crear ejercicio").click()
 
     # Then the modal shows the localized duplicate error.

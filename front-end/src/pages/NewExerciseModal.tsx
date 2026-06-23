@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
-import { api } from '../api/client'
+import { api, useMutate } from '../api/client'
 import { errorMessage } from '../api/errors'
 import Modal from '../components/Modal'
 import { useToast } from '../components/toast/context'
@@ -35,6 +35,7 @@ function NewExerciseModal({ open, onClose }: NewExerciseModalProps) {
     defaultValues: { type: 'gym' },
   })
   const toast = useToast()
+  const mutate = useMutate()
 
   function handleClose() {
     reset()
@@ -54,6 +55,7 @@ function NewExerciseModal({ open, onClose }: NewExerciseModalProps) {
       return
     }
     toast.success('Ejercicio creado.')
+    await mutate(['/exercises'])
     handleClose()
   }
 
