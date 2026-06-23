@@ -47,6 +47,23 @@ async def list_exercises(
     )
 
 
+@router.get("/{exercise_id}", response_model=ExerciseResponse)
+async def get_exercise(
+    exercise_id: uuid.UUID,
+    _user: Annotated[User, Depends(current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> Exercise:
+    """A single exercise by id. Visible to any authenticated user."""
+    exercise = await session.get(Exercise, exercise_id)
+    if exercise is None:
+        raise api_error(
+            status.HTTP_404_NOT_FOUND,
+            ErrorCode.exercise_not_found,
+            "Exercise not found",
+        )
+    return exercise
+
+
 @router.post("", response_model=ExerciseResponse, status_code=status.HTTP_201_CREATED)
 async def create_exercise(
     body: CreateExerciseRequest,

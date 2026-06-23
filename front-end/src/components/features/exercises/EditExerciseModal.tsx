@@ -42,7 +42,9 @@ function EditExerciseModal({ exercise, onClose }: EditExerciseModalProps) {
       return
     }
     toast.success('Ejercicio actualizado.')
+    // Revalidate both the list and this exercise's detail view.
     await mutate(['/exercises'])
+    await mutate(['/exercises/{exercise_id}', { params: { path: { exercise_id: exercise.id } } }])
     handleClose()
   }
 

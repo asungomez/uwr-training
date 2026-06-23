@@ -1,5 +1,6 @@
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 import { api, useMutate, useQuery } from '@/api/client'
 import { errorMessage } from '@/api/errors'
@@ -13,6 +14,7 @@ import { useToast } from '@/components/toast/context'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { useUrlListState } from '@/hooks/useUrlListState'
 import EditExerciseModal from '@/components/features/exercises/EditExerciseModal'
+import { ExerciseTypeBadge } from '@/components/features/exercises/exerciseBadges'
 import NewExerciseModal from '@/components/features/exercises/NewExerciseModal'
 
 const PAGE_SIZE = 12
@@ -22,42 +24,38 @@ type ExerciseType = Exercise['type']
 
 const TYPES = ['gym', 'pool'] as const
 
-const typeConfig: Record<ExerciseType, { label: string; card: string; badge: string }> = {
-  gym: {
-    label: 'Gimnasio',
-    card: 'border-amber-500/30 bg-amber-500/10',
-    badge: 'bg-amber-500/20 text-amber-200 ring-amber-500/40',
-  },
-  pool: {
-    label: 'Piscina',
-    card: 'border-sky-500/30 bg-sky-500/10',
-    badge: 'bg-sky-500/20 text-sky-200 ring-sky-500/40',
-  },
+const cardTint: Record<ExerciseType, string> = {
+  gym: 'border-amber-500/30 bg-amber-500/10 hover:border-amber-500/50',
+  pool: 'border-sky-500/30 bg-sky-500/10 hover:border-sky-500/50',
 }
 
 interface ExerciseCardProps {
   exercise: Exercise
   isAdmin: boolean
+  onOpen: (exercise: Exercise) => void
   onEdit: (exercise: Exercise) => void
   onDelete: (exercise: Exercise) => void
 }
 
-function ExerciseCard({ exercise, isAdmin, onEdit, onDelete }: ExerciseCardProps) {
-  const { label, card, badge } = typeConfig[exercise.type]
+function ExerciseCard({ exercise, isAdmin, onOpen, onEdit, onDelete }: ExerciseCardProps) {
   return (
-    <article className={`flex flex-col gap-2 rounded-lg border p-4 ${card}`}>
+    <article
+      onClick={() => onOpen(exercise)}
+      className={`flex cursor-pointer flex-col gap-2 rounded-lg border p-4 transition-colors ${cardTint[exercise.type]}`}
+    >
       <div className="flex items-start justify-between gap-2">
         <h3 className="font-medium text-slate-100">{exercise.name}</h3>
-        <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${badge}`}>
-          {label}
-        </span>
+        <ExerciseTypeBadge type={exercise.type} />
       </div>
       {exercise.description && <p className="text-sm text-slate-300">{exercise.description}</p>}
       {isAdmin && (
         <div className="mt-auto flex justify-end gap-1 pt-2">
           <button
             type="button"
-            onClick={() => onEdit(exercise)}
+            onClick={(event) => {
+              event.stopPropagation()
+              onEdit(exercise)
+            }}
             aria-label={`Editar ${exercise.name}`}
             className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-300 transition-colors hover:bg-slate-700/60 hover:text-white focus:ring-2 focus:ring-indigo-400 focus:outline-none"
           >
@@ -66,7 +64,10 @@ function ExerciseCard({ exercise, isAdmin, onEdit, onDelete }: ExerciseCardProps
           </button>
           <button
             type="button"
-            onClick={() => onDelete(exercise)}
+            onClick={(event) => {
+              event.stopPropagation()
+              onDelete(exercise)
+            }}
             aria-label={`Eliminar ${exercise.name}`}
             className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-300 transition-colors hover:bg-red-500/15 hover:text-red-200 focus:ring-2 focus:ring-red-400 focus:outline-none"
           >
@@ -84,6 +85,7 @@ function ExercisesPage() {
   const isAdmin = user?.role === 'admin'
   const toast = useToast()
   const mutate = useMutate()
+  const navigate = useNavigate()
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Exercise | null>(null)
   const [deleting, setDeleting] = useState<Exercise | null>(null)
@@ -200,6 +202,7 @@ function ExercisesPage() {
                 key={exercise.id}
                 exercise={exercise}
                 isAdmin={isAdmin}
+                onOpen={(ex) => void navigate(`/ejercicios/${ex.id}`)}
                 onEdit={setEditing}
                 onDelete={requestDelete}
               />
