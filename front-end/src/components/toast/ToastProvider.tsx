@@ -54,7 +54,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 onClick={() => remove(toast.id)}
-                aria-label="Cerrar notificación"
+                aria-label="Descartar"
                 className="shrink-0 rounded p-0.5 transition-colors hover:bg-white/10 focus:outline-none"
               >
                 <X size={16} />
