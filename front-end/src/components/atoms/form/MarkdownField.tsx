@@ -9,7 +9,6 @@ import {
   linkPlugin,
   listsPlugin,
   ListsToggle,
-  markdownShortcutPlugin,
   MDXEditor,
   quotePlugin,
   Separator,
@@ -51,7 +50,6 @@ function MarkdownField({ label, value, onChange, error, placeholder }: MarkdownF
             thematicBreakPlugin(),
             linkPlugin(),
             linkDialogPlugin(),
-            markdownShortcutPlugin(),
             toolbarPlugin({
               toolbarContents: () => (
                 <>
