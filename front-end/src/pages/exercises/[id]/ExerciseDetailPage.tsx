@@ -8,6 +8,7 @@ import { useAuth } from '@/auth/context'
 import EditExerciseModal from '@/components/features/exercises/EditExerciseModal'
 import { ExerciseTypeBadge } from '@/components/features/exercises/exerciseBadges'
 import ConfirmDialog from '@/components/molecules/ConfirmDialog'
+import Markdown from '@/components/molecules/Markdown'
 import { useToast } from '@/components/toast/context'
 
 function ExerciseDetailPage() {
@@ -63,7 +64,7 @@ function ExerciseDetailPage() {
             <ExerciseTypeBadge type={data.type} />
           </div>
           {data.description ? (
-            <p className="mt-4 text-slate-300">{data.description}</p>
+            <Markdown className="mt-4 text-slate-300">{data.description}</Markdown>
           ) : (
             <p className="mt-4 text-slate-500">Sin descripción.</p>
           )}

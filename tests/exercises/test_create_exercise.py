@@ -21,9 +21,12 @@ def test_admin_creates_exercise(
     log_in_as(admin)
     _open_new_exercise_modal(page, app_url)
 
-    # When they fill the form and submit.
+    # When they fill the form and submit. Description is a WYSIWYG editor
+    # (textbox 0 = name input, textbox 1 = the markdown editor).
     page.get_by_label("Nombre").fill("Sentadilla")
-    page.get_by_label("Descripción").fill("Trabajo de piernas")
+    editor = page.get_by_role("textbox").nth(1)
+    editor.click()
+    editor.type("Trabajo de piernas")
     page.get_by_label("Tipo", exact=True).select_option(label="Gimnasio")
     page.get_by_role("button", name="Guardar ejercicio").click()
 

@@ -1,11 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'
 
 import FormError from '@/components/atoms/form/FormError'
+import MarkdownField from '@/components/atoms/form/MarkdownField'
 import SelectField from '@/components/atoms/form/SelectField'
 import SubmitButton from '@/components/atoms/form/SubmitButton'
-import TextAreaField from '@/components/atoms/form/TextAreaField'
 import TextField from '@/components/atoms/form/TextField'
 
 const schema = z.object({
@@ -27,6 +27,7 @@ interface ExerciseFormProps {
 function ExerciseForm({ onSubmit, defaultValues, rootError }: ExerciseFormProps) {
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<ExerciseFormValues>({
@@ -46,12 +47,17 @@ function ExerciseForm({ onSubmit, defaultValues, rootError }: ExerciseFormProps)
         error={errors.name?.message}
         {...register('name')}
       />
-      <TextAreaField
-        id="exercise-description"
-        label="Descripción"
-        rows={3}
-        error={errors.description?.message}
-        {...register('description')}
+      <Controller
+        control={control}
+        name="description"
+        render={({ field }) => (
+          <MarkdownField
+            label="Descripción"
+            value={field.value}
+            onChange={field.onChange}
+            error={errors.description?.message}
+          />
+        )}
       />
       <SelectField
         id="exercise-type"

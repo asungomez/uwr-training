@@ -49,7 +49,7 @@ function EditExerciseModal({ exercise, onClose }: EditExerciseModalProps) {
   }
 
   return (
-    <Modal open={exercise !== null} onClose={handleClose} title="Editar ejercicio">
+    <Modal open={exercise !== null} onClose={handleClose} title="Editar ejercicio" size="xl">
       {exercise && (
         <ExerciseForm
           // Re-mount per exercise so the form re-seeds its default values.

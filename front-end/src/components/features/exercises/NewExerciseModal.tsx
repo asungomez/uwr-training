@@ -41,7 +41,7 @@ function NewExerciseModal({ open, onClose }: NewExerciseModalProps) {
   }
 
   return (
-    <Modal open={open} onClose={handleClose} title="Nuevo ejercicio">
+    <Modal open={open} onClose={handleClose} title="Nuevo ejercicio" size="xl">
       <ExerciseForm onSubmit={handleSubmit} rootError={rootError} />
     </Modal>
   )

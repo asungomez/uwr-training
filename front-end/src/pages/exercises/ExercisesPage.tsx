@@ -15,6 +15,7 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { useUrlListState } from '@/hooks/useUrlListState'
 import EditExerciseModal from '@/components/features/exercises/EditExerciseModal'
 import { ExerciseTypeBadge } from '@/components/features/exercises/exerciseBadges'
+import Markdown from '@/components/molecules/Markdown'
 import NewExerciseModal from '@/components/features/exercises/NewExerciseModal'
 
 const PAGE_SIZE = 12
@@ -47,7 +48,9 @@ function ExerciseCard({ exercise, isAdmin, onOpen, onEdit, onDelete }: ExerciseC
         <h3 className="font-medium text-slate-100">{exercise.name}</h3>
         <ExerciseTypeBadge type={exercise.type} />
       </div>
-      {exercise.description && <p className="text-sm text-slate-300">{exercise.description}</p>}
+      {exercise.description && (
+        <Markdown className="line-clamp-3 text-sm text-slate-300">{exercise.description}</Markdown>
+      )}
       {isAdmin && (
         <div className="mt-auto flex justify-end gap-1 pt-2">
           <button

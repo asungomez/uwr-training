@@ -22,7 +22,8 @@ def test_admin_edits_exercise(
     page.get_by_role("button", name="Editar Sentadilla").click()
     name = page.get_by_label("Nombre")
     expect(name).to_have_value("Sentadilla")
-    expect(page.get_by_label("Descripción")).to_have_value("Piernas")
+    # Description is a WYSIWYG editor (contenteditable), pre-loaded with the markdown.
+    expect(page.get_by_role("textbox").nth(1)).to_contain_text("Piernas")
     name.fill("Sentadilla búlgara")
     page.get_by_label("Tipo", exact=True).select_option(label="Piscina")
     page.get_by_role("button", name="Guardar ejercicio").click()

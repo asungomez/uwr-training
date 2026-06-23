@@ -1,7 +1,34 @@
 @import 'tailwindcss';
+@plugin '@tailwindcss/typography';
 
 /* Dark-only UI: dark base before React mounts + native dark form controls/scrollbars. */
 html {
   color-scheme: dark;
   background-color: theme(--color-slate-900);
+}
+
+/* MDXEditor: blend into our slate field styling (the field atom owns the border). */
+.mdxeditor {
+  --baseBg: transparent;
+}
+.mdxeditor .mdx-content {
+  /* Comfortable typing area (~15-20 lines) that shrinks on short devices. */
+  min-height: min(30rem, 50dvh);
+  padding: 0.5rem 0.75rem;
+}
+.mdxeditor [role='toolbar'] {
+  border-bottom: 1px solid theme(--color-slate-600);
+  border-radius: 0;
+  /* Wrap the toolbar onto several rows on narrow screens instead of overflowing
+     horizontally (MDXEditor defaults to a single row with overflow-x: auto). */
+  flex-wrap: wrap;
+  overflow-x: visible;
+}
+/* MDXEditor portals its dropdowns (e.g. "Block type") into this body-level
+   container; its inner popup is only z-index:2, so it falls behind the modal
+   overlay (z-40). Lift both above it. The doubled selector raises specificity
+   so it beats MDXEditor's own rule (loaded after this file). */
+.mdxeditor-popup-container.mdxeditor-popup-container,
+.mdxeditor-popup-container.mdxeditor-popup-container > * {
+  z-index: 50;
 }
