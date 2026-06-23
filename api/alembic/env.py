@@ -14,8 +14,12 @@ from app.settings import settings
 # access to the values within the .ini file in use.
 config = context.config
 
-# Use the app's (scheme-normalized) database URL instead of the static ini value.
-config.set_main_option("sqlalchemy.url", settings.database_url)
+# Use the app's (scheme-normalized) database URL instead of the static ini value,
+# unless a caller already set a real one (e.g. the `migrate` CLI targeting a
+# specific database via --database-url).
+_PLACEHOLDER_URL = "driver://user:pass@localhost/dbname"
+if config.get_main_option("sqlalchemy.url") in (None, "", _PLACEHOLDER_URL):
+    config.set_main_option("sqlalchemy.url", settings.database_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

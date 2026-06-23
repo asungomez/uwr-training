@@ -324,6 +324,11 @@ for local Docker dev**.
 | `DATABASE_URL`      | api        | `postgresql+asyncpg://uwr:uwr@localhost:5432/uwr` | Postgres connection string. A `postgresql://` scheme is auto-rewritten for asyncpg. |
 | `SECRET_KEY`        | api        | `dev-secret-change-me`                            | Signs session-cookie JWTs. On Render, generated and kept stable. **Set a real value in any non-local env.** |
 | `COOKIE_SECURE`     | api        | `true`                                            | When `true`, the session cookie is `Secure` (HTTPS only). Set `false` for local plain-HTTP browser testing. |
+| `S3_BUCKET`         | api        | `uwr-media`                                       | Bucket for exercise media (thumbnails + videos).                        |
+| `S3_REGION`         | api        | `us-east-1`                                        | Bucket region.                                                          |
+| `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | api | `minioadmin` / `minioadmin`         | Credentials for signing uploads. In prod, an IAM user with `s3:PutObject`. |
+| `S3_ENDPOINT_URL`   | api        | `http://localhost:9000` (MinIO)                   | S3 endpoint the API **signs** against — must be reachable by the **browser**. Empty = real AWS S3. |
+| `S3_PUBLIC_BASE_URL`| api        | `http://localhost:9000/uwr-media`                 | Base URL for public read URLs returned to clients (`<base>/<key>`).     |
 
 The api's settings are centralized and typed in
 [`api/app/settings.py`](api/app/settings.py) (`pydantic-settings`); each variable
@@ -346,6 +351,31 @@ Everything deploys to [Render](https://render.com) via the
   migrations apply on each deploy.
 - **`uwr-training-db`** — managed Postgres (free plan). `DATABASE_URL` is wired into
   the api automatically via `fromDatabase`.
+
+### Media storage (S3) in production
+
+Exercise thumbnails/videos live in S3. Locally this is the `minio` container; in
+production it's a real bucket you provision once in AWS. The API never proxies file
+bytes — it mints a presigned upload URL and the browser uploads straight to S3.
+
+The `S3_*` vars in [`render.yaml`](render.yaml) are declared with **`sync: false`**,
+which means Render creates them **empty** on the first Blueprint sync and you fill them
+in the **dashboard** (api service → Environment). They persist across deploys and are
+never overwritten from the yaml — so secrets (and the bucket name) stay out of source.
+`S3_ENDPOINT_URL` is hard-coded empty so production talks to real AWS, not MinIO.
+
+One-time AWS setup for the bucket:
+
+1. **Create the bucket** in your chosen region.
+2. **Public read** — bucket policy allowing `s3:GetObject` on `arn:aws:s3:::<bucket>/*`
+   (objects are served directly to `<video>`/`<img>` via stable public URLs).
+3. **CORS** — allow `GET` and `POST` from the front-end origin
+   (`https://uwr-training-frontend.onrender.com`); without it the browser's direct
+   upload is blocked.
+4. **IAM user** with `s3:PutObject` on the bucket; use its keys for
+   `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY`.
+5. Set `S3_PUBLIC_BASE_URL` to the bucket's public base
+   (`https://<bucket>.s3.<region>.amazonaws.com`).
 
 > [!NOTE]
 > The front-end's `/api/*` rewrite destination in `render.yaml` is the one place the

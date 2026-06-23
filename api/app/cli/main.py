@@ -7,11 +7,11 @@ your laptop). One module per command lives alongside this file.
 
 import argparse
 
-from app.cli import create_admin
+from app.cli import create_admin, migrate
 from app.settings import settings
 
 # Each command module exposes NAME, register(subparsers) and run(args).
-COMMANDS = [create_admin]
+COMMANDS = [create_admin, migrate]
 
 
 def main() -> None:

@@ -31,9 +31,11 @@ services:
     # uv manages deps; install it, then sync from the locked versions.
     buildCommand: pip install uv && uv sync --frozen
     # Apply migrations, then start the server. (preDeployCommand needs a paid
-    # plan, so on free tier we migrate in the start command instead.)
+    # plan, so on free tier we migrate in the start command instead.) `migrate`
+    # skips the upgrade when the DB is already at head, so routine restarts
+    # (cold-start wake-ups, crashes) start the server without the migration delay.
     # Render injects $PORT; uvicorn must bind to it on all interfaces.
-    startCommand: uv run alembic upgrade head && uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    startCommand: uv run python -m app.cli migrate && uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
       # No CORS_ORIGINS needed: the front-end proxies /api same-origin, so the
@@ -48,6 +50,25 @@ services:
       # existing sessions survive restarts/deploys.
       - key: SECRET_KEY
         generateValue: true
+      # S3 for exercise media. All `sync: false` vars are NOT stored in this file
+      # or synced from it — Render creates them empty on first Blueprint sync and
+      # you fill them in the dashboard (Environment tab), where they persist and
+      # are never overwritten by later pushes. The bucket name leaks the storage
+      # location, so even the non-credential values are kept out of source here.
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_REGION
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: S3_PUBLIC_BASE_URL
+        sync: false
+      # Empty = talk to real AWS S3 (only set for an S3-compatible endpoint like
+      # MinIO). Hard-coded empty so prod never accidentally points at localhost.
+      - key: S3_ENDPOINT_URL
+        value: ""
 
 databases:
   - name: uwr-training-db
