@@ -29,6 +29,9 @@ class User(Base):
     hashed_password: Mapped[str]
     role: Mapped[UserRole]
     is_active: Mapped[bool] = mapped_column(default=True, server_default="true")
+    # Admin-issued password-reset code (sha256 hash; plaintext shown once on generation).
+    reset_code_hash: Mapped[str | None] = mapped_column(default=None)
+    reset_code_expires_at: Mapped[datetime | None] = mapped_column(_TZ, default=None)
     created_at: Mapped[datetime] = mapped_column(_TZ, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         _TZ,

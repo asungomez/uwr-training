@@ -7,6 +7,7 @@ import { errorMessage } from '@/api/errors'
 import { useToast } from '@/components/toast/context'
 import { RoleBadge, StatusBadge } from '@/components/features/users/userBadges'
 import RegeneratedInvitationModal from '@/components/features/users/RegeneratedInvitationModal'
+import ResetCodeModal from '@/components/features/users/ResetCodeModal'
 
 function formatDate(value: string): string {
   return new Date(value).toLocaleString('es-ES', {
@@ -37,6 +38,7 @@ function UserDetailPage() {
   const [updating, setUpdating] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [regeneratedToken, setRegeneratedToken] = useState<string | null>(null)
+  const [resetCode, setResetCode] = useState<string | null>(null)
 
   // Only real users can be (de)activated; invitations can be regenerated.
   const isUser = data?.status === 'active' || data?.status === 'inactive'
@@ -79,6 +81,21 @@ function UserDetailPage() {
     await mutate(['/auth/users/{entry_id}', { params: { path: { entry_id: entryId } } }])
   }
 
+  async function generateResetCode() {
+    setUpdating(true)
+    setActionError(null)
+    const { data: result, error: postError } = await api.POST('/auth/users/{user_id}/reset-code', {
+      params: { path: { user_id: entryId } },
+    })
+    setUpdating(false)
+    if (postError) {
+      setActionError(errorMessage(postError))
+      return
+    }
+    setResetCode(result.code)
+    toast.success('Se ha generado un código de verificación.')
+  }
+
   return (
     <section>
       <nav className="flex items-center gap-1 text-sm text-slate-400" aria-label="Migas de pan">
@@ -111,30 +128,42 @@ function UserDetailPage() {
 
       {data && (isUser || isInvitation) && (
         <div className="mt-6 flex flex-col gap-2">
-          {isUser && (
-            <button
-              type="button"
-              onClick={() => void toggleActive()}
-              disabled={updating}
-              className={`w-fit rounded-md px-4 py-2 text-sm font-medium text-white transition-colors focus:ring-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 ${
-                data.status === 'active'
-                  ? 'bg-red-600 hover:bg-red-500 focus:ring-red-400'
-                  : 'bg-green-600 hover:bg-green-500 focus:ring-green-400'
-              }`}
-            >
-              {data.status === 'active' ? 'Desactivar' : 'Activar'}
-            </button>
-          )}
-          {isInvitation && (
-            <button
-              type="button"
-              onClick={() => void regenerateInvitation()}
-              disabled={updating}
-              className="w-fit rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 focus:ring-2 focus:ring-indigo-400 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Generar nueva invitación
-            </button>
-          )}
+          <div className="flex flex-wrap gap-2">
+            {isUser && (
+              <button
+                type="button"
+                onClick={() => void toggleActive()}
+                disabled={updating}
+                className={`rounded-md px-4 py-2 text-sm font-medium text-white transition-colors focus:ring-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 ${
+                  data.status === 'active'
+                    ? 'bg-red-600 hover:bg-red-500 focus:ring-red-400'
+                    : 'bg-green-600 hover:bg-green-500 focus:ring-green-400'
+                }`}
+              >
+                {data.status === 'active' ? 'Desactivar' : 'Activar'}
+              </button>
+            )}
+            {isUser && (
+              <button
+                type="button"
+                onClick={() => void generateResetCode()}
+                disabled={updating}
+                className="rounded-md border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800 focus:ring-2 focus:ring-indigo-400 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Generar código de verificación
+              </button>
+            )}
+            {isInvitation && (
+              <button
+                type="button"
+                onClick={() => void regenerateInvitation()}
+                disabled={updating}
+                className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 focus:ring-2 focus:ring-indigo-400 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Generar nueva invitación
+              </button>
+            )}
+          </div>
           {actionError && (
             <p role="alert" className="text-sm text-red-400">
               {actionError}
@@ -147,6 +176,7 @@ function UserDetailPage() {
         token={regeneratedToken}
         onClose={() => setRegeneratedToken(null)}
       />
+      <ResetCodeModal code={resetCode} onClose={() => setResetCode(null)} />
     </section>
   )
 }

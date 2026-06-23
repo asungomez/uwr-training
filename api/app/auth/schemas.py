@@ -107,3 +107,16 @@ class AcceptInvitationRequest(BaseModel):
     # Email is verified against the invitation; the URL token alone isn't enough.
     email: EmailStr
     password: str
+
+
+class ResetCodeResponse(BaseModel):
+    """Returned once when an admin generates a reset code; only its hash is stored."""
+
+    code: str
+    expires_at: datetime
+
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    code: str
+    password: str

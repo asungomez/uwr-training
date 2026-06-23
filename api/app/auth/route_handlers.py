@@ -15,6 +15,8 @@ from app.auth.schemas import (
     InvitationInfo,
     InvitationResponse,
     LoginRequest,
+    ResetCodeResponse,
+    ResetPasswordRequest,
     UpdateUserRequest,
     UserDetailResponse,
     UserListParams,
@@ -31,7 +33,9 @@ from app.models import Invitation, User, UserRole
 from app.pagination import Page, paginate
 from app.security import (
     INVITATION_MAX_AGE,
+    RESET_CODE_MAX_AGE,
     generate_invitation_token,
+    generate_reset_code,
     hash_password,
     hash_token,
     verify_password,
@@ -221,6 +225,55 @@ async def update_user(
     await session.commit()
     await session.refresh(user)
     return await _user_detail(session, user)
+
+
+@router.post("/users/{user_id}/reset-code", response_model=ResetCodeResponse)
+async def generate_user_reset_code(
+    user_id: uuid.UUID,
+    _admin: Annotated[User, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ResetCodeResponse:
+    """Issue a single-use password-reset code for a user. The admin shares the
+    returned code with them out-of-band; only its hash is stored."""
+    user = await session.get(User, user_id)
+    if user is None:
+        raise api_error(status.HTTP_404_NOT_FOUND, ErrorCode.user_not_found, "User not found")
+
+    code = generate_reset_code()
+    expires_at = datetime.now(UTC) + RESET_CODE_MAX_AGE
+    user.reset_code_hash = hash_token(code)
+    user.reset_code_expires_at = expires_at
+    await session.commit()
+    return ResetCodeResponse(code=code, expires_at=expires_at)
+
+
+@router.post("/reset-password", status_code=status.HTTP_204_NO_CONTENT)
+async def reset_password(
+    body: ResetPasswordRequest,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> None:
+    """Public: reset a password using the admin-issued code. The same generic
+    error is returned for any failure so we don't reveal which part was wrong."""
+    email = body.email.strip().lower()
+    user = await session.scalar(select(User).where(User.email == email))
+    invalid = (
+        user is None
+        or user.reset_code_hash is None
+        or user.reset_code_expires_at is None
+        or user.reset_code_expires_at < datetime.now(UTC)
+        or user.reset_code_hash != hash_token(body.code.strip().upper())
+    )
+    if invalid:
+        raise api_error(
+            status.HTTP_400_BAD_REQUEST,
+            ErrorCode.invalid_reset_code,
+            "Invalid or expired reset code",
+        )
+    assert user is not None  # guaranteed by the `invalid` check above
+    user.hashed_password = hash_password(body.password)
+    user.reset_code_hash = None
+    user.reset_code_expires_at = None
+    await session.commit()
 
 
 @router.post(

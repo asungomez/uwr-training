@@ -168,6 +168,48 @@ export interface paths {
         patch: operations["update_user_auth_users__user_id__patch"];
         trace?: never;
     };
+    "/auth/users/{user_id}/reset-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate User Reset Code
+         * @description Issue a single-use password-reset code for a user. The admin shares the
+         *     returned code with them out-of-band; only its hash is stored.
+         */
+        post: operations["generate_user_reset_code_auth_users__user_id__reset_code_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/reset-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset Password
+         * @description Public: reset a password using the admin-issued code. The same generic
+         *     error is returned for any failure so we don't reveal which part was wrong.
+         */
+        post: operations["reset_password_auth_reset_password_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/invitations": {
         parameters: {
             query?: never;
@@ -389,6 +431,31 @@ export interface components {
             items: components["schemas"]["ExerciseResponse"][];
             /** Total Count */
             total_count: number;
+        };
+        /**
+         * ResetCodeResponse
+         * @description Returned once when an admin generates a reset code; only its hash is stored.
+         */
+        ResetCodeResponse: {
+            /** Code */
+            code: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+        };
+        /** ResetPasswordRequest */
+        ResetPasswordRequest: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /** Code */
+            code: string;
+            /** Password */
+            password: string;
         };
         /**
          * UpdateUserRequest
@@ -695,6 +762,70 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["UserDetailResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_user_reset_code_auth_users__user_id__reset_code_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResetCodeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reset_password_auth_reset_password_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResetPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

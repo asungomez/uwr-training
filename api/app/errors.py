@@ -13,6 +13,7 @@ class ErrorCode(enum.StrEnum):
     admin_required = "admin_required"
     user_not_found = "user_not_found"
     invalid_status = "invalid_status"
+    invalid_reset_code = "invalid_reset_code"
     email_already_exists = "email_already_exists"
     invitation_already_exists = "invitation_already_exists"
     invitation_already_accepted = "invitation_already_accepted"

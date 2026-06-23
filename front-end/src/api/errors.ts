@@ -8,6 +8,7 @@ const messages: Record<string, string> = {
   admin_required: 'No tienes permisos para realizar esta acción.',
   user_not_found: 'No se ha encontrado el usuario.',
   invalid_status: 'El estado indicado no es válido.',
+  invalid_reset_code: 'El código de verificación no es válido o ha caducado.',
   email_already_exists: 'Ya existe un usuario con este correo electrónico.',
   invitation_already_exists: 'Ya existe una invitación para este correo electrónico.',
   invitation_already_accepted: 'Esta invitación ya ha sido aceptada.',

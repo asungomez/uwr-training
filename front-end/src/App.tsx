@@ -5,6 +5,7 @@ import { useAuth } from '@/auth/context'
 import AppLayout from '@/components/features/layout/AppLayout'
 import AcceptInvitationPage from '@/pages/accept-invitation/[token]/AcceptInvitationPage'
 import ExercisesPage from '@/pages/exercises/ExercisesPage'
+import ForgotPasswordPage from '@/pages/forgot-password/ForgotPasswordPage'
 import LoginPage from '@/pages/login/LoginPage'
 import TrainingsPage from '@/pages/trainings/TrainingsPage'
 import UserDetailPage from '@/pages/users/[id]/UserDetailPage'
@@ -25,6 +26,7 @@ function App() {
     <Routes>
       {/* Public: reachable whether or not you're logged in. */}
       <Route path="/aceptar-invitacion/:token" element={<AcceptInvitationPage />} />
+      <Route path="/recuperar-contrasena" element={<ForgotPasswordPage />} />
 
       {!user ? (
         <Route path="*" element={<LoginPage />} />

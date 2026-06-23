@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
+import { Link } from 'react-router-dom'
 import { z } from 'zod'
 
 import { errorMessage } from '@/api/errors'
@@ -62,6 +63,13 @@ function LoginForm() {
       <SubmitButton pending={isSubmitting} pendingLabel="Iniciando sesión…">
         Iniciar sesión
       </SubmitButton>
+
+      <Link
+        to="/recuperar-contrasena"
+        className="text-center text-sm text-slate-400 transition-colors hover:text-slate-200"
+      >
+        Olvidé mi contraseña
+      </Link>
     </form>
   )
 }
