@@ -3,11 +3,11 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
-import { api, useMutate } from '../api/client'
-import { errorMessage } from '../api/errors'
-import InvitationLink from '../components/InvitationLink'
-import Modal from '../components/Modal'
-import { useToast } from '../components/toast/context'
+import { api, useMutate } from '@/api/client'
+import { errorMessage } from '@/api/errors'
+import Modal from '@/components/atoms/Modal'
+import InvitationLink from '@/components/molecules/InvitationLink'
+import { useToast } from '@/components/toast/context'
 
 const schema = z.object({
   email: z.email('Introduce un correo electrónico válido'),

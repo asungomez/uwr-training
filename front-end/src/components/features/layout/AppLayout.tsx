@@ -2,8 +2,8 @@ import { Menu, X } from 'lucide-react'
 import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 
-import Sidebar from './Sidebar'
-import UserMenu from './UserMenu'
+import Sidebar from '@/components/features/layout/Sidebar'
+import UserMenu from '@/components/features/layout/UserMenu'
 
 function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)

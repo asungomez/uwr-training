@@ -1,14 +1,14 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 
-import AdminRoute from './auth/AdminRoute'
-import { useAuth } from './auth/context'
-import AppLayout from './layout/AppLayout'
-import AcceptInvitationPage from './pages/AcceptInvitationPage'
-import ExercisesPage from './pages/ExercisesPage'
-import LoginPage from './pages/LoginPage'
-import TrainingsPage from './pages/TrainingsPage'
-import UserDetailPage from './pages/UserDetailPage'
-import UsersPage from './pages/UsersPage'
+import AdminRoute from '@/auth/AdminRoute'
+import { useAuth } from '@/auth/context'
+import AppLayout from '@/components/features/layout/AppLayout'
+import AcceptInvitationPage from '@/pages/accept-invitation/[token]/AcceptInvitationPage'
+import ExercisesPage from '@/pages/exercises/ExercisesPage'
+import LoginPage from '@/pages/login/LoginPage'
+import TrainingsPage from '@/pages/trainings/TrainingsPage'
+import UserDetailPage from '@/pages/users/[id]/UserDetailPage'
+import UsersPage from '@/pages/users/UsersPage'
 
 function App() {
   const { user, isLoading } = useAuth()

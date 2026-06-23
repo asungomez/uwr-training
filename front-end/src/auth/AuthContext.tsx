@@ -1,8 +1,8 @@
 import { type ReactNode } from 'react'
 
-import { api, useQuery } from '../api/client'
-import { ApiError } from '../api/errors'
-import { AuthContext } from './context'
+import { api, useQuery } from '@/api/client'
+import { ApiError } from '@/api/errors'
+import { AuthContext } from '@/auth/context'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { data, error, isLoading, mutate } = useQuery(

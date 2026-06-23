@@ -1,7 +1,7 @@
 import createClient from 'openapi-fetch'
 import { createMutateHook, createQueryHook } from 'swr-openapi'
 
-import type { paths } from './schema'
+import type { paths } from '@/api/schema'
 
 // Same-origin: requests go to /api, proxied to the back-end. credentials:include
 // ensures the HTTP-only session cookie is sent with every request.

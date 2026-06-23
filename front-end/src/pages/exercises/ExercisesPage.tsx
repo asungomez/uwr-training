@@ -1,14 +1,14 @@
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
 
-import { useQuery } from '../api/client'
-import type { components } from '../api/schema'
-import FilterSelect from '../components/FilterSelect'
-import Pagination from '../components/Pagination'
-import SearchInput from '../components/SearchInput'
-import { useAuth } from '../auth/context'
-import { useDebouncedValue } from '../hooks/useDebouncedValue'
-import NewExerciseModal from './NewExerciseModal'
+import { useQuery } from '@/api/client'
+import type { components } from '@/api/schema'
+import FilterSelect from '@/components/molecules/FilterSelect'
+import Pagination from '@/components/molecules/Pagination'
+import SearchInput from '@/components/molecules/SearchInput'
+import { useAuth } from '@/auth/context'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
+import NewExerciseModal from '@/components/features/exercises/NewExerciseModal'
 
 const PAGE_SIZE = 12
 

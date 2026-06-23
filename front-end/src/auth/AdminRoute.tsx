@@ -1,6 +1,6 @@
 import { Navigate, Outlet } from 'react-router-dom'
 
-import { useAuth } from './context'
+import { useAuth } from '@/auth/context'
 
 /** Layout route that only renders its nested routes for admins; everyone else is
  * redirected to /entrenamientos. Use as a parent route's `element`:

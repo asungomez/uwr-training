@@ -1,4 +1,4 @@
-import type { components } from '../api/schema'
+import type { components } from '@/api/schema'
 
 type Role = components['schemas']['DirectoryEntryResponse']['role']
 type Status = components['schemas']['DirectoryEntryResponse']['status']

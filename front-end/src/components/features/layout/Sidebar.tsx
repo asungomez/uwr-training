@@ -1,7 +1,7 @@
 import { Dumbbell, ListChecks, Users } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 
-import { useAuth } from '../auth/context'
+import { useAuth } from '@/auth/context'
 
 interface SidebarProps {
   onNavigate?: () => void

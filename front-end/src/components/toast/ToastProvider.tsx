@@ -1,7 +1,7 @@
 import { CheckCircle2, Info, X, XCircle } from 'lucide-react'
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 
-import { ToastContext, type Toast, type ToastVariant } from './context'
+import { ToastContext, type Toast, type ToastVariant } from '@/components/toast/context'
 
 const AUTO_DISMISS_MS = 4000
 

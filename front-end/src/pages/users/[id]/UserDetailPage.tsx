@@ -2,11 +2,11 @@ import { ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
-import { api, useMutate, useQuery } from '../api/client'
-import { errorMessage } from '../api/errors'
-import { useToast } from '../components/toast/context'
-import { RoleBadge, StatusBadge } from '../components/userBadges'
-import RegeneratedInvitationModal from './RegeneratedInvitationModal'
+import { api, useMutate, useQuery } from '@/api/client'
+import { errorMessage } from '@/api/errors'
+import { useToast } from '@/components/toast/context'
+import { RoleBadge, StatusBadge } from '@/components/features/users/userBadges'
+import RegeneratedInvitationModal from '@/components/features/users/RegeneratedInvitationModal'
 
 function formatDate(value: string): string {
   return new Date(value).toLocaleString('es-ES', {

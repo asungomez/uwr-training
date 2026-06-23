@@ -164,11 +164,18 @@ Forms use [React Hook Form](https://react-hook-form.com/) with
 Icons come from [lucide-react](https://lucide.dev/).
 
 Routing uses [React Router](https://reactrouter.com/). Unauthenticated users see the
-login screen; authenticated users get the app shell ([`src/layout/`](front-end/src/layout/)):
-a top navbar (app name centered, user menu with logout on the right), a left sidebar
+login screen; authenticated users get the app shell
+([`src/components/features/layout/`](front-end/src/components/features/layout/)): a top
+navbar (app name centered, user menu with logout on the right), a left sidebar
 (collapsible via a hamburger on mobile), and the routed page content. The sidebar's
 "Administración" section (e.g. Usuarios) and its routes are admin-only — members are
 redirected away.
+
+**Source layout**: `src/pages/` contains only pages, in URL-shaped directories
+(`pages/users/UsersPage.tsx`, `pages/users/[id]/UserDetailPage.tsx`). Shared UI lives
+in `src/components/` split by atomic design — `atoms/`, `molecules/`, and
+`features/<area>/`. Cross-module imports use the `@/` alias (→ `src/`), e.g.
+`import Modal from '@/components/atoms/Modal'`.
 
 ## API
 

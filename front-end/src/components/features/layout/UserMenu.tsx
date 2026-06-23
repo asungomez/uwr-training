@@ -1,7 +1,7 @@
 import { CircleUser, LogOut } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
-import { useAuth } from '../auth/context'
+import { useAuth } from '@/auth/context'
 
 function UserMenu() {
   const { user, logout } = useAuth()

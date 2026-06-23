@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react'
 
-import type { components } from '../api/schema'
+import type { components } from '@/api/schema'
 
 export type User = components['schemas']['UserResponse']
 

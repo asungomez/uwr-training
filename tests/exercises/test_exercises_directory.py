@@ -10,7 +10,7 @@ def _create_exercise(page: Page, app_url: str, name: str, type_label: str) -> No
     page.get_by_role("button", name="Nuevo ejercicio").click()
     page.get_by_label("Nombre").fill(name)
     page.get_by_label("Tipo", exact=True).select_option(label=type_label)
-    page.get_by_role("button", name="Crear ejercicio").click()
+    page.get_by_role("button", name="Guardar ejercicio").click()
     expect(page.get_by_role("status").filter(has_text="Ejercicio creado.")).to_be_visible()
 
 

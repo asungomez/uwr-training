@@ -2,14 +2,14 @@ import { UserPlus } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { useQuery } from '../api/client'
-import type { components } from '../api/schema'
-import FilterSelect from '../components/FilterSelect'
-import Pagination from '../components/Pagination'
-import SearchInput from '../components/SearchInput'
-import { RoleBadge, StatusBadge } from '../components/userBadges'
-import { useDebouncedValue } from '../hooks/useDebouncedValue'
-import InviteUserModal from './InviteUserModal'
+import { useQuery } from '@/api/client'
+import type { components } from '@/api/schema'
+import FilterSelect from '@/components/molecules/FilterSelect'
+import Pagination from '@/components/molecules/Pagination'
+import SearchInput from '@/components/molecules/SearchInput'
+import { RoleBadge, StatusBadge } from '@/components/features/users/userBadges'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
+import InviteUserModal from '@/components/features/users/InviteUserModal'
 
 const PAGE_SIZE = 10
 

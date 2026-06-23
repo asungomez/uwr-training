@@ -1,5 +1,5 @@
-import InvitationLink from '../components/InvitationLink'
-import Modal from '../components/Modal'
+import Modal from '@/components/atoms/Modal'
+import InvitationLink from '@/components/molecules/InvitationLink'
 
 interface RegeneratedInvitationModalProps {
   token: string | null
