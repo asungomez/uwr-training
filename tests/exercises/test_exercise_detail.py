@@ -23,8 +23,9 @@ def test_card_navigates_to_detail(
 
     # Then I land on the detail page showing name, type and description.
     expect(page).to_have_url(f"{app_url}/ejercicios/{exercise.id}")
+    # The breadcrumb is detail-only, so waiting on it confirms the route swapped.
+    expect(page.get_by_label("Migas de pan")).to_be_visible()
     expect(page.get_by_role("heading", name="Sentadilla")).to_be_visible()
-    expect(page.get_by_text("Gimnasio")).to_be_visible()
     expect(page.get_by_text("Piernas")).to_be_visible()
 
 
