@@ -4,6 +4,7 @@ import AdminRoute from './auth/AdminRoute'
 import { useAuth } from './auth/context'
 import AppLayout from './layout/AppLayout'
 import AcceptInvitationPage from './pages/AcceptInvitationPage'
+import ExercisesPage from './pages/ExercisesPage'
 import LoginPage from './pages/LoginPage'
 import TrainingsPage from './pages/TrainingsPage'
 import UserDetailPage from './pages/UserDetailPage'
@@ -31,6 +32,7 @@ function App() {
         <Route element={<AppLayout />}>
           <Route index element={<Navigate to="/entrenamientos" replace />} />
           <Route path="/entrenamientos" element={<TrainingsPage />} />
+          <Route path="/ejercicios" element={<ExercisesPage />} />
           <Route path="/usuarios" element={<AdminRoute />}>
             <Route index element={<UsersPage />} />
             <Route path=":id" element={<UserDetailPage />} />

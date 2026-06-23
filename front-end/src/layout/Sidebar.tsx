@@ -1,4 +1,4 @@
-import { Dumbbell, Users } from 'lucide-react'
+import { Dumbbell, ListChecks, Users } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 
 import { useAuth } from '../auth/context'
@@ -22,6 +22,10 @@ function Sidebar({ onNavigate }: SidebarProps) {
       <NavLink to="/entrenamientos" className={linkClass} onClick={onNavigate}>
         <Dumbbell size={18} />
         Entrenamientos
+      </NavLink>
+      <NavLink to="/ejercicios" className={linkClass} onClick={onNavigate}>
+        <ListChecks size={18} />
+        Ejercicios
       </NavLink>
 
       {isAdmin && (
