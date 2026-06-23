@@ -5,6 +5,7 @@ import { z } from 'zod'
 
 import { api } from '../api/client'
 import { errorMessage } from '../api/errors'
+import { useToast } from '../components/toast/context'
 
 const schema = z
   .object({
@@ -25,6 +26,7 @@ const inputClass =
 function AcceptInvitationPage() {
   const { token } = useParams<{ token: string }>()
   const navigate = useNavigate()
+  const toast = useToast()
   const {
     register,
     handleSubmit,
@@ -41,7 +43,8 @@ function AcceptInvitationPage() {
       setError('root', { message: errorMessage(error) })
       return
     }
-    // Account created — send them to the login screen.
+    // Account created — send them to the login screen with a confirmation.
+    toast.success('Cuenta creada. Ya puedes iniciar sesión.')
     await navigate('/')
   }
 

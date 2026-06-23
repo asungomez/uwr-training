@@ -7,6 +7,7 @@ import { api, useMutate } from '../api/client'
 import { errorMessage } from '../api/errors'
 import InvitationLink from '../components/InvitationLink'
 import Modal from '../components/Modal'
+import { useToast } from '../components/toast/context'
 
 const schema = z.object({
   email: z.email('Introduce un correo electrónico válido'),
@@ -28,6 +29,7 @@ function InviteUserModal({ open, onClose }: InviteUserModalProps) {
     formState: { errors, isSubmitting },
   } = useForm<InviteValues>({ resolver: zodResolver(schema) })
   const mutate = useMutate()
+  const toast = useToast()
   const [token, setToken] = useState<string | null>(null)
 
   function handleClose() {
@@ -45,6 +47,7 @@ function InviteUserModal({ open, onClose }: InviteUserModalProps) {
       return
     }
     setToken(data.token)
+    toast.success('Invitación creada.')
     // Revalidate the users directory so the new pending invitation shows live.
     await mutate(['/auth/users'])
   }

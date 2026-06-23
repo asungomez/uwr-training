@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom'
 
 import { api, useMutate, useQuery } from '../api/client'
 import { errorMessage } from '../api/errors'
+import { useToast } from '../components/toast/context'
 import { RoleBadge, StatusBadge } from '../components/userBadges'
 import RegeneratedInvitationModal from './RegeneratedInvitationModal'
 
@@ -32,6 +33,7 @@ function UserDetailPage() {
     params: { path: { entry_id: entryId } },
   })
   const mutate = useMutate()
+  const toast = useToast()
   const [updating, setUpdating] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [regeneratedToken, setRegeneratedToken] = useState<string | null>(null)
@@ -55,6 +57,7 @@ function UserDetailPage() {
       setActionError(errorMessage(patchError))
       return
     }
+    toast.success(nextStatus === 'active' ? 'Usuario activado.' : 'Usuario desactivado.')
     await mutate(['/auth/users/{entry_id}', { params: { path: { entry_id: entryId } } }])
   }
 
@@ -71,6 +74,7 @@ function UserDetailPage() {
       return
     }
     setRegeneratedToken(result.token)
+    toast.success('Se ha generado una nueva invitación.')
     // The expiry changed, so refresh the detail.
     await mutate(['/auth/users/{entry_id}', { params: { path: { entry_id: entryId } } }])
   }
