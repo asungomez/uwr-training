@@ -11,6 +11,7 @@ import SearchInput from '@/components/molecules/SearchInput'
 import { useAuth } from '@/auth/context'
 import { useToast } from '@/components/toast/context'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
+import { useUrlListState } from '@/hooks/useUrlListState'
 import EditExerciseModal from '@/components/features/exercises/EditExerciseModal'
 import NewExerciseModal from '@/components/features/exercises/NewExerciseModal'
 
@@ -18,6 +19,8 @@ const PAGE_SIZE = 12
 
 type Exercise = components['schemas']['ExerciseResponse']
 type ExerciseType = Exercise['type']
+
+const TYPES = ['gym', 'pool'] as const
 
 const typeConfig: Record<ExerciseType, { label: string; card: string; badge: string }> = {
   gym: {
@@ -87,20 +90,9 @@ function ExercisesPage() {
   const [deletePending, setDeletePending] = useState(false)
   const [deleteError, setDeleteError] = useState<string | undefined>(undefined)
 
-  const [page, setPage] = useState(1)
-  const [search, setSearch] = useState('')
-  const [type, setType] = useState<ExerciseType | ''>('')
+  const { page, search, setPage, setSearch, getFilter, setFilter } = useUrlListState()
+  const type = getFilter('type', TYPES) as ExerciseType | ''
   const debouncedSearch = useDebouncedValue(search.trim(), 300)
-
-  function handleSearchChange(value: string) {
-    setSearch(value)
-    setPage(1)
-  }
-
-  function handleTypeChange(value: string) {
-    setType(value as ExerciseType | '')
-    setPage(1)
-  }
 
   function requestDelete(exercise: Exercise) {
     setDeleteError(undefined)
@@ -176,14 +168,10 @@ function ExercisesPage() {
       )}
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
-        <SearchInput
-          value={search}
-          onChange={handleSearchChange}
-          placeholder="Buscar por nombre…"
-        />
+        <SearchInput value={search} onChange={setSearch} placeholder="Buscar por nombre…" />
         <FilterSelect
           value={type}
-          onChange={handleTypeChange}
+          onChange={(value) => setFilter('type', value)}
           label="Filtrar por tipo"
           options={[
             { value: '', label: 'Todos los tipos' },

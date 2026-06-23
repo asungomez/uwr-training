@@ -9,6 +9,7 @@ import Pagination from '@/components/molecules/Pagination'
 import SearchInput from '@/components/molecules/SearchInput'
 import { RoleBadge, StatusBadge } from '@/components/features/users/userBadges'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
+import { useUrlListState } from '@/hooks/useUrlListState'
 import InviteUserModal from '@/components/features/users/InviteUserModal'
 
 const PAGE_SIZE = 10
@@ -17,28 +18,14 @@ type DirectoryEntry = components['schemas']['DirectoryEntryResponse']
 type Role = DirectoryEntry['role']
 type Status = DirectoryEntry['status']
 
+const ROLES = ['admin', 'member'] as const
+const STATUSES = ['active', 'inactive', 'invitation_pending', 'invitation_expired'] as const
+
 function UsersPage() {
-  const [page, setPage] = useState(1)
-  const [search, setSearch] = useState('')
-  const [role, setRole] = useState<Role | ''>('')
-  const [status, setStatus] = useState<Status | ''>('')
+  const { page, search, setPage, setSearch, getFilter, setFilter } = useUrlListState()
+  const role = getFilter('role', ROLES) as Role | ''
+  const status = getFilter('status', STATUSES) as Status | ''
   const debouncedSearch = useDebouncedValue(search.trim(), 300)
-
-  // Searching changes the result set, so jump back to the first page.
-  function handleSearchChange(value: string) {
-    setSearch(value)
-    setPage(1)
-  }
-
-  function handleRoleChange(value: string) {
-    setRole(value as Role | '')
-    setPage(1)
-  }
-
-  function handleStatusChange(value: string) {
-    setStatus(value as Status | '')
-    setPage(1)
-  }
 
   const { data, isLoading, error } = useQuery(
     '/auth/users',
@@ -79,14 +66,10 @@ function UsersPage() {
       <InviteUserModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
-        <SearchInput
-          value={search}
-          onChange={handleSearchChange}
-          placeholder="Buscar por correo…"
-        />
+        <SearchInput value={search} onChange={setSearch} placeholder="Buscar por correo…" />
         <FilterSelect
           value={role}
-          onChange={handleRoleChange}
+          onChange={(value) => setFilter('role', value)}
           label="Filtrar por rol"
           options={[
             { value: '', label: 'Todos los roles' },
@@ -96,7 +79,7 @@ function UsersPage() {
         />
         <FilterSelect
           value={status}
-          onChange={handleStatusChange}
+          onChange={(value) => setFilter('status', value)}
           label="Filtrar por estado"
           options={[
             { value: '', label: 'Todos los estados' },
