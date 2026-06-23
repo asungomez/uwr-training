@@ -52,6 +52,14 @@ services:
       DATABASE_URL: postgresql+asyncpg://uwr:uwr@db:5432/uwr
       # Local dev is plain HTTP, so don't mark the session cookie Secure.
       COOKIE_SECURE: "false"
+      # S3 media via MinIO. The API only SIGNS upload URLs (no network call), and
+      # the signed URL is handed to the browser — so it must point at the
+      # host-reachable endpoint (localhost), not the compose service name.
+      S3_BUCKET: uwr-media
+      S3_ACCESS_KEY_ID: minioadmin
+      S3_SECRET_ACCESS_KEY: minioadmin
+      S3_ENDPOINT_URL: http://localhost:9000
+      S3_PUBLIC_BASE_URL: http://localhost:9000/uwr-media
     depends_on:
       db:
         condition: service_healthy
@@ -77,6 +85,38 @@ services:
       - ../api:/app/api
     working_dir: /app/api
 
+  # S3-compatible object storage for exercise media (dev + e2e).
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000" # S3 API (browser uploads here via presigned POST)
+      - "9001:9001" # web console
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # One-shot: create the media bucket and make it public-read, then exit.
+  minio-setup:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 minioadmin minioadmin &&
+      mc mb --ignore-existing local/uwr-media &&
+      mc anonymous set download local/uwr-media
+      "
+
   db:
     image: postgres:16
     container_name: db
@@ -98,3 +138,4 @@ volumes:
   precommit-cache:
   frontend-node-modules:
   db-data:
+  minio-data:

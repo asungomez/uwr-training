@@ -63,6 +63,24 @@ function ExerciseDetailPage() {
             <h2 className="text-2xl font-semibold tracking-tight text-slate-100">{data.name}</h2>
             <ExerciseTypeBadge type={data.type} />
           </div>
+
+          {data.video_url ? (
+            <video
+              src={data.video_url}
+              poster={data.thumbnail_url ?? undefined}
+              controls
+              className="mt-4 w-full rounded-lg border border-slate-700"
+            />
+          ) : (
+            data.thumbnail_url && (
+              <img
+                src={data.thumbnail_url}
+                alt=""
+                className="mt-4 w-full rounded-lg border border-slate-700 object-contain"
+              />
+            )
+          )}
+
           {data.description ? (
             <Markdown className="mt-4 text-slate-300">{data.description}</Markdown>
           ) : (

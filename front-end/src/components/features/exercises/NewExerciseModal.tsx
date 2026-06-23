@@ -29,6 +29,8 @@ function NewExerciseModal({ open, onClose }: NewExerciseModalProps) {
         name: values.name,
         description: values.description || null,
         type: values.type,
+        thumbnail_key: values.thumbnailKey,
+        video_key: values.videoKey,
       },
     })
     if (error) {
@@ -41,7 +43,13 @@ function NewExerciseModal({ open, onClose }: NewExerciseModalProps) {
   }
 
   return (
-    <Modal open={open} onClose={handleClose} title="Nuevo ejercicio" size="xl">
+    <Modal
+      open={open}
+      onClose={handleClose}
+      title="Nuevo ejercicio"
+      size="xl"
+      closeOnBackdrop={false}
+    >
       <ExerciseForm onSubmit={handleSubmit} rootError={rootError} />
     </Modal>
   )

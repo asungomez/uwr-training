@@ -15,6 +15,7 @@ const messages: Record<string, string> = {
   invitation_email_mismatch: 'El correo electrónico no coincide con la invitación.',
   exercise_already_exists: 'Ya existe un ejercicio con este nombre.',
   exercise_not_found: 'No se ha encontrado el ejercicio.',
+  invalid_media_type: 'El tipo de archivo no es válido.',
   invitation_not_found: 'La invitación no existe o ya fue utilizada.',
   invitation_expired: 'La invitación ha caducado.',
 }

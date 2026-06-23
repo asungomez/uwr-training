@@ -15,9 +15,19 @@ interface ModalProps {
   children: ReactNode
   /** Desktop width. Defaults to 'md'; use a larger size for content like editors. */
   size?: keyof typeof sizeClass
+  /** Close when clicking the backdrop. Default true; set false for forms where a
+   *  stray click (e.g. while selecting editor text) shouldn't discard progress. */
+  closeOnBackdrop?: boolean
 }
 
-function Modal({ open, onClose, title, children, size = 'md' }: ModalProps) {
+function Modal({
+  open,
+  onClose,
+  title,
+  children,
+  size = 'md',
+  closeOnBackdrop = true,
+}: ModalProps) {
   useEffect(() => {
     if (!open) return
     function onKeyDown(event: KeyboardEvent) {
@@ -40,7 +50,7 @@ function Modal({ open, onClose, title, children, size = 'md' }: ModalProps) {
     // centered card with a backdrop around it.
     <div
       className="fixed inset-0 z-40 flex items-stretch justify-center bg-black/60 sm:items-center sm:p-4"
-      onClick={onClose}
+      onClick={closeOnBackdrop ? onClose : undefined}
     >
       <div
         role="dialog"

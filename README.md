@@ -116,9 +116,14 @@ docker/
 - **`dockerfiles/api.Dockerfile`** — `python:3.12-slim` with
   [uv](https://docs.astral.sh/uv/), running `uvicorn --reload` on port 8000.
   Dependencies live in a venv at `/opt/venv`, outside the source mount.
-- **`docker-compose.yml`** — defines the `frontend`, `api`, `db`, `checker`, and
+- **`docker-compose.yml`** — defines the `frontend`, `api`, `db`, `minio` (+ a
+  one-off `minio-setup` that creates the public-read media bucket), `checker`, and
   one-off `admin` services. Source is bind-mounted for live reload; named volumes
   keep Linux-native `node_modules` and the pre-commit cache separate from the host.
+  [MinIO](https://min.io/) is an S3-compatible store for exercise media (thumbnails
+  + videos): the API mints presigned upload URLs so the browser uploads straight to
+  it (console at `localhost:9001`, S3 API at `localhost:9000`). In production this is
+  a real S3 bucket, configured via the `S3_*` env vars.
 
 The `.pre-commit-config.yaml` hooks are scoped by path so Python hooks (Ruff + mypy
 strict) only touch `api/`. The front-end ESLint/Prettier hooks run via

@@ -25,6 +25,8 @@
     "react-hook-form": "^7.80.0",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.18.0",
+    "rehype-raw": "^7.0.0",
+    "rehype-sanitize": "^6.0.0",
     "remark-gfm": "^4.0.1",
     "swr": "^2.4.1",
     "swr-openapi": "^5.6.0",

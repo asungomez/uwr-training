@@ -35,6 +35,8 @@ function EditExerciseModal({ exercise, onClose }: EditExerciseModalProps) {
         name: values.name,
         description: values.description || null,
         type: values.type,
+        thumbnail_key: values.thumbnailKey,
+        video_key: values.videoKey,
       },
     })
     if (error) {
@@ -49,7 +51,13 @@ function EditExerciseModal({ exercise, onClose }: EditExerciseModalProps) {
   }
 
   return (
-    <Modal open={exercise !== null} onClose={handleClose} title="Editar ejercicio" size="xl">
+    <Modal
+      open={exercise !== null}
+      onClose={handleClose}
+      title="Editar ejercicio"
+      size="xl"
+      closeOnBackdrop={false}
+    >
       {exercise && (
         <ExerciseForm
           // Re-mount per exercise so the form re-seeds its default values.
@@ -59,7 +67,11 @@ function EditExerciseModal({ exercise, onClose }: EditExerciseModalProps) {
             name: exercise.name,
             description: exercise.description ?? '',
             type: exercise.type,
+            thumbnailKey: exercise.thumbnail_key ?? null,
+            videoKey: exercise.video_key ?? null,
           }}
+          initialThumbnailUrl={exercise.thumbnail_url}
+          initialVideoUrl={exercise.video_url}
           rootError={rootError}
         />
       )}

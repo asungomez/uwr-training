@@ -42,43 +42,55 @@ function ExerciseCard({ exercise, isAdmin, onOpen, onEdit, onDelete }: ExerciseC
   return (
     <article
       onClick={() => onOpen(exercise)}
-      className={`flex cursor-pointer flex-col gap-2 rounded-lg border p-4 transition-colors ${cardTint[exercise.type]}`}
+      className={`flex cursor-pointer flex-col overflow-hidden rounded-lg border transition-colors ${cardTint[exercise.type]}`}
     >
-      <div className="flex items-start justify-between gap-2">
-        <h3 className="font-medium text-slate-100">{exercise.name}</h3>
-        <ExerciseTypeBadge type={exercise.type} />
-      </div>
-      {exercise.description && (
-        <Markdown className="line-clamp-3 text-sm text-slate-300">{exercise.description}</Markdown>
+      {exercise.thumbnail_url && (
+        <img
+          src={exercise.thumbnail_url}
+          alt=""
+          loading="lazy"
+          className="h-32 w-full object-cover"
+        />
       )}
-      {isAdmin && (
-        <div className="mt-auto flex justify-end gap-1 pt-2">
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation()
-              onEdit(exercise)
-            }}
-            aria-label={`Editar ${exercise.name}`}
-            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-300 transition-colors hover:bg-slate-700/60 hover:text-white focus:ring-2 focus:ring-indigo-400 focus:outline-none"
-          >
-            <Pencil size={14} />
-            Editar
-          </button>
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation()
-              onDelete(exercise)
-            }}
-            aria-label={`Eliminar ${exercise.name}`}
-            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-300 transition-colors hover:bg-red-500/15 hover:text-red-200 focus:ring-2 focus:ring-red-400 focus:outline-none"
-          >
-            <Trash2 size={14} />
-            Eliminar
-          </button>
+      <div className="flex flex-1 flex-col gap-2 p-4">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="font-medium text-slate-100">{exercise.name}</h3>
+          <ExerciseTypeBadge type={exercise.type} />
         </div>
-      )}
+        {exercise.description && (
+          <Markdown className="line-clamp-3 text-sm text-slate-300">
+            {exercise.description}
+          </Markdown>
+        )}
+        {isAdmin && (
+          <div className="mt-auto flex justify-end gap-1 pt-2">
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation()
+                onEdit(exercise)
+              }}
+              aria-label={`Editar ${exercise.name}`}
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-300 transition-colors hover:bg-slate-700/60 hover:text-white focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+            >
+              <Pencil size={14} />
+              Editar
+            </button>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation()
+                onDelete(exercise)
+              }}
+              aria-label={`Eliminar ${exercise.name}`}
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-300 transition-colors hover:bg-red-500/15 hover:text-red-200 focus:ring-2 focus:ring-red-400 focus:outline-none"
+            >
+              <Trash2 size={14} />
+              Eliminar
+            </button>
+          </div>
+        )}
+      </div>
     </article>
   )
 }

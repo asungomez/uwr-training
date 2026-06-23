@@ -73,14 +73,74 @@ def _db(_network: Network) -> Iterator[DockerContainer]:
         yield container
 
 
+S3_BUCKET = "uwr-media"
+S3_KEY = "minioadmin"
+S3_SECRET = "minioadmin"
+
+
 @pytest.fixture(scope="session")
-def _api(_network: Network, _db: DockerContainer) -> Iterator[DockerContainer]:
+def _minio(_network: Network) -> Iterator[tuple[DockerContainer, str]]:
+    """MinIO (S3-compatible) for media uploads. Yields the container plus the
+    HOST-reachable endpoint, since presigned URLs are used by the browser."""
+    import boto3
+
+    container = (
+        DockerContainer("minio/minio:latest")
+        .with_command("server /data")
+        .with_env("MINIO_ROOT_USER", S3_KEY)
+        .with_env("MINIO_ROOT_PASSWORD", S3_SECRET)
+        .with_exposed_ports(9000)
+        .with_network(_network)
+        .with_network_aliases("minio")
+    )
+    with container:
+        wait_for_logs(container, "MinIO Object Storage Server", timeout=30)
+        endpoint = f"http://{container.get_container_host_ip()}:{container.get_exposed_port(9000)}"
+        # Create the public-read bucket (retry until MinIO accepts connections).
+        s3 = boto3.client(
+            "s3",
+            endpoint_url=endpoint,
+            aws_access_key_id=S3_KEY,
+            aws_secret_access_key=S3_SECRET,
+            region_name="us-east-1",
+        )
+        import time
+
+        for _ in range(20):
+            try:
+                s3.create_bucket(Bucket=S3_BUCKET)
+                break
+            except Exception:
+                time.sleep(0.5)
+        s3.put_bucket_policy(
+            Bucket=S3_BUCKET,
+            Policy=(
+                '{"Version":"2012-10-17","Statement":[{"Effect":"Allow",'
+                '"Principal":"*","Action":"s3:GetObject",'
+                f'"Resource":"arn:aws:s3:::{S3_BUCKET}/*"}}]}}'
+            ),
+        )
+        yield container, endpoint
+
+
+@pytest.fixture(scope="session")
+def _api(
+    _network: Network, _db: DockerContainer, _minio: tuple[DockerContainer, str]
+) -> Iterator[DockerContainer]:
     _build_image("uwr-training-api:test", "docker/dockerfiles/api.Dockerfile")
+    _minio_container, minio_endpoint = _minio
     container = (
         DockerContainer("uwr-training-api:test")
         .with_env("DATABASE_URL", INTERNAL_DB_URL)
         .with_env("SECRET_KEY", SECRET_KEY)
         .with_env("COOKIE_SECURE", "false")
+        # The API only SIGNS upload URLs, so it points at the host-reachable MinIO
+        # (where the browser uploads), not the container-network alias.
+        .with_env("S3_BUCKET", S3_BUCKET)
+        .with_env("S3_ACCESS_KEY_ID", S3_KEY)
+        .with_env("S3_SECRET_ACCESS_KEY", S3_SECRET)
+        .with_env("S3_ENDPOINT_URL", minio_endpoint)
+        .with_env("S3_PUBLIC_BASE_URL", f"{minio_endpoint}/{S3_BUCKET}")
         .with_exposed_ports(8000)
         .with_network(_network)
         .with_network_aliases("api")

@@ -60,4 +60,7 @@ class Exercise(Base):
     name: Mapped[str] = mapped_column(unique=True, index=True)
     description: Mapped[str | None] = mapped_column(default=None)
     type: Mapped[ExerciseType]
+    # S3 object keys for optional media; URLs are built at serialization time.
+    thumbnail_key: Mapped[str | None] = mapped_column(default=None)
+    video_key: Mapped[str | None] = mapped_column(default=None)
     created_at: Mapped[datetime] = mapped_column(_TZ, server_default=func.now())

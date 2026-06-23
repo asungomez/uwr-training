@@ -282,6 +282,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/exercises/media-uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Media Upload
+         * @description Mint a presigned POST so the admin's browser can upload a thumbnail or
+         *     video straight to S3. Returns the object key to store on save.
+         */
+        post: operations["create_media_upload_exercises_media_uploads_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/exercises": {
         parameters: {
             query?: never;
@@ -346,6 +367,10 @@ export interface components {
             /** Description */
             description?: string | null;
             type: components["schemas"]["ExerciseType"];
+            /** Thumbnail Key */
+            thumbnail_key?: string | null;
+            /** Video Key */
+            video_key?: string | null;
         };
         /** CreateInvitationRequest */
         CreateInvitationRequest: {
@@ -388,6 +413,14 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Thumbnail Key */
+            thumbnail_key?: string | null;
+            /** Video Key */
+            video_key?: string | null;
+            /** Thumbnail Url */
+            readonly thumbnail_url: string | null;
+            /** Video Url */
+            readonly video_url: string | null;
         };
         /**
          * ExerciseType
@@ -440,6 +473,32 @@ export interface components {
             /** Password */
             password: string;
         };
+        /**
+         * MediaKind
+         * @enum {string}
+         */
+        MediaKind: "thumbnail" | "video";
+        /** MediaUploadRequest */
+        MediaUploadRequest: {
+            kind: components["schemas"]["MediaKind"];
+            /** Content Type */
+            content_type: string;
+        };
+        /**
+         * MediaUploadResponse
+         * @description A presigned POST the client uses to upload one file directly to S3, plus
+         *     the object key to store on the exercise once the upload succeeds.
+         */
+        MediaUploadResponse: {
+            /** Key */
+            key: string;
+            /** Url */
+            url: string;
+            /** Fields */
+            fields: {
+                [key: string]: string;
+            };
+        };
         /** Page[DirectoryEntryResponse] */
         Page_DirectoryEntryResponse_: {
             /** Items */
@@ -486,6 +545,10 @@ export interface components {
             /** Description */
             description?: string | null;
             type: components["schemas"]["ExerciseType"];
+            /** Thumbnail Key */
+            thumbnail_key?: string | null;
+            /** Video Key */
+            video_key?: string | null;
         };
         /**
          * UpdateUserRequest
@@ -989,6 +1052,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_media_upload_exercises_media_uploads_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MediaUploadRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaUploadResponse"];
                 };
             };
             /** @description Validation Error */

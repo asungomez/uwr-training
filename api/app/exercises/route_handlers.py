@@ -12,12 +12,33 @@ from app.exercises.schemas import (
     CreateExerciseRequest,
     ExerciseListParams,
     ExerciseResponse,
+    MediaUploadRequest,
+    MediaUploadResponse,
     UpdateExerciseRequest,
 )
 from app.models import Exercise, User
 from app.pagination import Page
+from app.storage import MEDIA_CONSTRAINTS, create_presigned_upload
 
 router = APIRouter(prefix="/exercises", tags=["exercises"])
+
+
+@router.post("/media-uploads", response_model=MediaUploadResponse)
+async def create_media_upload(
+    body: MediaUploadRequest,
+    _admin: Annotated[User, Depends(require_admin)],
+) -> MediaUploadResponse:
+    """Mint a presigned POST so the admin's browser can upload a thumbnail or
+    video straight to S3. Returns the object key to store on save."""
+    allowed_types, _max_size = MEDIA_CONSTRAINTS[body.kind]
+    if body.content_type not in allowed_types:
+        raise api_error(
+            status.HTTP_400_BAD_REQUEST,
+            ErrorCode.invalid_media_type,
+            f"Unsupported content type for {body.kind.value}",
+        )
+    upload = create_presigned_upload(body.kind, body.content_type)
+    return MediaUploadResponse(key=upload.key, url=upload.url, fields=upload.fields)
 
 
 @router.get("")
@@ -81,7 +102,13 @@ async def create_exercise(
         )
 
     description = body.description.strip() if body.description else None
-    exercise = Exercise(name=name, description=description or None, type=body.type)
+    exercise = Exercise(
+        name=name,
+        description=description or None,
+        type=body.type,
+        thumbnail_key=body.thumbnail_key,
+        video_key=body.video_key,
+    )
     session.add(exercise)
     await session.commit()
     await session.refresh(exercise)
@@ -118,6 +145,9 @@ async def update_exercise(
     exercise.name = name
     exercise.description = description or None
     exercise.type = body.type
+    # The request carries the desired final keys (kept, replaced, or cleared).
+    exercise.thumbnail_key = body.thumbnail_key
+    exercise.video_key = body.video_key
     await session.commit()
     await session.refresh(exercise)
     return exercise
