@@ -1,30 +1,21 @@
+import { ChevronRight } from 'lucide-react'
 import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 
 import { api, useMutate } from '@/api/client'
 import { errorMessage } from '@/api/errors'
-import Modal from '@/components/atoms/Modal'
+import ExerciseForm, { type ExerciseFormValues } from '@/components/features/exercises/ExerciseForm'
 import { useToast } from '@/components/toast/context'
 
-import ExerciseForm, { type ExerciseFormValues } from './ExerciseForm'
-
-interface NewExerciseModalProps {
-  open: boolean
-  onClose: () => void
-}
-
-function NewExerciseModal({ open, onClose }: NewExerciseModalProps) {
+function NewExercisePage() {
+  const navigate = useNavigate()
   const toast = useToast()
   const mutate = useMutate()
   const [rootError, setRootError] = useState<string | undefined>(undefined)
 
-  function handleClose() {
-    setRootError(undefined)
-    onClose()
-  }
-
   async function handleSubmit(values: ExerciseFormValues) {
     setRootError(undefined)
-    const { error } = await api.POST('/exercises', {
+    const { data, error } = await api.POST('/exercises', {
       body: {
         name: values.name,
         description: values.description || null,
@@ -41,26 +32,32 @@ function NewExerciseModal({ open, onClose }: NewExerciseModalProps) {
         })),
       },
     })
-    if (error) {
+    if (error || !data) {
       setRootError(errorMessage(error))
       return
     }
     toast.success('Ejercicio creado.')
     await mutate(['/exercises'])
-    handleClose()
+    void navigate(`/ejercicios/${data.id}`)
   }
 
   return (
-    <Modal
-      open={open}
-      onClose={handleClose}
-      title="Nuevo ejercicio"
-      size="xl"
-      closeOnBackdrop={false}
-    >
-      <ExerciseForm onSubmit={handleSubmit} rootError={rootError} />
-    </Modal>
+    <section>
+      <nav className="flex items-center gap-1 text-sm text-slate-400" aria-label="Migas de pan">
+        <Link to="/ejercicios" className="transition-colors hover:text-slate-200">
+          Ejercicios
+        </Link>
+        <ChevronRight size={14} />
+        <span className="text-slate-200">Nuevo ejercicio</span>
+      </nav>
+
+      <h2 className="mt-6 text-2xl font-semibold tracking-tight">Nuevo ejercicio</h2>
+
+      <div className="mt-6">
+        <ExerciseForm onSubmit={handleSubmit} rootError={rootError} />
+      </div>
+    </section>
   )
 }
 
-export default NewExerciseModal
+export default NewExercisePage

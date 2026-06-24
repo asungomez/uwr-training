@@ -78,74 +78,84 @@ function ExerciseForm({
     <form
       onSubmit={(event) => void handleSubmit(onSubmit)(event)}
       noValidate
-      className="flex flex-col gap-4"
+      className="flex flex-col gap-6"
     >
-      <TextField
-        id="exercise-name"
-        label="Nombre"
-        error={errors.name?.message}
-        {...register('name')}
-      />
-      <Controller
-        control={control}
-        name="description"
-        render={({ field }) => (
-          <MarkdownField
-            label="Descripción"
-            value={field.value}
-            onChange={field.onChange}
-            error={errors.description?.message}
+      <div className="grid grid-cols-1 gap-x-8 gap-y-4 lg:grid-cols-2">
+        {/* Left column: the core identity of the exercise. */}
+        <div className="flex flex-col gap-4">
+          <SelectField
+            id="exercise-type"
+            label="Tipo"
+            error={errors.type?.message}
+            options={[
+              { value: 'gym', label: 'Gimnasio' },
+              { value: 'pool', label: 'Piscina' },
+            ]}
+            {...register('type')}
           />
-        )}
-      />
-      <SelectField
-        id="exercise-type"
-        label="Tipo"
-        error={errors.type?.message}
-        options={[
-          { value: 'gym', label: 'Gimnasio' },
-          { value: 'pool', label: 'Piscina' },
-        ]}
-        {...register('type')}
-      />
-      <Controller
-        control={control}
-        name="thumbnailKey"
-        render={({ field }) => (
-          <MediaUploadField
-            label="Miniatura"
-            kind="thumbnail"
-            value={field.value}
-            onChange={field.onChange}
-            initialPreviewUrl={initialThumbnailUrl}
+          <TextField
+            id="exercise-name"
+            label="Nombre"
+            error={errors.name?.message}
+            {...register('name')}
           />
-        )}
-      />
-      <Controller
-        control={control}
-        name="videoKey"
-        render={({ field }) => (
-          <MediaUploadField
-            label="Vídeo"
-            kind="video"
-            value={field.value}
-            onChange={field.onChange}
-            initialPreviewUrl={initialVideoUrl}
+          <Controller
+            control={control}
+            name="description"
+            render={({ field }) => (
+              <MarkdownField
+                label="Descripción"
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.description?.message}
+              />
+            )}
           />
-        )}
-      />
-      <RelatedExercisesField
-        control={control}
-        register={register}
-        excludeExerciseId={excludeExerciseId}
-      />
-      <ExerciseParametersField control={control} register={register} errors={errors} />
+        </div>
 
-      <FormError message={rootError} />
+        {/* Right column: media + relationships + parameters. */}
+        <div className="flex flex-col gap-4">
+          <Controller
+            control={control}
+            name="thumbnailKey"
+            render={({ field }) => (
+              <MediaUploadField
+                label="Miniatura"
+                kind="thumbnail"
+                value={field.value}
+                onChange={field.onChange}
+                initialPreviewUrl={initialThumbnailUrl}
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="videoKey"
+            render={({ field }) => (
+              <MediaUploadField
+                label="Vídeo"
+                kind="video"
+                value={field.value}
+                onChange={field.onChange}
+                initialPreviewUrl={initialVideoUrl}
+              />
+            )}
+          />
+          <RelatedExercisesField
+            control={control}
+            register={register}
+            excludeExerciseId={excludeExerciseId}
+          />
+          <ExerciseParametersField control={control} register={register} errors={errors} />
+        </div>
+      </div>
 
-      <SubmitButton pending={isSubmitting} pendingLabel="Guardando…">
-        Guardar ejercicio
-      </SubmitButton>
+      <div className="flex flex-col gap-4">
+        <FormError message={rootError} />
+        <SubmitButton pending={isSubmitting} pendingLabel="Guardando…">
+          Guardar ejercicio
+        </SubmitButton>
+      </div>
     </form>
   )
 }

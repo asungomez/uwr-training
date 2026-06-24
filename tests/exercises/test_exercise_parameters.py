@@ -59,23 +59,22 @@ def test_admin_adds_parameters_when_creating(
     create_user: Callable[..., User],
     log_in_as: Callable[[User], None],
 ) -> None:
-    # Given an admin on the new-exercise modal.
+    # Given an admin on the new-exercise page.
     admin = create_user(role="admin", email="admin@example.com")
     log_in_as(admin)
     page.goto(f"{app_url}/ejercicios")
-    page.get_by_role("button", name="Nuevo ejercicio").click()
-    dialog = page.get_by_role("dialog", name="Nuevo ejercicio")
+    page.get_by_role("link", name="Nuevo ejercicio").click()
 
     # When they fill the name and add a parameter with name + description.
-    dialog.get_by_label("Nombre").fill("Press banca")
-    dialog.get_by_role("button", name="Añadir parámetro").click()
-    dialog.get_by_placeholder("Nombre (p. ej. Peso)").fill("Peso")
-    dialog.get_by_placeholder("Descripción (opcional)…").fill("En kilos")
-    dialog.get_by_role("button", name="Guardar ejercicio").click()
-    expect(page.get_by_role("status").filter(has_text="Ejercicio creado.")).to_be_visible()
+    page.get_by_label("Nombre").fill("Press banca")
+    page.get_by_role("button", name="Añadir parámetro").click()
+    page.get_by_placeholder("Nombre (p. ej. Peso)").fill("Peso")
+    page.get_by_placeholder("Descripción (opcional)…").fill("En kilos")
+    page.get_by_role("button", name="Guardar ejercicio").click()
 
-    # Then the parameter shows on the new exercise's detail page.
-    page.get_by_role("heading", name="Press banca").click()
+    # Then it's created and the parameter shows on its detail page.
+    expect(page.get_by_role("status").filter(has_text="Ejercicio creado.")).to_be_visible()
+    expect(page.get_by_role("heading", name="Press banca")).to_be_visible()
     expect(page.get_by_role("heading", name="Parámetros")).to_be_visible()
     expect(page.get_by_text("Peso")).to_be_visible()
     expect(page.get_by_text("En kilos")).to_be_visible()
@@ -87,20 +86,19 @@ def test_parameter_name_required_blocks_submit(
     create_user: Callable[..., User],
     log_in_as: Callable[[User], None],
 ) -> None:
-    # Given the new-exercise modal with a name filled.
+    # Given the new-exercise page with a name filled.
     admin = create_user(role="admin", email="admin@example.com")
     log_in_as(admin)
     page.goto(f"{app_url}/ejercicios")
-    page.get_by_role("button", name="Nuevo ejercicio").click()
-    dialog = page.get_by_role("dialog", name="Nuevo ejercicio")
-    dialog.get_by_label("Nombre").fill("Press banca")
+    page.get_by_role("link", name="Nuevo ejercicio").click()
+    page.get_by_label("Nombre").fill("Press banca")
 
     # When I add a parameter but leave its name blank and submit.
-    dialog.get_by_role("button", name="Añadir parámetro").click()
-    dialog.get_by_role("button", name="Guardar ejercicio").click()
+    page.get_by_role("button", name="Añadir parámetro").click()
+    page.get_by_role("button", name="Guardar ejercicio").click()
 
     # Then client-side validation flags the missing parameter name and no toast shows.
-    expect(dialog.get_by_text("El nombre es obligatorio")).to_be_visible()
+    expect(page.get_by_text("El nombre es obligatorio")).to_be_visible()
     expect(page.get_by_role("status").filter(has_text="Ejercicio creado.")).not_to_be_visible()
 
 
@@ -122,18 +120,17 @@ def test_edit_prefills_and_removes_parameter(
     page.goto(f"{app_url}/ejercicios")
 
     # When editing, the existing parameter is pre-filled.
-    page.get_by_role("button", name="Editar Sentadilla").click()
-    dialog = page.get_by_role("dialog", name="Editar ejercicio")
-    expect(dialog.get_by_placeholder("Nombre (p. ej. Peso)")).to_have_value("Peso")
-    expect(dialog.get_by_placeholder("Descripción (opcional)…")).to_have_value("En kilos")
+    page.get_by_role("link", name="Editar Sentadilla").click()
+    expect(page.get_by_placeholder("Nombre (p. ej. Peso)")).to_have_value("Peso")
+    expect(page.get_by_placeholder("Descripción (opcional)…")).to_have_value("En kilos")
 
     # When I remove it and save.
-    dialog.get_by_role("button", name="Quitar parámetro").click()
-    dialog.get_by_role("button", name="Guardar ejercicio").click()
-    expect(page.get_by_role("status").filter(has_text="Ejercicio actualizado.")).to_be_visible()
+    page.get_by_role("button", name="Quitar parámetro").click()
+    page.get_by_role("button", name="Guardar ejercicio").click()
 
-    # Then the detail page no longer shows a parameters section.
-    page.get_by_role("heading", name="Sentadilla").click()
+    # Then it lands on the detail page, which no longer shows a parameters section.
+    expect(page.get_by_role("status").filter(has_text="Ejercicio actualizado.")).to_be_visible()
+    expect(page.get_by_role("heading", name="Sentadilla")).to_be_visible()
     expect(page.get_by_role("heading", name="Parámetros")).not_to_be_visible()
 
 
@@ -143,22 +140,21 @@ def test_duplicate_parameter_name_shows_error(
     create_user: Callable[..., User],
     log_in_as: Callable[[User], None],
 ) -> None:
-    # Given the new-exercise modal with two parameters sharing a name.
+    # Given the new-exercise page with two parameters sharing a name.
     admin = create_user(role="admin", email="admin@example.com")
     log_in_as(admin)
     page.goto(f"{app_url}/ejercicios")
-    page.get_by_role("button", name="Nuevo ejercicio").click()
-    dialog = page.get_by_role("dialog", name="Nuevo ejercicio")
-    dialog.get_by_label("Nombre").fill("Press banca")
+    page.get_by_role("link", name="Nuevo ejercicio").click()
+    page.get_by_label("Nombre").fill("Press banca")
 
-    dialog.get_by_role("button", name="Añadir parámetro").click()
-    dialog.get_by_role("button", name="Añadir parámetro").click()
-    names = dialog.get_by_placeholder("Nombre (p. ej. Peso)")
+    page.get_by_role("button", name="Añadir parámetro").click()
+    page.get_by_role("button", name="Añadir parámetro").click()
+    names = page.get_by_placeholder("Nombre (p. ej. Peso)")
     names.nth(0).fill("Peso")
     names.nth(1).fill("Peso")
-    dialog.get_by_role("button", name="Guardar ejercicio").click()
+    page.get_by_role("button", name="Guardar ejercicio").click()
 
     # Then the API rejects it with the localized error.
-    expect(dialog.get_by_role("alert")).to_have_text(
+    expect(page.get_by_role("alert")).to_have_text(
         "Algún parámetro no es válido (nombre vacío o repetido)."
     )

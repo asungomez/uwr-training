@@ -83,7 +83,7 @@ def test_admin_edits_from_detail(
     page.goto(f"{app_url}/ejercicios/{exercise.id}")
 
     # When I edit it (the form is pre-populated).
-    page.get_by_role("button", name="Editar").click()
+    page.get_by_role("link", name="Editar").click()
     name = page.get_by_label("Nombre")
     expect(name).to_have_value("Press banca")
     name.fill("Press inclinado")

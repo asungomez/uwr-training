@@ -103,21 +103,19 @@ def test_admin_adds_related_exercise_when_creating(
     log_in_as(admin)
     page.goto(f"{app_url}/ejercicios")
 
-    # When creating a new exercise and adding a related one via search. Scope to
-    # the modal — the list page behind it also has a "Jalón al pecho" card.
-    page.get_by_role("button", name="Nuevo ejercicio").click()
-    dialog = page.get_by_role("dialog", name="Nuevo ejercicio")
-    dialog.get_by_label("Nombre").fill("Dominada prona")
-    dialog.get_by_placeholder(SEARCH_PLACEHOLDER).fill("Jalón")
-    dialog.get_by_role("button", name="Jalón al pecho", exact=True).click()
-    dialog.get_by_placeholder("Nota (cuándo o por qué usar esta alternativa)…").fill(
+    # When creating a new exercise and adding a related one via search.
+    page.get_by_role("link", name="Nuevo ejercicio").click()
+    page.get_by_label("Nombre").fill("Dominada prona")
+    page.get_by_placeholder(SEARCH_PLACEHOLDER).fill("Jalón")
+    page.get_by_role("button", name="Jalón al pecho", exact=True).click()
+    page.get_by_placeholder("Nota (cuándo o por qué usar esta alternativa)…").fill(
         "Si no tienes barra"
     )
-    dialog.get_by_role("button", name="Guardar ejercicio").click()
-    expect(page.get_by_role("status").filter(has_text="Ejercicio creado.")).to_be_visible()
+    page.get_by_role("button", name="Guardar ejercicio").click()
 
-    # Then the relation shows on the new exercise's detail page.
-    page.get_by_role("heading", name="Dominada prona").click()
+    # Then it's created and the relation shows on its detail page.
+    expect(page.get_by_role("status").filter(has_text="Ejercicio creado.")).to_be_visible()
+    expect(page.get_by_role("heading", name="Dominada prona")).to_be_visible()
     expect(page.get_by_role("heading", name="Ejercicios alternativos")).to_be_visible()
     expect(page.get_by_role("link", name="Jalón al pecho")).to_be_visible()
     expect(page.get_by_text("Si no tienes barra")).to_be_visible()
@@ -141,22 +139,20 @@ def test_edit_prefills_and_removes_related(
     log_in_as(admin)
     page.goto(f"{app_url}/ejercicios")
 
-    # When editing, the existing relation is pre-filled. Scope to the modal — the
-    # list page behind it also has a "Jalón al pecho" card.
-    page.get_by_role("button", name="Editar Dominada prona").click()
-    dialog = page.get_by_role("dialog", name="Editar ejercicio")
-    expect(dialog.get_by_text("Jalón al pecho")).to_be_visible()
+    # When editing, the existing relation is pre-filled.
+    page.get_by_role("link", name="Editar Dominada prona").click()
+    expect(page.get_by_text("Jalón al pecho")).to_be_visible()
     expect(
-        dialog.get_by_placeholder("Nota (cuándo o por qué usar esta alternativa)…")
+        page.get_by_placeholder("Nota (cuándo o por qué usar esta alternativa)…")
     ).to_have_value("Si no tienes barra")
 
     # When I remove it and save.
-    dialog.get_by_role("button", name="Quitar Jalón al pecho").click()
-    dialog.get_by_role("button", name="Guardar ejercicio").click()
-    expect(page.get_by_role("status").filter(has_text="Ejercicio actualizado.")).to_be_visible()
+    page.get_by_role("button", name="Quitar Jalón al pecho").click()
+    page.get_by_role("button", name="Guardar ejercicio").click()
 
-    # Then the detail page no longer shows a related section.
-    page.get_by_role("heading", name="Dominada prona").click()
+    # Then it lands on the detail page, which no longer shows a related section.
+    expect(page.get_by_role("status").filter(has_text="Ejercicio actualizado.")).to_be_visible()
+    expect(page.get_by_role("heading", name="Dominada prona")).to_be_visible()
     expect(page.get_by_role("heading", name="Ejercicios alternativos")).not_to_be_visible()
 
 
@@ -172,9 +168,8 @@ def test_cannot_relate_exercise_to_itself(
     create_exercise(name="Dominada prona", type="gym")
     log_in_as(admin)
     page.goto(f"{app_url}/ejercicios")
-    page.get_by_role("button", name="Editar Dominada prona").click()
-    dialog = page.get_by_role("dialog", name="Editar ejercicio")
+    page.get_by_role("link", name="Editar Dominada prona").click()
 
     # When I search in the related-exercise picker, the exercise itself is excluded.
-    dialog.get_by_placeholder(SEARCH_PLACEHOLDER).fill("Dominada")
-    expect(dialog.get_by_text("No hay ejercicios que coincidan.")).to_be_visible()
+    page.get_by_placeholder(SEARCH_PLACEHOLDER).fill("Dominada")
+    expect(page.get_by_text("No hay ejercicios que coincidan.")).to_be_visible()

@@ -18,8 +18,8 @@ def test_admin_edits_exercise(
     log_in_as(admin)
     page.goto(f"{app_url}/ejercicios")
 
-    # When the admin edits it (the form is pre-populated).
-    page.get_by_role("button", name="Editar Sentadilla").click()
+    # When the admin opens the edit page (the form is pre-populated).
+    page.get_by_role("link", name="Editar Sentadilla").click()
     name = page.get_by_label("Nombre")
     expect(name).to_have_value("Sentadilla")
     # Description is a WYSIWYG editor (contenteditable), pre-loaded with the markdown.
@@ -28,10 +28,9 @@ def test_admin_edits_exercise(
     page.get_by_label("Tipo", exact=True).select_option(label="Piscina")
     page.get_by_role("button", name="Guardar ejercicio").click()
 
-    # Then a toast confirms it and the card reflects the new name.
+    # Then a toast confirms it and the detail page reflects the new name.
     expect(page.get_by_role("status").filter(has_text="Ejercicio actualizado.")).to_be_visible()
     expect(page.get_by_role("heading", name="Sentadilla búlgara")).to_be_visible()
-    expect(page.get_by_role("heading", name="Sentadilla", exact=True)).not_to_be_visible()
 
 
 def test_edit_duplicate_name_shows_spanish_error(
@@ -49,11 +48,11 @@ def test_edit_duplicate_name_shows_spanish_error(
     page.goto(f"{app_url}/ejercicios")
 
     # When I rename one to clash with the other.
-    page.get_by_role("button", name="Editar Dominadas").click()
+    page.get_by_role("link", name="Editar Dominadas").click()
     page.get_by_label("Nombre").fill("Press banca")
     page.get_by_role("button", name="Guardar ejercicio").click()
 
-    # Then the modal shows the localized duplicate error.
+    # Then the form shows the localized duplicate error.
     expect(page.get_by_role("alert")).to_have_text("Ya existe un ejercicio con este nombre.")
 
 
@@ -120,5 +119,5 @@ def test_member_sees_no_edit_or_delete(
     expect(page.get_by_role("heading", name="Zancadas")).to_be_visible()
 
     # Then no edit/delete controls are shown.
-    expect(page.get_by_role("button", name="Editar Zancadas")).not_to_be_visible()
+    expect(page.get_by_role("link", name="Editar Zancadas")).not_to_be_visible()
     expect(page.get_by_role("button", name="Eliminar Zancadas")).not_to_be_visible()

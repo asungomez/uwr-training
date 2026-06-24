@@ -87,7 +87,7 @@ def test_admin_uploads_thumbnail_when_creating(
     admin = create_user(role="admin", email="admin@example.com")
     log_in_as(admin)
     page.goto(f"{app_url}/ejercicios")
-    page.get_by_role("button", name="Nuevo ejercicio").click()
+    page.get_by_role("link", name="Nuevo ejercicio").click()
     page.get_by_label("Nombre").fill("Subida real")
 
     # When they pick a thumbnail file (uploaded straight to S3 via presign).
@@ -103,7 +103,7 @@ def test_admin_uploads_thumbnail_when_creating(
     expect(page.get_by_role("button", name="Quitar miniatura")).to_be_visible()
     page.get_by_role("button", name="Guardar ejercicio").click()
 
-    # Then it's created and the thumbnail shows on its card.
+    # Then it's created and the thumbnail shows on its detail page.
     expect(page.get_by_role("status").filter(has_text="Ejercicio creado.")).to_be_visible()
-    card = page.get_by_role("article").filter(has_text="Subida real")
-    expect(card.locator("img")).to_be_visible()
+    expect(page.get_by_role("heading", name="Subida real")).to_be_visible()
+    expect(page.locator("section img")).to_be_visible()

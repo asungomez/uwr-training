@@ -5,7 +5,6 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, useMutate, useQuery } from '@/api/client'
 import { errorMessage } from '@/api/errors'
 import { useAuth } from '@/auth/context'
-import EditExerciseModal from '@/components/features/exercises/EditExerciseModal'
 import { ExerciseTypeBadge } from '@/components/features/exercises/exerciseBadges'
 import ConfirmDialog from '@/components/molecules/ConfirmDialog'
 import Markdown from '@/components/molecules/Markdown'
@@ -23,7 +22,6 @@ function ExerciseDetailPage() {
   const mutate = useMutate()
   const navigate = useNavigate()
 
-  const [editing, setEditing] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deletePending, setDeletePending] = useState(false)
   const [deleteError, setDeleteError] = useState<string | undefined>(undefined)
@@ -144,14 +142,13 @@ function ExerciseDetailPage() {
 
           {isAdmin && (
             <div className="mt-6 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setEditing(true)}
+              <Link
+                to={`/ejercicios/${exerciseId}/editar`}
                 className="inline-flex items-center gap-2 rounded-md border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
               >
                 <Pencil size={16} />
                 Editar
-              </button>
+              </Link>
               <button
                 type="button"
                 onClick={() => {
@@ -169,20 +166,17 @@ function ExerciseDetailPage() {
       )}
 
       {isAdmin && data && (
-        <>
-          <EditExerciseModal exercise={editing ? data : null} onClose={() => setEditing(false)} />
-          <ConfirmDialog
-            open={confirmingDelete}
-            title="Eliminar ejercicio"
-            message={`¿Seguro que quieres eliminar «${data.name}»? Esta acción no se puede deshacer.`}
-            confirmLabel={deletePending ? 'Eliminando…' : 'Eliminar'}
-            pending={deletePending}
-            destructive
-            error={deleteError}
-            onConfirm={() => void confirmDelete()}
-            onCancel={() => setConfirmingDelete(false)}
-          />
-        </>
+        <ConfirmDialog
+          open={confirmingDelete}
+          title="Eliminar ejercicio"
+          message={`¿Seguro que quieres eliminar «${data.name}»? Esta acción no se puede deshacer.`}
+          confirmLabel={deletePending ? 'Eliminando…' : 'Eliminar'}
+          pending={deletePending}
+          destructive
+          error={deleteError}
+          onConfirm={() => void confirmDelete()}
+          onCancel={() => setConfirmingDelete(false)}
+        />
       )}
     </section>
   )

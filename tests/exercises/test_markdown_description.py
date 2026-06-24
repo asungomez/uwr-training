@@ -47,7 +47,7 @@ def test_create_with_markdown_editor_round_trips(
     admin = create_user(role="admin", email="admin@example.com")
     log_in_as(admin)
     page.goto(f"{app_url}/ejercicios")
-    page.get_by_role("button", name="Nuevo ejercicio").click()
+    page.get_by_role("link", name="Nuevo ejercicio").click()
 
     # When I fill the name and type into the WYSIWYG editor, then save.
     page.get_by_label("Nombre").fill("Plancha")
@@ -56,9 +56,8 @@ def test_create_with_markdown_editor_round_trips(
     editor.type("Aguanta la posición durante un minuto.")
     page.get_by_role("button", name="Guardar ejercicio").click()
 
-    # Then it's created, and opening its detail shows the typed description
-    # (the editor round-tripped the text through markdown).
+    # Then it's created and lands on its detail page, which shows the typed
+    # description (the editor round-tripped the text through markdown).
     expect(page.get_by_role("status").filter(has_text="Ejercicio creado.")).to_be_visible()
-    page.get_by_role("heading", name="Plancha").click()
-    expect(page.get_by_label("Migas de pan")).to_be_visible()
+    expect(page.get_by_role("heading", name="Plancha")).to_be_visible()
     expect(page.get_by_text("Aguanta la posición durante un minuto.")).to_be_visible()

@@ -1,6 +1,6 @@
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 import { api, useMutate, useQuery } from '@/api/client'
 import { errorMessage } from '@/api/errors'
@@ -13,9 +13,7 @@ import { useAuth } from '@/auth/context'
 import { useToast } from '@/components/toast/context'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { useUrlListState } from '@/hooks/useUrlListState'
-import EditExerciseModal from '@/components/features/exercises/EditExerciseModal'
 import { ExerciseTypeBadge } from '@/components/features/exercises/exerciseBadges'
-import NewExerciseModal from '@/components/features/exercises/NewExerciseModal'
 
 const PAGE_SIZE = 12
 
@@ -33,11 +31,10 @@ interface ExerciseCardProps {
   exercise: Exercise
   isAdmin: boolean
   onOpen: (exercise: Exercise) => void
-  onEdit: (exercise: Exercise) => void
   onDelete: (exercise: Exercise) => void
 }
 
-function ExerciseCard({ exercise, isAdmin, onOpen, onEdit, onDelete }: ExerciseCardProps) {
+function ExerciseCard({ exercise, isAdmin, onOpen, onDelete }: ExerciseCardProps) {
   return (
     <article
       onClick={() => onOpen(exercise)}
@@ -58,18 +55,15 @@ function ExerciseCard({ exercise, isAdmin, onOpen, onEdit, onDelete }: ExerciseC
         </div>
         {isAdmin && (
           <div className="mt-auto flex justify-end gap-1 pt-2">
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation()
-                onEdit(exercise)
-              }}
+            <Link
+              to={`/ejercicios/${exercise.id}/editar`}
+              onClick={(event) => event.stopPropagation()}
               aria-label={`Editar ${exercise.name}`}
               className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-300 transition-colors hover:bg-slate-700/60 hover:text-white focus:ring-2 focus:ring-indigo-400 focus:outline-none"
             >
               <Pencil size={14} />
               Editar
-            </button>
+            </Link>
             <button
               type="button"
               onClick={(event) => {
@@ -95,8 +89,6 @@ function ExercisesPage() {
   const toast = useToast()
   const mutate = useMutate()
   const navigate = useNavigate()
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editing, setEditing] = useState<Exercise | null>(null)
   const [deleting, setDeleting] = useState<Exercise | null>(null)
   const [deletePending, setDeletePending] = useState(false)
   const [deleteError, setDeleteError] = useState<string | undefined>(undefined)
@@ -149,33 +141,28 @@ function ExercisesPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-2xl font-semibold tracking-tight">Ejercicios</h2>
         {isAdmin && (
-          <button
-            type="button"
-            onClick={() => setModalOpen(true)}
+          <Link
+            to="/ejercicios/nuevo"
             className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
           >
             <Plus size={16} />
             Nuevo ejercicio
-          </button>
+          </Link>
         )}
       </div>
 
       {isAdmin && (
-        <>
-          <NewExerciseModal open={modalOpen} onClose={() => setModalOpen(false)} />
-          <EditExerciseModal exercise={editing} onClose={() => setEditing(null)} />
-          <ConfirmDialog
-            open={deleting !== null}
-            title="Eliminar ejercicio"
-            message={`¿Seguro que quieres eliminar «${deleting?.name ?? ''}»? Esta acción no se puede deshacer.`}
-            confirmLabel={deletePending ? 'Eliminando…' : 'Eliminar'}
-            pending={deletePending}
-            destructive
-            error={deleteError}
-            onConfirm={() => void confirmDelete()}
-            onCancel={() => setDeleting(null)}
-          />
-        </>
+        <ConfirmDialog
+          open={deleting !== null}
+          title="Eliminar ejercicio"
+          message={`¿Seguro que quieres eliminar «${deleting?.name ?? ''}»? Esta acción no se puede deshacer.`}
+          confirmLabel={deletePending ? 'Eliminando…' : 'Eliminar'}
+          pending={deletePending}
+          destructive
+          error={deleteError}
+          onConfirm={() => void confirmDelete()}
+          onCancel={() => setDeleting(null)}
+        />
       )}
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -212,7 +199,6 @@ function ExercisesPage() {
                 exercise={exercise}
                 isAdmin={isAdmin}
                 onOpen={(ex) => void navigate(`/ejercicios/${ex.id}`)}
-                onEdit={setEditing}
                 onDelete={requestDelete}
               />
             ))}
