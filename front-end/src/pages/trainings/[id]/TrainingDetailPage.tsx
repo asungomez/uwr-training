@@ -1,10 +1,11 @@
 import { ChevronRight, Copy, Pencil, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
 import { api, useMutate, useQuery } from '@/api/client'
 import { errorMessage } from '@/api/errors'
 import { useAuth } from '@/auth/context'
+import ExercisePanel from '@/components/features/trainings/ExercisePanel'
 import { CategoryBadge, SubtypeBadge } from '@/components/features/trainings/trainingBadges'
 import TrainingItemView from '@/components/features/trainings/TrainingItemView'
 import {
@@ -30,6 +31,31 @@ function TrainingDetailPage() {
   const { data, isLoading, error } = useQuery('/trainings/{training_id}', {
     params: { path: { training_id: trainingId } },
   })
+
+  // ?ejercicio=<id> opens that exercise in the side panel; selecting another just
+  // replaces the param (no history entry, so Back leaves the training cleanly).
+  const [searchParams, setSearchParams] = useSearchParams()
+  const selectedExerciseId = searchParams.get('ejercicio')
+
+  function selectExercise(exerciseId: string) {
+    setSearchParams(
+      (params) => {
+        params.set('ejercicio', exerciseId)
+        return params
+      },
+      { replace: true },
+    )
+  }
+
+  function closeExercise() {
+    setSearchParams(
+      (params) => {
+        params.delete('ejercicio')
+        return params
+      },
+      { replace: true },
+    )
+  }
 
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deletePending, setDeletePending] = useState(false)
@@ -79,82 +105,108 @@ function TrainingDetailPage() {
         <span className="text-slate-200">{data?.title ?? '…'}</span>
       </nav>
 
-      {isLoading && <p className="mt-4 text-slate-400">Cargando…</p>}
-      {error && <p className="mt-4 text-red-400">No se ha encontrado el entrenamiento.</p>}
+      {/* Two columns on desktop when an exercise is open: training (left) +
+          exercise panel (right). The panel is a full-screen overlay on mobile. */}
+      <div
+        className={
+          selectedExerciseId
+            ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,28rem)] lg:items-start lg:gap-8'
+            : ''
+        }
+      >
+        <div className="min-w-0">
+          {isLoading && <p className="mt-4 text-slate-400">Cargando…</p>}
+          {error && <p className="mt-4 text-red-400">No se ha encontrado el entrenamiento.</p>}
 
-      {data && (
-        <div className="mt-6">
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-100">
-            {data.title ?? <span className="text-slate-500">{BLANK}</span>}
-          </h1>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <CategoryBadge category={data.category} />
-            <SubtypeBadge subtype={data.subtype} />
-          </div>
+          {data && (
+            <div className="mt-6">
+              <h1 className="text-2xl font-semibold tracking-tight text-slate-100">
+                {data.title ?? <span className="text-slate-500">{BLANK}</span>}
+              </h1>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <CategoryBadge category={data.category} />
+                <SubtypeBadge subtype={data.subtype} />
+              </div>
 
-          {data.blocks.length > 0 && (
-            <div className="mt-8 flex flex-col">
-              {data.blocks.map((block, index) => (
-                <div key={block.id}>
-                  {index > 0 && <hr className="my-6 border-slate-800" />}
-                  <h2 className="text-xl font-semibold text-slate-100">{block.name}</h2>
-                  {block.sub_blocks.length > 0 ? (
-                    <div className="mt-4 flex flex-col gap-4 border-l-2 border-slate-800 pl-4">
-                      {block.sub_blocks.map((sub) => (
-                        <div key={sub.id}>
-                          <h3 className="font-medium text-slate-200">{sub.name}</h3>
-                          {sub.notes && <p className="mt-1 text-sm text-slate-400">{sub.notes}</p>}
-                          {sub.items.length > 0 && (
-                            <ol className="mt-2 flex list-decimal flex-col gap-1 pl-5 text-sm marker:text-slate-500">
-                              {sub.items.map((item) => (
-                                <TrainingItemView key={item.id} item={item} />
-                              ))}
-                            </ol>
-                          )}
+              {data.blocks.length > 0 && (
+                <div className="mt-8 flex flex-col">
+                  {data.blocks.map((block, index) => (
+                    <div key={block.id}>
+                      {index > 0 && <hr className="my-6 border-slate-800" />}
+                      <h2 className="text-xl font-semibold text-slate-100">{block.name}</h2>
+                      {block.sub_blocks.length > 0 ? (
+                        <div className="mt-4 flex flex-col gap-4 border-l-2 border-slate-800 pl-4">
+                          {block.sub_blocks.map((sub) => (
+                            <div key={sub.id}>
+                              <h3 className="font-medium text-slate-200">{sub.name}</h3>
+                              {sub.notes && (
+                                <p className="mt-1 text-sm text-slate-400">{sub.notes}</p>
+                              )}
+                              {sub.items.length > 0 && (
+                                <ol className="mt-2 flex list-decimal flex-col gap-1 pl-5 text-sm marker:text-slate-500">
+                                  {sub.items.map((item) => (
+                                    <TrainingItemView
+                                      key={item.id}
+                                      item={item}
+                                      onSelectExercise={selectExercise}
+                                    />
+                                  ))}
+                                </ol>
+                              )}
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      ) : (
+                        <p className="mt-2 text-sm text-slate-500">
+                          Aquí irá el bloque de entrenamiento.
+                        </p>
+                      )}
                     </div>
-                  ) : (
-                    <p className="mt-2 text-sm text-slate-500">
-                      Aquí irá el bloque de entrenamiento.
-                    </p>
-                  )}
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
+              )}
 
-          {isAdmin && (
-            <div className="mt-6 flex flex-wrap gap-2">
-              <Link
-                to={`/entrenamientos/${trainingId}/editar`}
-                className="inline-flex items-center gap-2 rounded-md border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
-              >
-                <Pencil size={16} />
-                Editar
-              </Link>
-              <Link
-                to={`/entrenamientos/${categorySlugs[data.category]}/${subtypeSlugs[data.subtype]}/nuevo?copiar_de=${trainingId}`}
-                className="inline-flex items-center gap-2 rounded-md border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
-              >
-                <Copy size={16} />
-                Copiar entrenamiento
-              </Link>
-              <button
-                type="button"
-                onClick={() => {
-                  setDeleteError(undefined)
-                  setConfirmingDelete(true)
-                }}
-                className="inline-flex items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-500 focus:ring-2 focus:ring-red-400 focus:outline-none"
-              >
-                <Trash2 size={16} />
-                Eliminar
-              </button>
+              {isAdmin && (
+                <div className="mt-6 flex flex-wrap gap-2">
+                  <Link
+                    to={`/entrenamientos/${trainingId}/editar`}
+                    className="inline-flex items-center gap-2 rounded-md border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+                  >
+                    <Pencil size={16} />
+                    Editar
+                  </Link>
+                  <Link
+                    to={`/entrenamientos/${categorySlugs[data.category]}/${subtypeSlugs[data.subtype]}/nuevo?copiar_de=${trainingId}`}
+                    className="inline-flex items-center gap-2 rounded-md border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+                  >
+                    <Copy size={16} />
+                    Copiar entrenamiento
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteError(undefined)
+                      setConfirmingDelete(true)
+                    }}
+                    className="inline-flex items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-500 focus:ring-2 focus:ring-red-400 focus:outline-none"
+                  >
+                    <Trash2 size={16} />
+                    Eliminar
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
-      )}
+
+        {selectedExerciseId && (
+          <ExercisePanel
+            exerciseId={selectedExerciseId}
+            onClose={closeExercise}
+            onSelectExercise={selectExercise}
+          />
+        )}
+      </div>
 
       {isAdmin && data && (
         <ConfirmDialog

@@ -5,9 +5,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, useMutate, useQuery } from '@/api/client'
 import { errorMessage } from '@/api/errors'
 import { useAuth } from '@/auth/context'
-import { ExerciseTypeBadge } from '@/components/features/exercises/exerciseBadges'
+import ExerciseDetailContent from '@/components/features/exercises/ExerciseDetailContent'
 import ConfirmDialog from '@/components/molecules/ConfirmDialog'
-import Markdown from '@/components/molecules/Markdown'
 import { useToast } from '@/components/toast/context'
 
 function ExerciseDetailPage() {
@@ -57,88 +56,7 @@ function ExerciseDetailPage() {
 
       {data && (
         <div className="mt-6 max-w-2xl">
-          <div className="flex flex-wrap items-center gap-3">
-            <h2 className="text-2xl font-semibold tracking-tight text-slate-100">{data.name}</h2>
-            <ExerciseTypeBadge type={data.type} />
-          </div>
-
-          {data.video_url ? (
-            <video
-              src={data.video_url}
-              poster={data.thumbnail_url ?? undefined}
-              controls
-              className="mt-4 w-full rounded-lg border border-slate-700"
-            />
-          ) : (
-            data.thumbnail_url && (
-              <img
-                src={data.thumbnail_url}
-                alt=""
-                className="mt-4 w-full rounded-lg border border-slate-700 object-contain"
-              />
-            )
-          )}
-
-          {data.description ? (
-            <Markdown className="mt-4 text-slate-300">{data.description}</Markdown>
-          ) : (
-            <p className="mt-4 text-slate-500">Sin descripción.</p>
-          )}
-
-          {data.parameters.length > 0 && (
-            <div className="mt-8">
-              <h3 className="text-lg font-semibold text-slate-100">Parámetros</h3>
-              <ul className="mt-3 flex flex-col gap-2">
-                {data.parameters.map((param) => (
-                  <li
-                    key={param.id}
-                    className="rounded-lg border border-slate-700 bg-slate-800/50 p-3"
-                  >
-                    <span className="font-medium text-slate-100">{param.name}</span>
-                    {param.description && (
-                      <p className="mt-1 text-sm text-slate-300">{param.description}</p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {data.related_exercises.length > 0 && (
-            <div className="mt-8">
-              <h3 className="text-lg font-semibold text-slate-100">Ejercicios alternativos</h3>
-              <ul className="mt-3 flex flex-col gap-3">
-                {data.related_exercises.map((related) => (
-                  <li
-                    key={related.related_exercise_id}
-                    className="flex gap-4 rounded-lg border border-slate-700 bg-slate-800/50 p-4"
-                  >
-                    {related.related_exercise_thumbnail_url && (
-                      <Link to={`/ejercicios/${related.related_exercise_id}`} className="shrink-0">
-                        <img
-                          src={related.related_exercise_thumbnail_url}
-                          alt=""
-                          loading="lazy"
-                          className="h-16 w-24 rounded-md object-cover"
-                        />
-                      </Link>
-                    )}
-                    <div className="min-w-0">
-                      <Link
-                        to={`/ejercicios/${related.related_exercise_id}`}
-                        className="font-medium text-indigo-400 transition-colors hover:text-indigo-300"
-                      >
-                        {related.related_exercise_name}
-                      </Link>
-                      {related.note && (
-                        <p className="mt-1 text-sm text-slate-300">{related.note}</p>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          <ExerciseDetailContent exercise={data} />
 
           {isAdmin && (
             <div className="mt-6 flex flex-wrap gap-2">

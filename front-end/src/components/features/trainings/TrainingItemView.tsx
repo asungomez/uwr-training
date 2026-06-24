@@ -18,9 +18,16 @@ function prescription(item: ItemResponse): { label: string; value: string }[] {
   return fields
 }
 
+interface TrainingItemViewProps {
+  item: ItemResponse
+  /** Open the series' exercise in the side panel (by id). */
+  onSelectExercise: (exerciseId: string) => void
+}
+
 /** Render one sub-block item on the detail page: a note as plain text, a series
- *  as its exercise name plus only the prescription fields that were filled in. */
-function TrainingItemView({ item }: { item: ItemResponse }) {
+ *  as its exercise name (clickable, opens the exercise panel) plus only the
+ *  prescription fields that were filled in. */
+function TrainingItemView({ item, onSelectExercise }: TrainingItemViewProps) {
   if (item.kind === 'note') {
     return <li className="text-slate-300">{item.text}</li>
   }
@@ -28,7 +35,17 @@ function TrainingItemView({ item }: { item: ItemResponse }) {
   const fields = prescription(item)
   return (
     <li className="text-slate-300">
-      <span className="font-medium text-slate-100">{item.exercise_name}</span>
+      {item.exercise_id ? (
+        <button
+          type="button"
+          onClick={() => onSelectExercise(item.exercise_id!)}
+          className="font-medium text-indigo-400 transition-colors hover:text-indigo-300"
+        >
+          {item.exercise_name}
+        </button>
+      ) : (
+        <span className="font-medium text-slate-100">{item.exercise_name}</span>
+      )}
       {fields.length > 0 && (
         <span className="ml-2 inline-flex flex-wrap gap-x-3 gap-y-1 text-slate-400">
           {fields.map((field) => (
