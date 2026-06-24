@@ -13,6 +13,11 @@ class RelatedExerciseInput(BaseModel):
     note: str | None = None
 
 
+class ParameterInput(BaseModel):
+    name: str
+    description: str | None = None
+
+
 class CreateExerciseRequest(BaseModel):
     name: str
     description: str | None = None
@@ -20,6 +25,7 @@ class CreateExerciseRequest(BaseModel):
     thumbnail_key: str | None = None
     video_key: str | None = None
     related_exercises: list[RelatedExerciseInput] = []
+    parameters: list[ParameterInput] = []
 
 
 class UpdateExerciseRequest(BaseModel):
@@ -29,6 +35,7 @@ class UpdateExerciseRequest(BaseModel):
     thumbnail_key: str | None = None
     video_key: str | None = None
     related_exercises: list[RelatedExerciseInput] = []
+    parameters: list[ParameterInput] = []
 
 
 class ExerciseListParams(PaginationParams):
@@ -66,6 +73,18 @@ class RelatedExerciseResponse(BaseModel):
         return str(value)
 
 
+class ParameterResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    description: str | None
+
+    @field_serializer("id")
+    def serialize_id(self, value: uuid.UUID) -> str:
+        return str(value)
+
+
 class ExerciseResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -78,6 +97,7 @@ class ExerciseResponse(BaseModel):
     thumbnail_key: str | None = None
     video_key: str | None = None
     related_exercises: list[RelatedExerciseResponse] = []
+    parameters: list[ParameterResponse] = []
 
     @field_serializer("id")
     def serialize_id(self, value: uuid.UUID) -> str:

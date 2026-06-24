@@ -5,6 +5,7 @@ import { z } from 'zod'
 import FormError from '@/components/atoms/form/FormError'
 import MarkdownField from '@/components/atoms/form/MarkdownField'
 import MediaUploadField from '@/components/atoms/form/MediaUploadField'
+import ExerciseParametersField from '@/components/features/exercises/ExerciseParametersField'
 import RelatedExercisesField from '@/components/features/exercises/RelatedExercisesField'
 import SelectField from '@/components/atoms/form/SelectField'
 import SubmitButton from '@/components/atoms/form/SubmitButton'
@@ -21,6 +22,12 @@ const schema = z.object({
       exerciseId: z.string(),
       exerciseName: z.string(),
       note: z.string().trim(),
+    }),
+  ),
+  parameters: z.array(
+    z.object({
+      name: z.string().trim().min(1, 'El nombre es obligatorio'),
+      description: z.string().trim(),
     }),
   ),
 })
@@ -62,6 +69,7 @@ function ExerciseForm({
       thumbnailKey: null,
       videoKey: null,
       relatedExercises: [],
+      parameters: [],
       ...defaultValues,
     },
   })
@@ -131,6 +139,7 @@ function ExerciseForm({
         register={register}
         excludeExerciseId={excludeExerciseId}
       />
+      <ExerciseParametersField control={control} register={register} errors={errors} />
 
       <FormError message={rootError} />
 

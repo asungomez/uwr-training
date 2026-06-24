@@ -15,11 +15,13 @@ from app.exercises.schemas import (
     ExerciseResponse,
     MediaUploadRequest,
     MediaUploadResponse,
+    ParameterInput,
+    ParameterResponse,
     RelatedExerciseInput,
     RelatedExerciseResponse,
     UpdateExerciseRequest,
 )
-from app.models import Exercise, ExerciseRelation, User
+from app.models import Exercise, ExerciseParameter, ExerciseRelation, User
 from app.pagination import Page
 from app.storage import MEDIA_CONSTRAINTS, create_presigned_upload, public_url
 
@@ -46,6 +48,7 @@ def _serialize(exercise: Exercise) -> ExerciseResponse:
             )
             for relation in exercise.related
         ],
+        parameters=[ParameterResponse.model_validate(param) for param in exercise.parameters],
     )
 
 
@@ -54,7 +57,10 @@ async def _load_exercise(session: AsyncSession, exercise_id: uuid.UUID) -> Exerc
     exercise: Exercise | None = await session.scalar(
         select(Exercise)
         .where(Exercise.id == exercise_id)
-        .options(selectinload(Exercise.related).selectinload(ExerciseRelation.related_exercise))
+        .options(
+            selectinload(Exercise.related).selectinload(ExerciseRelation.related_exercise),
+            selectinload(Exercise.parameters),
+        )
     )
     return exercise
 
@@ -96,6 +102,31 @@ async def _build_relations(
     return relations
 
 
+def _build_parameters(parameters: list[ParameterInput]) -> list[ExerciseParameter]:
+    """Validate the parameter inputs and build ExerciseParameter rows. Rejects
+    blank and duplicate (case-insensitive) names within the exercise."""
+    rows: list[ExerciseParameter] = []
+    seen: set[str] = set()
+    for item in parameters:
+        name = item.name.strip()
+        if not name:
+            raise api_error(
+                status.HTTP_400_BAD_REQUEST,
+                ErrorCode.invalid_parameter,
+                "Parameter name is required",
+            )
+        if name.casefold() in seen:
+            raise api_error(
+                status.HTTP_400_BAD_REQUEST,
+                ErrorCode.invalid_parameter,
+                "Duplicate parameter name",
+            )
+        seen.add(name.casefold())
+        description = item.description.strip() if item.description else None
+        rows.append(ExerciseParameter(name=name, description=description or None))
+    return rows
+
+
 @router.post("/media-uploads", response_model=MediaUploadResponse)
 async def create_media_upload(
     body: MediaUploadRequest,
@@ -131,7 +162,10 @@ async def list_exercises(
     rows = await session.scalars(
         select(Exercise)
         .where(*filters)
-        .options(selectinload(Exercise.related).selectinload(ExerciseRelation.related_exercise))
+        .options(
+            selectinload(Exercise.related).selectinload(ExerciseRelation.related_exercise),
+            selectinload(Exercise.parameters),
+        )
         .order_by(Exercise.name)
         .offset(params.offset)
         .limit(params.page_size)
@@ -184,6 +218,7 @@ async def create_exercise(
         video_key=body.video_key,
     )
     exercise.related = await _build_relations(session, exercise.id, body.related_exercises)
+    exercise.parameters = _build_parameters(body.parameters)
     session.add(exercise)
     await session.commit()
 
@@ -230,9 +265,14 @@ async def update_exercise(
     # races the orphan delete and trips the (exercise_id, related_exercise_id) unique
     # constraint.
     new_relations = await _build_relations(session, exercise.id, body.related_exercises)
+    new_parameters = _build_parameters(body.parameters)
     exercise.related.clear()
+    exercise.parameters.clear()
+    # Flush the removals before inserting, so re-using a name/target doesn't race the
+    # orphan delete and trip a unique constraint.
     await session.flush()
     exercise.related = new_relations
+    exercise.parameters = new_parameters
     await session.commit()
 
     reloaded = await _load_exercise(session, exercise_id)

@@ -118,6 +118,31 @@ class Exercise(Base):
         cascade="all, delete-orphan",
         order_by="ExerciseRelation.position",
     )
+    # Trackable parameters (e.g. "Peso", "Tiempo"). Definitions only; athletes log
+    # values against them later. Order is irrelevant — sorted by creation for stability.
+    parameters: Mapped[list["ExerciseParameter"]] = relationship(
+        back_populates="exercise",
+        cascade="all, delete-orphan",
+        order_by="ExerciseParameter.created_at",
+    )
+
+
+class ExerciseParameter(Base):
+    """A trackable parameter of an exercise (e.g. "Peso", "Tiempo") — just its
+    definition (name + optional description); recorded values come later."""
+
+    __tablename__ = "exercise_parameters"
+    __table_args__ = (UniqueConstraint("exercise_id", "name", name="uq_exercise_parameter_name"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    exercise_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("exercises.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str]
+    description: Mapped[str | None] = mapped_column(default=None)
+    created_at: Mapped[datetime] = mapped_column(_TZ, server_default=func.now())
+
+    exercise: Mapped["Exercise"] = relationship(back_populates="parameters")
 
 
 class ExerciseRelation(Base):

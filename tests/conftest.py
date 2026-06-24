@@ -6,6 +6,7 @@ Migrations run once per session; every table is truncated before each test.
 """
 
 import os
+import time
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -196,14 +197,36 @@ def app_url(_frontend: DockerContainer) -> str:
 
 @pytest.fixture(autouse=True)
 def _clean_db(_api: DockerContainer, _db_engine: sqlalchemy.Engine) -> None:
-    """Empty every table before each test (schema/migrations intact)."""
+    """Empty every table before each test (schema/migrations intact).
+
+    TRUNCATE needs an exclusive lock on every table; an in-flight API request
+    (e.g. a multi-query selectinload) can still hold a share lock, and the two can
+    deadlock. Bound the wait with lock_timeout and retry a few times so a momentary
+    overlap doesn't fail the run.
+    """
     with _db_engine.begin() as conn:
-        tables = conn.execute(
-            text(
-                "SELECT tablename FROM pg_tables "
-                "WHERE schemaname = 'public' AND tablename <> 'alembic_version'"
+        tables = (
+            conn.execute(
+                text(
+                    "SELECT tablename FROM pg_tables "
+                    "WHERE schemaname = 'public' AND tablename <> 'alembic_version'"
+                )
             )
-        ).scalars().all()
-        if tables:
-            joined = ", ".join(f'"{t}"' for t in tables)
-            conn.execute(text(f"TRUNCATE {joined} RESTART IDENTITY CASCADE"))
+            .scalars()
+            .all()
+        )
+    if not tables:
+        return
+
+    joined = ", ".join(f'"{t}"' for t in tables)
+    last_error: Exception | None = None
+    for attempt in range(5):
+        try:
+            with _db_engine.begin() as conn:
+                conn.execute(text("SET LOCAL lock_timeout = '2s'"))
+                conn.execute(text(f"TRUNCATE {joined} RESTART IDENTITY CASCADE"))
+            return
+        except sqlalchemy.exc.OperationalError as error:  # deadlock / lock timeout
+            last_error = error
+            time.sleep(0.2 * (attempt + 1))
+    raise RuntimeError("Could not TRUNCATE tables between tests") from last_error

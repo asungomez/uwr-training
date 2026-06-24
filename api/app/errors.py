@@ -25,6 +25,7 @@ class ErrorCode(enum.StrEnum):
     invalid_media_type = "invalid_media_type"
     invalid_training_subtype = "invalid_training_subtype"
     invalid_related_exercise = "invalid_related_exercise"
+    invalid_parameter = "invalid_parameter"
     training_not_found = "training_not_found"
 
 

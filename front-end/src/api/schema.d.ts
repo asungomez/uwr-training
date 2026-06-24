@@ -420,6 +420,11 @@ export interface components {
              * @default []
              */
             related_exercises: components["schemas"]["RelatedExerciseInput"][];
+            /**
+             * Parameters
+             * @default []
+             */
+            parameters: components["schemas"]["ParameterInput"][];
         };
         /** CreateInvitationRequest */
         CreateInvitationRequest: {
@@ -478,6 +483,11 @@ export interface components {
              * @default []
              */
             related_exercises: components["schemas"]["RelatedExerciseResponse"][];
+            /**
+             * Parameters
+             * @default []
+             */
+            parameters: components["schemas"]["ParameterResponse"][];
             /** Thumbnail Url */
             readonly thumbnail_url: string | null;
             /** Video Url */
@@ -581,6 +591,22 @@ export interface components {
             /** Total Count */
             total_count: number;
         };
+        /** ParameterInput */
+        ParameterInput: {
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+        };
+        /** ParameterResponse */
+        ParameterResponse: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string | null;
+        };
         /** RelatedExerciseInput */
         RelatedExerciseInput: {
             /**
@@ -671,6 +697,11 @@ export interface components {
              * @default []
              */
             related_exercises: components["schemas"]["RelatedExerciseInput"][];
+            /**
+             * Parameters
+             * @default []
+             */
+            parameters: components["schemas"]["ParameterInput"][];
         };
         /** UpdateTrainingRequest */
         UpdateTrainingRequest: {

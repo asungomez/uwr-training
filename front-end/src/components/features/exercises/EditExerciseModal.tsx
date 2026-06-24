@@ -41,6 +41,10 @@ function EditExerciseModal({ exercise, onClose }: EditExerciseModalProps) {
           related_exercise_id: related.exerciseId,
           note: related.note || null,
         })),
+        parameters: values.parameters.map((param) => ({
+          name: param.name,
+          description: param.description || null,
+        })),
       },
     })
     if (error) {
@@ -77,6 +81,10 @@ function EditExerciseModal({ exercise, onClose }: EditExerciseModalProps) {
               exerciseId: related.related_exercise_id,
               exerciseName: related.related_exercise_name,
               note: related.note ?? '',
+            })),
+            parameters: exercise.parameters.map((param) => ({
+              name: param.name,
+              description: param.description ?? '',
             })),
           }}
           initialThumbnailUrl={exercise.thumbnail_url}

@@ -35,6 +35,10 @@ function NewExerciseModal({ open, onClose }: NewExerciseModalProps) {
           related_exercise_id: related.exerciseId,
           note: related.note || null,
         })),
+        parameters: values.parameters.map((param) => ({
+          name: param.name,
+          description: param.description || null,
+        })),
       },
     })
     if (error) {

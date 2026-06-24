@@ -87,6 +87,25 @@ function ExerciseDetailPage() {
             <p className="mt-4 text-slate-500">Sin descripción.</p>
           )}
 
+          {data.parameters.length > 0 && (
+            <div className="mt-8">
+              <h3 className="text-lg font-semibold text-slate-100">Parámetros</h3>
+              <ul className="mt-3 flex flex-col gap-2">
+                {data.parameters.map((param) => (
+                  <li
+                    key={param.id}
+                    className="rounded-lg border border-slate-700 bg-slate-800/50 p-3"
+                  >
+                    <span className="font-medium text-slate-100">{param.name}</span>
+                    {param.description && (
+                      <p className="mt-1 text-sm text-slate-300">{param.description}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {data.related_exercises.length > 0 && (
             <div className="mt-8">
               <h3 className="text-lg font-semibold text-slate-100">Ejercicios alternativos</h3>
