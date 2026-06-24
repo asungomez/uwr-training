@@ -13,6 +13,12 @@ class CreateTrainingRequest(BaseModel):
     title: str | None = None
 
 
+class UpdateTrainingRequest(BaseModel):
+    category: TrainingCategory
+    subtype: TrainingSubtype
+    title: str | None = None
+
+
 class TrainingListParams(PaginationParams):
     """Query params for the trainings list: pagination + filters."""
 

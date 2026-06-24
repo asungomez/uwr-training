@@ -8,6 +8,7 @@ import ExerciseDetailPage from '@/pages/exercises/[id]/ExerciseDetailPage'
 import ExercisesPage from '@/pages/exercises/ExercisesPage'
 import ForgotPasswordPage from '@/pages/forgot-password/ForgotPasswordPage'
 import LoginPage from '@/pages/login/LoginPage'
+import TrainingDetailPage from '@/pages/trainings/[id]/TrainingDetailPage'
 import NewTrainingPage from '@/pages/trainings/new/NewTrainingPage'
 import TrainingsPage from '@/pages/trainings/TrainingsPage'
 import UserDetailPage from '@/pages/users/[id]/UserDetailPage'
@@ -40,6 +41,7 @@ function App() {
             <Route element={<AdminRoute />}>
               <Route path="nuevo" element={<NewTrainingPage />} />
             </Route>
+            <Route path=":id" element={<TrainingDetailPage />} />
           </Route>
           <Route path="/ejercicios">
             <Route index element={<ExercisesPage />} />

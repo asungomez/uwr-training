@@ -1,3 +1,4 @@
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
@@ -46,6 +47,23 @@ async def list_trainings(
         items=[TrainingSessionResponse.model_validate(row) for row in rows.all()],
         total_count=total or 0,
     )
+
+
+@router.get("/{training_id}", response_model=TrainingSessionResponse)
+async def get_training(
+    training_id: uuid.UUID,
+    _user: Annotated[User, Depends(current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> TrainingSession:
+    """A single training session by id. Visible to any authenticated user."""
+    training = await session.get(TrainingSession, training_id)
+    if training is None:
+        raise api_error(
+            status.HTTP_404_NOT_FOUND,
+            ErrorCode.training_not_found,
+            "Training not found",
+        )
+    return training
 
 
 @router.post("", response_model=TrainingSessionResponse, status_code=status.HTTP_201_CREATED)
