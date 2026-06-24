@@ -411,6 +411,71 @@ export interface paths {
         patch: operations["reorder_training_trainings__training_id__position_patch"];
         trace?: never;
     };
+    "/cardio-trainings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Cardio Trainings
+         * @description All cardio trainings, filterable by title search and subtype. Visible to
+         *     any authenticated user.
+         */
+        get: operations["list_cardio_trainings_cardio_trainings_get"];
+        put?: never;
+        /** Create Cardio Training */
+        post: operations["create_cardio_training_cardio_trainings_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cardio-trainings/{training_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Cardio Training
+         * @description A single cardio training (with its items) by id. Visible to any user.
+         */
+        get: operations["get_cardio_training_cardio_trainings__training_id__get"];
+        /** Update Cardio Training */
+        put: operations["update_cardio_training_cardio_trainings__training_id__put"];
+        post?: never;
+        /** Delete Cardio Training */
+        delete: operations["delete_cardio_training_cardio_trainings__training_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cardio-trainings/{training_id}/position": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Reorder Cardio Training
+         * @description Move a cardio training to a new 0-based position within its subtype; the rest
+         *     of the subtype shifts to stay a contiguous 0..n-1 sequence.
+         */
+        patch: operations["reorder_cardio_training_cardio_trainings__training_id__position_patch"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -446,6 +511,119 @@ export interface components {
              * @default []
              */
             sub_blocks: components["schemas"]["SubBlockResponse"][];
+        };
+        /**
+         * CardioIntervalKind
+         * @enum {string}
+         */
+        CardioIntervalKind: "effort" | "rest";
+        /**
+         * CardioItemInput
+         * @description One entry in a cardio training. A `note` carries free text; a `block` is a
+         *     round (its intervals) repeated `repeats` times, with an optional trailing rest.
+         */
+        CardioItemInput: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "note" | "block";
+            /** Text */
+            text?: string | null;
+            /**
+             * Repeats
+             * @default 1
+             */
+            repeats: number;
+            /** Rest Seconds */
+            rest_seconds?: number | null;
+            /**
+             * Intervals
+             * @default []
+             */
+            intervals: components["schemas"]["IntervalInput"][];
+        };
+        /**
+         * CardioItemKind
+         * @enum {string}
+         */
+        CardioItemKind: "block" | "note";
+        /** CardioItemResponse */
+        CardioItemResponse: {
+            /** Id */
+            id: string;
+            kind: components["schemas"]["CardioItemKind"];
+            /** Text */
+            text?: string | null;
+            /**
+             * Repeats
+             * @default 1
+             */
+            repeats: number;
+            /** Rest Seconds */
+            rest_seconds?: number | null;
+            /**
+             * Intervals
+             * @default []
+             */
+            intervals: components["schemas"]["IntervalResponse"][];
+        };
+        /**
+         * CardioSubtype
+         * @enum {string}
+         */
+        CardioSubtype: "aerobic" | "anaerobic" | "alactic";
+        /**
+         * CardioTrainingDetailResponse
+         * @description Detail view: the training plus its ordered items (blocks + notes).
+         */
+        CardioTrainingDetailResponse: {
+            /** Id */
+            id: string;
+            subtype: components["schemas"]["CardioSubtype"];
+            /** Position */
+            position: number;
+            /** Title */
+            title: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Items
+             * @default []
+             */
+            items: components["schemas"]["CardioItemResponse"][];
+        };
+        /**
+         * CardioTrainingResponse
+         * @description List view: the training itself, without its item tree.
+         */
+        CardioTrainingResponse: {
+            /** Id */
+            id: string;
+            subtype: components["schemas"]["CardioSubtype"];
+            /** Position */
+            position: number;
+            /** Title */
+            title: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** CreateCardioTrainingRequest */
+        CreateCardioTrainingRequest: {
+            subtype: components["schemas"]["CardioSubtype"];
+            /** Title */
+            title?: string | null;
+            /**
+             * Items
+             * @default []
+             */
+            items: components["schemas"]["CardioItemInput"][];
         };
         /** CreateExerciseRequest */
         CreateExerciseRequest: {
@@ -557,6 +735,32 @@ export interface components {
             status: string;
         };
         /**
+         * IntervalInput
+         * @description One step of a block's round: an `effort` (duration + intensity %) or a
+         *     `rest` (duration only).
+         */
+        IntervalInput: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "effort" | "rest";
+            /** Duration Seconds */
+            duration_seconds: number;
+            /** Intensity Pct */
+            intensity_pct?: number | null;
+        };
+        /** IntervalResponse */
+        IntervalResponse: {
+            /** Id */
+            id: string;
+            kind: components["schemas"]["CardioIntervalKind"];
+            /** Duration Seconds */
+            duration_seconds: number;
+            /** Intensity Pct */
+            intensity_pct?: number | null;
+        };
+        /**
          * InvitationInfo
          * @description Public details of a pending invitation, for the accept screen.
          */
@@ -665,6 +869,13 @@ export interface components {
             fields: {
                 [key: string]: string;
             };
+        };
+        /** Page[CardioTrainingResponse] */
+        Page_CardioTrainingResponse_: {
+            /** Items */
+            items: components["schemas"]["CardioTrainingResponse"][];
+            /** Total Count */
+            total_count: number;
         };
         /** Page[DirectoryEntryResponse] */
         Page_DirectoryEntryResponse_: {
@@ -837,6 +1048,25 @@ export interface components {
          * @enum {string}
          */
         TrainingSubtype: "adaptation" | "accumulation" | "transmutation" | "realization" | "endurance" | "alactic" | "aerobic" | "anaerobic";
+        /**
+         * UpdateCardioPositionRequest
+         * @description Move a cardio training to a new 0-based position within its subtype; the
+         *     others in that subtype shift to keep a contiguous order.
+         */
+        UpdateCardioPositionRequest: {
+            /** Position */
+            position: number;
+        };
+        /** UpdateCardioTrainingRequest */
+        UpdateCardioTrainingRequest: {
+            /** Title */
+            title?: string | null;
+            /**
+             * Items
+             * @default []
+             */
+            items: components["schemas"]["CardioItemInput"][];
+        };
         /** UpdateExerciseRequest */
         UpdateExerciseRequest: {
             /** Name */
@@ -1797,6 +2027,215 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TrainingSessionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_cardio_trainings_cardio_trainings_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+                search?: string | null;
+                subtype?: components["schemas"]["CardioSubtype"] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_CardioTrainingResponse_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_cardio_training_cardio_trainings_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCardioTrainingRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardioTrainingDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_cardio_training_cardio_trainings__training_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                training_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardioTrainingDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_cardio_training_cardio_trainings__training_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                training_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCardioTrainingRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardioTrainingDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_cardio_training_cardio_trainings__training_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                training_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reorder_cardio_training_cardio_trainings__training_id__position_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                training_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCardioPositionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardioTrainingResponse"];
                 };
             };
             /** @description Validation Error */

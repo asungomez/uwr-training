@@ -29,6 +29,8 @@ class ErrorCode(enum.StrEnum):
     invalid_block = "invalid_block"
     invalid_item = "invalid_item"
     training_not_found = "training_not_found"
+    cardio_training_not_found = "cardio_training_not_found"
+    invalid_cardio_block = "invalid_cardio_block"
 
 
 def api_error(status_code: int, code: ErrorCode, message: str) -> HTTPException:

@@ -67,6 +67,22 @@ class TrainingItemKind(enum.StrEnum):
     note = "note"
 
 
+class CardioSubtype(enum.StrEnum):
+    aerobic = "aerobic"
+    anaerobic = "anaerobic"
+    alactic = "alactic"
+
+
+class CardioItemKind(enum.StrEnum):
+    block = "block"
+    note = "note"
+
+
+class CardioIntervalKind(enum.StrEnum):
+    effort = "effort"
+    rest = "rest"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -285,3 +301,84 @@ class TrainingItem(Base):
         """The linked exercise's name, for series items (None for notes). Requires
         the `exercise` relationship to be loaded."""
         return self.exercise.name if self.exercise is not None else None
+
+
+class CardioTraining(Base):
+    """A reusable cardio plan — a completely separate model from gym/pool's
+    TrainingSession. It holds an ordered list of items (blocks and inter-block
+    notes); each block is a round (a sequence of intervals) repeated N times."""
+
+    __tablename__ = "cardio_trainings"
+    # Ordering within a subtype, deferrable so a reorder can shuffle rows one-by-one
+    # within a transaction without tripping uniqueness mid-shuffle.
+    __table_args__ = (
+        UniqueConstraint(
+            "subtype",
+            "position",
+            name="uq_cardio_training_position",
+            deferrable=True,
+            initially="DEFERRED",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    subtype: Mapped[CardioSubtype]
+    position: Mapped[int] = mapped_column(default=0, server_default="0")
+    title: Mapped[str | None] = mapped_column(default=None)
+    created_at: Mapped[datetime] = mapped_column(_TZ, server_default=func.now())
+
+    items: Mapped[list["CardioItem"]] = relationship(
+        back_populates="training",
+        cascade="all, delete-orphan",
+        order_by="CardioItem.position",
+    )
+
+
+class CardioItem(Base):
+    """One entry in a cardio training's ordered list — either a `block` (a round
+    repeated N times, with an optional trailing rest) or a free-text `note`
+    ("10s descanso" between blocks). A single table + shared position lets notes
+    sit between blocks."""
+
+    __tablename__ = "cardio_items"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    training_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("cardio_trainings.id", ondelete="CASCADE"), index=True
+    )
+    kind: Mapped[CardioItemKind]
+    position: Mapped[int]
+
+    # kind == block: the round (its intervals) is repeated `repeats` times, then an
+    # optional `rest_seconds` rest at the end of the block.
+    repeats: Mapped[int] = mapped_column(default=1, server_default="1")
+    rest_seconds: Mapped[int | None] = mapped_column(default=None)
+
+    # kind == note: free text shown between blocks.
+    text: Mapped[str | None] = mapped_column(default=None)
+
+    training: Mapped["CardioTraining"] = relationship(back_populates="items")
+    intervals: Mapped[list["CardioInterval"]] = relationship(
+        back_populates="item",
+        cascade="all, delete-orphan",
+        order_by="CardioInterval.position",
+    )
+
+
+class CardioInterval(Base):
+    """One step of a block's round — either an `effort` (a duration at a given
+    intensity %) or a `rest` (a duration). Ordered within its block."""
+
+    __tablename__ = "cardio_intervals"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    item_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("cardio_items.id", ondelete="CASCADE"), index=True
+    )
+    kind: Mapped[CardioIntervalKind]
+    position: Mapped[int]
+    duration_seconds: Mapped[int]
+    # kind == effort: intensity as a percentage (60, 80, 90). Null for rests.
+    intensity_pct: Mapped[int | None] = mapped_column(default=None)
+
+    item: Mapped["CardioItem"] = relationship(back_populates="intervals")

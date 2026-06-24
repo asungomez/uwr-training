@@ -10,6 +10,11 @@ import ExercisesPage from '@/pages/exercises/ExercisesPage'
 import NewExercisePage from '@/pages/exercises/new/NewExercisePage'
 import ForgotPasswordPage from '@/pages/forgot-password/ForgotPasswordPage'
 import LoginPage from '@/pages/login/LoginPage'
+import CardioDetailPage from '@/pages/cardio/[id]/CardioDetailPage'
+import EditCardioPage from '@/pages/cardio/[id]/edit/EditCardioPage'
+import CardioCategoryPage from '@/pages/cardio/CardioCategoryPage'
+import CardioSubtypePage from '@/pages/cardio/CardioSubtypePage'
+import NewCardioPage from '@/pages/cardio/new/NewCardioPage'
 import EditTrainingPage from '@/pages/trainings/[id]/edit/EditTrainingPage'
 import TrainingDetailPage from '@/pages/trainings/[id]/TrainingDetailPage'
 import NewTrainingPage from '@/pages/trainings/new/NewTrainingPage'
@@ -49,7 +54,7 @@ function App() {
             {/* Static category slugs rank above the dynamic :id detail route; each
                 has a subtype-scoped list one level deeper, and creation is scoped
                 under that subtype (category + subtype come from the URL). */}
-            {['gimnasio', 'piscina', 'cardio'].map((categorySlug) => (
+            {['gimnasio', 'piscina'].map((categorySlug) => (
               <Route key={categorySlug} path={categorySlug}>
                 <Route index element={<TrainingsPage />} />
                 <Route path=":subtype" element={<TrainingSubtypePage />} />
@@ -58,6 +63,18 @@ function App() {
                 </Route>
               </Route>
             ))}
+            {/* Cardio is a fully separate model with its own endpoints/pages. Its
+                detail lives under …/cardio/sesion/:id so it doesn't collide with
+                the :subtype list route. */}
+            <Route path="cardio">
+              <Route index element={<CardioCategoryPage />} />
+              <Route path=":subtype" element={<CardioSubtypePage />} />
+              <Route element={<AdminRoute />}>
+                <Route path=":subtype/nuevo" element={<NewCardioPage />} />
+                <Route path="sesion/:id/editar" element={<EditCardioPage />} />
+              </Route>
+              <Route path="sesion/:id" element={<CardioDetailPage />} />
+            </Route>
             <Route path=":id" element={<TrainingDetailPage />} />
           </Route>
           <Route path="/ejercicios">

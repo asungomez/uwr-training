@@ -28,6 +28,7 @@ pytest_plugins = [
     "seeding.user.fixtures",
     "seeding.exercise.fixtures",
     "seeding.training.fixtures",
+    "seeding.cardio.fixtures",
 ]
 
 REPO_ROOT = Path(__file__).resolve().parent.parent

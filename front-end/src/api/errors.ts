@@ -22,6 +22,8 @@ const messages: Record<string, string> = {
   invalid_block: 'Algún bloque no es válido (nombre vacío).',
   invalid_item: 'Algún ejercicio no es válido (falta seleccionarlo).',
   training_not_found: 'No se ha encontrado el entrenamiento.',
+  cardio_training_not_found: 'No se ha encontrado el entrenamiento.',
+  invalid_cardio_block: 'Algún bloque no es válido (necesita al menos un intervalo).',
   invitation_not_found: 'La invitación no existe o ya fue utilizada.',
   invitation_expired: 'La invitación ha caducado.',
 }
