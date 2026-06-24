@@ -8,6 +8,7 @@ import ExerciseDetailPage from '@/pages/exercises/[id]/ExerciseDetailPage'
 import ExercisesPage from '@/pages/exercises/ExercisesPage'
 import ForgotPasswordPage from '@/pages/forgot-password/ForgotPasswordPage'
 import LoginPage from '@/pages/login/LoginPage'
+import NewTrainingPage from '@/pages/trainings/new/NewTrainingPage'
 import TrainingsPage from '@/pages/trainings/TrainingsPage'
 import UserDetailPage from '@/pages/users/[id]/UserDetailPage'
 import UsersPage from '@/pages/users/UsersPage'
@@ -34,7 +35,12 @@ function App() {
       ) : (
         <Route element={<AppLayout />}>
           <Route index element={<Navigate to="/entrenamientos" replace />} />
-          <Route path="/entrenamientos" element={<TrainingsPage />} />
+          <Route path="/entrenamientos">
+            <Route index element={<TrainingsPage />} />
+            <Route element={<AdminRoute />}>
+              <Route path="nuevo" element={<NewTrainingPage />} />
+            </Route>
+          </Route>
           <Route path="/ejercicios">
             <Route index element={<ExercisesPage />} />
             <Route path=":id" element={<ExerciseDetailPage />} />

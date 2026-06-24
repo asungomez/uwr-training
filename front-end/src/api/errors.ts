@@ -16,6 +16,7 @@ const messages: Record<string, string> = {
   exercise_already_exists: 'Ya existe un ejercicio con este nombre.',
   exercise_not_found: 'No se ha encontrado el ejercicio.',
   invalid_media_type: 'El tipo de archivo no es válido.',
+  invalid_training_subtype: 'El subtipo no es válido para esa categoría.',
   invitation_not_found: 'La invitación no existe o ya fue utilizada.',
   invitation_expired: 'La invitación ha caducado.',
 }

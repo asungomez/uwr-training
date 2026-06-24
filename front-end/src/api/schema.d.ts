@@ -346,6 +346,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/trainings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Training */
+        post: operations["create_training_trainings_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -379,6 +396,13 @@ export interface components {
              * Format: email
              */
             email: string;
+        };
+        /** CreateTrainingRequest */
+        CreateTrainingRequest: {
+            category: components["schemas"]["TrainingCategory"];
+            subtype: components["schemas"]["TrainingSubtype"];
+            /** Title */
+            title?: string | null;
         };
         /**
          * DirectoryEntryResponse
@@ -538,6 +562,30 @@ export interface components {
             /** Password */
             password: string;
         };
+        /**
+         * TrainingCategory
+         * @enum {string}
+         */
+        TrainingCategory: "gym" | "pool" | "cardio";
+        /** TrainingSessionResponse */
+        TrainingSessionResponse: {
+            /** Id */
+            id: string;
+            category: components["schemas"]["TrainingCategory"];
+            subtype: components["schemas"]["TrainingSubtype"];
+            /** Title */
+            title: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * TrainingSubtype
+         * @enum {string}
+         */
+        TrainingSubtype: "adaptation" | "accumulation" | "transmutation" | "realization" | "endurance" | "alactic" | "aerobic" | "anaerobic";
         /** UpdateExerciseRequest */
         UpdateExerciseRequest: {
             /** Name */
@@ -1260,6 +1308,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_training_trainings_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTrainingRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrainingSessionResponse"];
+                };
             };
             /** @description Validation Error */
             422: {

@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
 
@@ -19,6 +19,52 @@ class UserRole(enum.Enum):
 class ExerciseType(enum.StrEnum):
     gym = "gym"
     pool = "pool"
+
+
+class TrainingCategory(enum.StrEnum):
+    gym = "gym"
+    pool = "pool"
+    cardio = "cardio"
+
+
+class TrainingSubtype(enum.StrEnum):
+    # gym
+    adaptation = "adaptation"
+    accumulation = "accumulation"
+    transmutation = "transmutation"
+    realization = "realization"
+    # pool
+    endurance = "endurance"
+    alactic = "alactic"
+    # cardio
+    aerobic = "aerobic"
+    # shared by pool and cardio
+    anaerobic = "anaerobic"
+
+
+# Which subtypes are valid for each category (enforced in the API layer).
+SUBTYPES_BY_CATEGORY: dict[TrainingCategory, tuple[TrainingSubtype, ...]] = {
+    TrainingCategory.gym: (
+        TrainingSubtype.adaptation,
+        TrainingSubtype.accumulation,
+        TrainingSubtype.transmutation,
+        TrainingSubtype.realization,
+    ),
+    TrainingCategory.pool: (
+        TrainingSubtype.endurance,
+        TrainingSubtype.anaerobic,
+        TrainingSubtype.alactic,
+    ),
+    TrainingCategory.cardio: (
+        TrainingSubtype.aerobic,
+        TrainingSubtype.anaerobic,
+    ),
+}
+
+
+class TrainingItemKind(enum.StrEnum):
+    series = "series"
+    note = "note"
 
 
 class User(Base):
@@ -64,3 +110,100 @@ class Exercise(Base):
     thumbnail_key: Mapped[str | None] = mapped_column(default=None)
     video_key: Mapped[str | None] = mapped_column(default=None)
     created_at: Mapped[datetime] = mapped_column(_TZ, server_default=func.now())
+
+
+class TrainingSession(Base):
+    """A reusable training plan. gym/pool sessions hold an ordered tree of blocks →
+    sub-blocks → items; cardio sessions are modeled separately (no blocks yet).
+    Sessions are NOT dated — when an athlete completes one is recorded per-athlete
+    later, not on the plan itself."""
+
+    __tablename__ = "training_sessions"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    category: Mapped[TrainingCategory]
+    subtype: Mapped[TrainingSubtype]
+    title: Mapped[str | None] = mapped_column(default=None)
+    created_at: Mapped[datetime] = mapped_column(_TZ, server_default=func.now())
+
+    blocks: Mapped[list["TrainingBlock"]] = relationship(
+        back_populates="session",
+        cascade="all, delete-orphan",
+        order_by="TrainingBlock.position",
+    )
+
+
+class TrainingBlock(Base):
+    """An ordered section of a session (e.g. Calentamiento, Tren superior, Apnea)."""
+
+    __tablename__ = "training_blocks"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("training_sessions.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str]
+    position: Mapped[int]
+
+    session: Mapped["TrainingSession"] = relationship(back_populates="blocks")
+    sub_blocks: Mapped[list["TrainingSubBlock"]] = relationship(
+        back_populates="block",
+        cascade="all, delete-orphan",
+        order_by="TrainingSubBlock.position",
+    )
+
+
+class TrainingSubBlock(Base):
+    """An ordered section of a block (e.g. Preparación, Principal, Descanso activo),
+    holding the actual series and notes."""
+
+    __tablename__ = "training_sub_blocks"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    block_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("training_blocks.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str]
+    position: Mapped[int]
+    # Free-text note about the whole sub-block ("Repetir 3 veces", "Hacer con
+    # aletas de fibra"), distinct from the inter-series notes among its items.
+    notes: Mapped[str | None] = mapped_column(default=None)
+
+    block: Mapped["TrainingBlock"] = relationship(back_populates="sub_blocks")
+    items: Mapped[list["TrainingItem"]] = relationship(
+        back_populates="sub_block",
+        cascade="all, delete-orphan",
+        order_by="TrainingItem.position",
+    )
+
+
+class TrainingItem(Base):
+    """One entry in a sub-block's ordered list — either a `series` (an exercise
+    with a prescription) or a free-text `note` ("10s descanso", "quítate las
+    aletas"). A single table + shared position lets notes sit between series."""
+
+    __tablename__ = "training_items"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    sub_block_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("training_sub_blocks.id", ondelete="CASCADE"), index=True
+    )
+    kind: Mapped[TrainingItemKind]
+    position: Mapped[int]
+
+    # kind == series: an exercise plus an all-optional prescription. The exercise
+    # FK restricts deletion so an exercise used in a training can't vanish.
+    exercise_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("exercises.id", ondelete="RESTRICT"), default=None
+    )
+    sets: Mapped[int | None] = mapped_column(default=None)
+    reps: Mapped[int | None] = mapped_column(default=None)
+    duration_seconds: Mapped[int | None] = mapped_column(default=None)
+    distance_meters: Mapped[int | None] = mapped_column(default=None)
+    effort: Mapped[str | None] = mapped_column(default=None)
+
+    # kind == note: free text shown between series.
+    text: Mapped[str | None] = mapped_column(default=None)
+
+    sub_block: Mapped["TrainingSubBlock"] = relationship(back_populates="items")
+    exercise: Mapped["Exercise | None"] = relationship()
