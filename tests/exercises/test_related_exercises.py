@@ -37,7 +37,7 @@ def test_detail_shows_related_exercises(
 
     # Then the related section lists both, each linking to its detail, with its note.
     section = page.get_by_role("list").filter(has_text="Dominada inversa")
-    expect(page.get_by_role("heading", name="Ejercicios relacionados")).to_be_visible()
+    expect(page.get_by_role("heading", name="Ejercicios alternativos")).to_be_visible()
     expect(section.get_by_role("link", name="Dominada inversa")).to_have_attribute(
         "href", f"/ejercicios/{inversa.id}"
     )
@@ -60,7 +60,7 @@ def test_detail_hides_related_section_when_empty(
     # When the detail page loads, the related section is not shown.
     page.goto(f"{app_url}/ejercicios/{exercise.id}")
     expect(page.get_by_role("heading", name="Sentadilla")).to_be_visible()
-    expect(page.get_by_role("heading", name="Ejercicios relacionados")).not_to_be_visible()
+    expect(page.get_by_role("heading", name="Ejercicios alternativos")).not_to_be_visible()
 
 
 def test_related_exercise_thumbnail_shown(
@@ -118,7 +118,7 @@ def test_admin_adds_related_exercise_when_creating(
 
     # Then the relation shows on the new exercise's detail page.
     page.get_by_role("heading", name="Dominada prona").click()
-    expect(page.get_by_role("heading", name="Ejercicios relacionados")).to_be_visible()
+    expect(page.get_by_role("heading", name="Ejercicios alternativos")).to_be_visible()
     expect(page.get_by_role("link", name="Jalón al pecho")).to_be_visible()
     expect(page.get_by_text("Si no tienes barra")).to_be_visible()
 
@@ -157,7 +157,7 @@ def test_edit_prefills_and_removes_related(
 
     # Then the detail page no longer shows a related section.
     page.get_by_role("heading", name="Dominada prona").click()
-    expect(page.get_by_role("heading", name="Ejercicios relacionados")).not_to_be_visible()
+    expect(page.get_by_role("heading", name="Ejercicios alternativos")).not_to_be_visible()
 
 
 def test_cannot_relate_exercise_to_itself(

@@ -23,7 +23,11 @@ from testcontainers.core.network import Network
 from testcontainers.core.waiting_utils import wait_for_logs
 
 # Seeding fixtures (generate_user, create_user, log_in_as, …) live in dedicated modules.
-pytest_plugins = ["seeding.user.fixtures", "seeding.exercise.fixtures"]
+pytest_plugins = [
+    "seeding.user.fixtures",
+    "seeding.exercise.fixtures",
+    "seeding.training.fixtures",
+]
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 

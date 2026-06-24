@@ -4,12 +4,21 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, field_serializer
 
 from app.models import TrainingCategory, TrainingSubtype
+from app.pagination import PaginationParams
 
 
 class CreateTrainingRequest(BaseModel):
     category: TrainingCategory
     subtype: TrainingSubtype
     title: str | None = None
+
+
+class TrainingListParams(PaginationParams):
+    """Query params for the trainings list: pagination + filters."""
+
+    search: str | None = None
+    category: TrainingCategory | None = None
+    subtype: TrainingSubtype | None = None
 
 
 class TrainingSessionResponse(BaseModel):

@@ -46,7 +46,7 @@ function RelatedExercisesField({
 
   return (
     <div className="flex flex-col gap-2">
-      <span className={labelClass}>Ejercicios relacionados</span>
+      <span className={labelClass}>Ejercicios alternativos</span>
 
       {fields.length > 0 && (
         <ul className="flex flex-col gap-2">

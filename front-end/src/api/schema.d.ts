@@ -353,7 +353,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List Trainings
+         * @description All training sessions, filterable by title search, category and subtype.
+         *     Visible to any authenticated user.
+         */
+        get: operations["list_trainings_trainings_get"];
         put?: never;
         /** Create Training */
         post: operations["create_training_trainings_post"];
@@ -544,6 +549,13 @@ export interface components {
         Page_ExerciseResponse_: {
             /** Items */
             items: components["schemas"]["ExerciseResponse"][];
+            /** Total Count */
+            total_count: number;
+        };
+        /** Page[TrainingSessionResponse] */
+        Page_TrainingSessionResponse_: {
+            /** Items */
+            items: components["schemas"]["TrainingSessionResponse"][];
             /** Total Count */
             total_count: number;
         };
@@ -1348,6 +1360,43 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_trainings_trainings_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+                search?: string | null;
+                category?: components["schemas"]["TrainingCategory"] | null;
+                subtype?: components["schemas"]["TrainingSubtype"] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_TrainingSessionResponse_"];
+                };
             };
             /** @description Validation Error */
             422: {

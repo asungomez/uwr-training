@@ -15,6 +15,10 @@ export interface UrlListState {
   /** Reads a filter, validated against `allowed`; unknown values fall back to ''. */
   getFilter: (key: string, allowed: readonly string[]) => string
   setFilter: (key: string, value: string) => void
+  /** Set several filters in one URL update (e.g. changing one clears another).
+   *  Doing them in separate setFilter calls would clobber each other, since each
+   *  reads the same committed params within one event. */
+  setFilters: (values: Record<string, string>) => void
 }
 
 export function useUrlListState(): UrlListState {
@@ -74,5 +78,17 @@ export function useUrlListState(): UrlListState {
     [update],
   )
 
-  return { page, search, setPage, setSearch, getFilter, setFilter }
+  const setFilters = useCallback(
+    (values: Record<string, string>) =>
+      update((next) => {
+        for (const [key, value] of Object.entries(values)) {
+          if (value) next.set(key, value)
+          else next.delete(key)
+        }
+        next.delete('page')
+      }),
+    [update],
+  )
+
+  return { page, search, setPage, setSearch, getFilter, setFilter, setFilters }
 }

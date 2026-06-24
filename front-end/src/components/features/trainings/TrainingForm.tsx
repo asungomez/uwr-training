@@ -6,33 +6,13 @@ import FormError from '@/components/atoms/form/FormError'
 import SelectField from '@/components/atoms/form/SelectField'
 import SubmitButton from '@/components/atoms/form/SubmitButton'
 import TextField from '@/components/atoms/form/TextField'
-
-const categoryOptions = [
-  { value: 'gym', label: 'Gimnasio' },
-  { value: 'pool', label: 'Piscina' },
-  { value: 'cardio', label: 'Cardio' },
-] as const
+import {
+  categoryOptions,
+  subtypeLabels,
+  subtypesByCategory,
+} from '@/components/features/trainings/trainingLabels'
 
 type Category = (typeof categoryOptions)[number]['value']
-
-// Subtype options per category, mirroring SUBTYPES_BY_CATEGORY on the back-end.
-const subtypesByCategory: Record<Category, { value: string; label: string }[]> = {
-  gym: [
-    { value: 'adaptation', label: 'Adaptación' },
-    { value: 'accumulation', label: 'Acumulación' },
-    { value: 'transmutation', label: 'Transmutación' },
-    { value: 'realization', label: 'Realización' },
-  ],
-  pool: [
-    { value: 'endurance', label: 'Resistencia' },
-    { value: 'anaerobic', label: 'Anaeróbico' },
-    { value: 'alactic', label: 'Aláctico' },
-  ],
-  cardio: [
-    { value: 'aerobic', label: 'Aeróbico' },
-    { value: 'anaerobic', label: 'Anaeróbico' },
-  ],
-}
 
 // Empty string is each <select>'s "unselected" state; refine to require a real one.
 const schema = z.object({
@@ -67,7 +47,10 @@ function TrainingForm({ onSubmit, defaultValues, rootError }: TrainingFormProps)
 
   // useWatch (not watch()) so React Compiler can memoize this component.
   const category = useWatch({ control, name: 'category' })
-  const subtypeOptions = category ? (subtypesByCategory[category] ?? []) : []
+  const subtypeOptions = (category ? (subtypesByCategory[category] ?? []) : []).map((value) => ({
+    value,
+    label: subtypeLabels[value],
+  }))
 
   return (
     <form
