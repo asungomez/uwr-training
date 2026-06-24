@@ -1,11 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm, useWatch } from 'react-hook-form'
+import { Controller, useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 
 import FormError from '@/components/atoms/form/FormError'
 import SelectField from '@/components/atoms/form/SelectField'
 import SubmitButton from '@/components/atoms/form/SubmitButton'
 import TextField from '@/components/atoms/form/TextField'
+import TrainingBlocksEditor from '@/components/features/trainings/blocks/TrainingBlocksEditor'
 import {
   categoryOptions,
   subtypeLabels,
@@ -21,6 +22,8 @@ const schema = z.object({
     .enum(['', 'gym', 'pool', 'cardio'])
     .refine((value): value is Category => value !== '', { message: 'La categoría es obligatoria' }),
   subtype: z.string().min(1, 'El subtipo es obligatorio'),
+  // Client-side id (for list keys + DnD) plus the editable name.
+  blocks: z.array(z.object({ id: z.string(), name: z.string() })),
 })
 
 export type TrainingFormValues = z.infer<typeof schema>
@@ -51,7 +54,7 @@ function TrainingForm({
     formState: { errors, isSubmitting },
   } = useForm<z.input<typeof schema>, unknown, TrainingFormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { title: '', category: '', subtype: '', ...defaultValues },
+    defaultValues: { title: '', category: '', subtype: '', blocks: [], ...defaultValues },
   })
 
   // useWatch (not watch()) so React Compiler can memoize this component.
@@ -65,41 +68,57 @@ function TrainingForm({
     <form
       onSubmit={(event) => void handleSubmit(onSubmit)(event)}
       noValidate
-      className="flex max-w-md flex-col gap-4"
+      className="flex flex-col gap-8"
     >
-      <TextField
-        id="training-title"
-        label="Título"
-        error={errors.title?.message}
-        {...register('title')}
-      />
-      <SelectField
-        id="training-category"
-        label="Categoría"
-        error={errors.category?.message}
-        options={[{ value: '', label: 'Selecciona una categoría' }, ...categoryOptions]}
-        {...register('category', {
-          // Changing category clears any chosen subtype (it may no longer be valid).
-          onChange: () => setValue('subtype', ''),
-        })}
-      />
-      <SelectField
-        id="training-subtype"
-        label="Subtipo"
-        error={errors.subtype?.message}
-        disabled={!category}
-        options={[
-          { value: '', label: category ? 'Selecciona un subtipo' : 'Elige una categoría primero' },
-          ...subtypeOptions,
-        ]}
-        {...register('subtype')}
-      />
+      <div className="flex max-w-md flex-col gap-4">
+        <TextField
+          id="training-title"
+          label="Título"
+          error={errors.title?.message}
+          {...register('title')}
+        />
+        <SelectField
+          id="training-category"
+          label="Categoría"
+          error={errors.category?.message}
+          options={[{ value: '', label: 'Selecciona una categoría' }, ...categoryOptions]}
+          {...register('category', {
+            // Changing category clears any chosen subtype (it may no longer be valid).
+            onChange: () => setValue('subtype', ''),
+          })}
+        />
+        <SelectField
+          id="training-subtype"
+          label="Subtipo"
+          error={errors.subtype?.message}
+          disabled={!category}
+          options={[
+            {
+              value: '',
+              label: category ? 'Selecciona un subtipo' : 'Elige una categoría primero',
+            },
+            ...subtypeOptions,
+          ]}
+          {...register('subtype')}
+        />
+      </div>
 
-      <FormError message={rootError} />
+      <div className="border-t border-slate-800 pt-8">
+        <Controller
+          control={control}
+          name="blocks"
+          render={({ field }) => (
+            <TrainingBlocksEditor value={field.value} onChange={field.onChange} />
+          )}
+        />
+      </div>
 
-      <SubmitButton pending={isSubmitting} pendingLabel={pendingLabel}>
-        {submitLabel}
-      </SubmitButton>
+      <div className="flex max-w-md flex-col gap-4">
+        <FormError message={rootError} />
+        <SubmitButton pending={isSubmitting} pendingLabel={pendingLabel}>
+          {submitLabel}
+        </SubmitButton>
+      </div>
     </form>
   )
 }

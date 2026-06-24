@@ -30,6 +30,7 @@ function EditTrainingPage() {
         category: values.category,
         subtype: values.subtype as Subtype,
         title: values.title || null,
+        blocks: values.blocks.map((block) => ({ name: block.name })),
       },
     })
     if (putError) {
@@ -76,6 +77,7 @@ function EditTrainingPage() {
                 title: data.title ?? '',
                 category: data.category,
                 subtype: data.subtype,
+                blocks: data.blocks.map((block) => ({ id: block.id, name: block.name })),
               }}
               rootError={rootError}
               submitLabel="Guardar cambios"

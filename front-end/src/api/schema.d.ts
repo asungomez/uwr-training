@@ -377,7 +377,7 @@ export interface paths {
         };
         /**
          * Get Training
-         * @description A single training session by id. Visible to any authenticated user.
+         * @description A single training session (with its blocks) by id. Visible to any user.
          */
         get: operations["get_training_trainings__training_id__get"];
         /** Update Training */
@@ -403,6 +403,18 @@ export interface components {
             email: string;
             /** Password */
             password: string;
+        };
+        /** BlockInput */
+        BlockInput: {
+            /** Name */
+            name: string;
+        };
+        /** BlockResponse */
+        BlockResponse: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
         };
         /** CreateExerciseRequest */
         CreateExerciseRequest: {
@@ -440,6 +452,11 @@ export interface components {
             subtype: components["schemas"]["TrainingSubtype"];
             /** Title */
             title?: string | null;
+            /**
+             * Blocks
+             * @default []
+             */
+            blocks: components["schemas"]["BlockInput"][];
         };
         /**
          * DirectoryEntryResponse
@@ -662,7 +679,32 @@ export interface components {
          * @enum {string}
          */
         TrainingCategory: "gym" | "pool" | "cardio";
-        /** TrainingSessionResponse */
+        /**
+         * TrainingSessionDetailResponse
+         * @description Detail view: the session plus its ordered blocks.
+         */
+        TrainingSessionDetailResponse: {
+            /** Id */
+            id: string;
+            category: components["schemas"]["TrainingCategory"];
+            subtype: components["schemas"]["TrainingSubtype"];
+            /** Title */
+            title: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Blocks
+             * @default []
+             */
+            blocks: components["schemas"]["BlockResponse"][];
+        };
+        /**
+         * TrainingSessionResponse
+         * @description List view: the session itself, without its block tree.
+         */
         TrainingSessionResponse: {
             /** Id */
             id: string;
@@ -709,6 +751,11 @@ export interface components {
             subtype: components["schemas"]["TrainingSubtype"];
             /** Title */
             title?: string | null;
+            /**
+             * Blocks
+             * @default []
+             */
+            blocks: components["schemas"]["BlockInput"][];
         };
         /**
          * UpdateUserRequest
@@ -1490,7 +1537,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TrainingSessionResponse"];
+                    "application/json": components["schemas"]["TrainingSessionDetailResponse"];
                 };
             };
             /** @description Validation Error */
@@ -1523,7 +1570,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TrainingSessionResponse"];
+                    "application/json": components["schemas"]["TrainingSessionDetailResponse"];
                 };
             };
             /** @description Validation Error */
@@ -1560,7 +1607,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TrainingSessionResponse"];
+                    "application/json": components["schemas"]["TrainingSessionDetailResponse"];
                 };
             };
             /** @description Validation Error */

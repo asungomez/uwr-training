@@ -67,6 +67,19 @@ function TrainingDetailPage() {
             <SubtypeBadge subtype={data.subtype} />
           </div>
 
+          {data.blocks.length > 0 && (
+            <div className="mt-8 flex flex-col gap-4">
+              {data.blocks.map((block) => (
+                <div key={block.id} className="rounded-lg border border-slate-700 bg-slate-800 p-4">
+                  <h2 className="text-lg font-semibold text-slate-100">{block.name}</h2>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Aquí irá el bloque de entrenamiento.
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+
           {isAdmin && (
             <div className="mt-6 flex flex-wrap gap-2">
               <Link

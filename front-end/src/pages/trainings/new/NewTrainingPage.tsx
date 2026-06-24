@@ -17,20 +17,21 @@ function NewTrainingPage() {
 
   async function handleSubmit(values: TrainingFormValues) {
     setRootError(undefined)
-    const { error } = await api.POST('/trainings', {
+    const { data, error } = await api.POST('/trainings', {
       body: {
         category: values.category,
         // The form validated this against the category; the API re-checks too.
         subtype: values.subtype as Subtype,
         title: values.title || null,
+        blocks: values.blocks.map((block) => ({ name: block.name })),
       },
     })
-    if (error) {
+    if (error || !data) {
       setRootError(errorMessage(error))
       return
     }
     toast.success('Entrenamiento creado.')
-    void navigate('/entrenamientos')
+    void navigate(`/entrenamientos/${data.id}`)
   }
 
   return (

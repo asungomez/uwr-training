@@ -1,3 +1,4 @@
+import re
 from collections.abc import Callable
 
 from playwright.sync_api import Page, expect
@@ -73,9 +74,10 @@ def test_admin_creates_training(
     page.get_by_label("Subtipo").select_option(label="Acumulación")
     page.get_by_role("button", name="Crear entrenamiento").click()
 
-    # Then a success toast confirms it and they return to the trainings list.
+    # Then a success toast confirms it and they land on the new training's detail page.
     expect(page.get_by_role("status").filter(has_text="Entrenamiento creado.")).to_be_visible()
-    expect(page).to_have_url(f"{app_url}/entrenamientos")
+    expect(page).to_have_url(re.compile(rf"{re.escape(app_url)}/entrenamientos/[0-9a-f-]+$"))
+    expect(page.get_by_role("heading", name="Fuerza máxima")).to_be_visible()
 
 
 def test_subtype_options_adapt_to_category(

@@ -7,16 +7,22 @@ from app.models import TrainingCategory, TrainingSubtype
 from app.pagination import PaginationParams
 
 
+class BlockInput(BaseModel):
+    name: str
+
+
 class CreateTrainingRequest(BaseModel):
     category: TrainingCategory
     subtype: TrainingSubtype
     title: str | None = None
+    blocks: list[BlockInput] = []
 
 
 class UpdateTrainingRequest(BaseModel):
     category: TrainingCategory
     subtype: TrainingSubtype
     title: str | None = None
+    blocks: list[BlockInput] = []
 
 
 class TrainingListParams(PaginationParams):
@@ -28,6 +34,8 @@ class TrainingListParams(PaginationParams):
 
 
 class TrainingSessionResponse(BaseModel):
+    """List view: the session itself, without its block tree."""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
@@ -39,3 +47,20 @@ class TrainingSessionResponse(BaseModel):
     @field_serializer("id")
     def serialize_id(self, value: uuid.UUID) -> str:
         return str(value)
+
+
+class BlockResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+
+    @field_serializer("id")
+    def serialize_id(self, value: uuid.UUID) -> str:
+        return str(value)
+
+
+class TrainingSessionDetailResponse(TrainingSessionResponse):
+    """Detail view: the session plus its ordered blocks."""
+
+    blocks: list[BlockResponse] = []

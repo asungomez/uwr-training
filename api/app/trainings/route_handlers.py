@@ -4,12 +4,14 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.auth.dependencies import current_user, require_admin
 from app.db import get_session
 from app.errors import ErrorCode, api_error
 from app.models import (
     SUBTYPES_BY_CATEGORY,
+    TrainingBlock,
     TrainingCategory,
     TrainingSession,
     TrainingSubtype,
@@ -17,8 +19,10 @@ from app.models import (
 )
 from app.pagination import Page
 from app.trainings.schemas import (
+    BlockInput,
     CreateTrainingRequest,
     TrainingListParams,
+    TrainingSessionDetailResponse,
     TrainingSessionResponse,
     UpdateTrainingRequest,
 )
@@ -34,6 +38,34 @@ def _validate_subtype(category: TrainingCategory, subtype: TrainingSubtype) -> N
             ErrorCode.invalid_training_subtype,
             f"Subtype {subtype.value} is not valid for category {category.value}",
         )
+
+
+def _build_blocks(blocks: list[BlockInput]) -> list[TrainingBlock]:
+    """Build ordered TrainingBlock rows from the submitted list (its order defines
+    position). Rejects blank names."""
+    rows: list[TrainingBlock] = []
+    for position, item in enumerate(blocks):
+        name = item.name.strip()
+        if not name:
+            raise api_error(
+                status.HTTP_400_BAD_REQUEST,
+                ErrorCode.invalid_block,
+                "Block name is required",
+            )
+        rows.append(TrainingBlock(name=name, position=position))
+    return rows
+
+
+async def _load_with_blocks(
+    session: AsyncSession, training_id: uuid.UUID
+) -> TrainingSession | None:
+    """Fetch a session with its blocks (ordered) loaded."""
+    training: TrainingSession | None = await session.scalar(
+        select(TrainingSession)
+        .where(TrainingSession.id == training_id)
+        .options(selectinload(TrainingSession.blocks))
+    )
+    return training
 
 
 @router.get("")
@@ -66,14 +98,14 @@ async def list_trainings(
     )
 
 
-@router.get("/{training_id}", response_model=TrainingSessionResponse)
+@router.get("/{training_id}", response_model=TrainingSessionDetailResponse)
 async def get_training(
     training_id: uuid.UUID,
     _user: Annotated[User, Depends(current_user)],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> TrainingSession:
-    """A single training session by id. Visible to any authenticated user."""
-    training = await session.get(TrainingSession, training_id)
+    """A single training session (with its blocks) by id. Visible to any user."""
+    training = await _load_with_blocks(session, training_id)
     if training is None:
         raise api_error(
             status.HTTP_404_NOT_FOUND,
@@ -83,7 +115,7 @@ async def get_training(
     return training
 
 
-@router.post("", response_model=TrainingSessionResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=TrainingSessionDetailResponse, status_code=status.HTTP_201_CREATED)
 async def create_training(
     body: CreateTrainingRequest,
     _admin: Annotated[User, Depends(require_admin)],
@@ -93,20 +125,23 @@ async def create_training(
 
     title = body.title.strip() if body.title else None
     training = TrainingSession(category=body.category, subtype=body.subtype, title=title or None)
+    training.blocks = _build_blocks(body.blocks)
     session.add(training)
     await session.commit()
-    await session.refresh(training)
-    return training
+
+    reloaded = await _load_with_blocks(session, training.id)
+    assert reloaded is not None
+    return reloaded
 
 
-@router.put("/{training_id}", response_model=TrainingSessionResponse)
+@router.put("/{training_id}", response_model=TrainingSessionDetailResponse)
 async def update_training(
     training_id: uuid.UUID,
     body: UpdateTrainingRequest,
     _admin: Annotated[User, Depends(require_admin)],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> TrainingSession:
-    training = await session.get(TrainingSession, training_id)
+    training = await _load_with_blocks(session, training_id)
     if training is None:
         raise api_error(
             status.HTTP_404_NOT_FOUND,
@@ -119,9 +154,13 @@ async def update_training(
     training.category = body.category
     training.subtype = body.subtype
     training.title = title or None
+    # Replace the block list wholesale with the submitted (ordered) one.
+    training.blocks = _build_blocks(body.blocks)
     await session.commit()
-    await session.refresh(training)
-    return training
+
+    reloaded = await _load_with_blocks(session, training_id)
+    assert reloaded is not None
+    return reloaded
 
 
 @router.delete("/{training_id}", status_code=status.HTTP_204_NO_CONTENT)
