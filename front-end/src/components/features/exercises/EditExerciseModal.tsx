@@ -37,6 +37,10 @@ function EditExerciseModal({ exercise, onClose }: EditExerciseModalProps) {
         type: values.type,
         thumbnail_key: values.thumbnailKey,
         video_key: values.videoKey,
+        related_exercises: values.relatedExercises.map((related) => ({
+          related_exercise_id: related.exerciseId,
+          note: related.note || null,
+        })),
       },
     })
     if (error) {
@@ -69,9 +73,15 @@ function EditExerciseModal({ exercise, onClose }: EditExerciseModalProps) {
             type: exercise.type,
             thumbnailKey: exercise.thumbnail_key ?? null,
             videoKey: exercise.video_key ?? null,
+            relatedExercises: exercise.related_exercises.map((related) => ({
+              exerciseId: related.related_exercise_id,
+              exerciseName: related.related_exercise_name,
+              note: related.note ?? '',
+            })),
           }}
           initialThumbnailUrl={exercise.thumbnail_url}
           initialVideoUrl={exercise.video_url}
+          excludeExerciseId={exercise.id}
           rootError={rootError}
         />
       )}

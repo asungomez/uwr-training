@@ -4,6 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.auth.dependencies import current_user, require_admin
 from app.db import get_session
@@ -14,13 +15,85 @@ from app.exercises.schemas import (
     ExerciseResponse,
     MediaUploadRequest,
     MediaUploadResponse,
+    RelatedExerciseInput,
+    RelatedExerciseResponse,
     UpdateExerciseRequest,
 )
-from app.models import Exercise, User
+from app.models import Exercise, ExerciseRelation, User
 from app.pagination import Page
-from app.storage import MEDIA_CONSTRAINTS, create_presigned_upload
+from app.storage import MEDIA_CONSTRAINTS, create_presigned_upload, public_url
 
 router = APIRouter(prefix="/exercises", tags=["exercises"])
+
+
+def _serialize(exercise: Exercise) -> ExerciseResponse:
+    """Build the response, flattening each relation to {id, name, note}. Requires
+    `related` and each relation's `related_exercise` to be loaded."""
+    return ExerciseResponse(
+        id=exercise.id,
+        name=exercise.name,
+        description=exercise.description,
+        type=exercise.type,
+        created_at=exercise.created_at,
+        thumbnail_key=exercise.thumbnail_key,
+        video_key=exercise.video_key,
+        related_exercises=[
+            RelatedExerciseResponse(
+                related_exercise_id=relation.related_exercise_id,
+                related_exercise_name=relation.related_exercise.name,
+                related_exercise_thumbnail_url=public_url(relation.related_exercise.thumbnail_key),
+                note=relation.note,
+            )
+            for relation in exercise.related
+        ],
+    )
+
+
+async def _load_exercise(session: AsyncSession, exercise_id: uuid.UUID) -> Exercise | None:
+    """Fetch an exercise with its relations (and each relation's target) loaded."""
+    exercise: Exercise | None = await session.scalar(
+        select(Exercise)
+        .where(Exercise.id == exercise_id)
+        .options(selectinload(Exercise.related).selectinload(ExerciseRelation.related_exercise))
+    )
+    return exercise
+
+
+async def _build_relations(
+    session: AsyncSession,
+    owner_id: uuid.UUID,
+    related: list[RelatedExerciseInput],
+) -> list[ExerciseRelation]:
+    """Validate the related-exercise inputs and build ExerciseRelation rows. Rejects
+    self-references, duplicates, and unknown targets."""
+    relations: list[ExerciseRelation] = []
+    seen: set[uuid.UUID] = set()
+    for position, item in enumerate(related):
+        target_id = item.related_exercise_id
+        if target_id == owner_id:
+            raise api_error(
+                status.HTTP_400_BAD_REQUEST,
+                ErrorCode.invalid_related_exercise,
+                "An exercise cannot be related to itself",
+            )
+        if target_id in seen:
+            raise api_error(
+                status.HTTP_400_BAD_REQUEST,
+                ErrorCode.invalid_related_exercise,
+                "Duplicate related exercise",
+            )
+        if await session.get(Exercise, target_id) is None:
+            raise api_error(
+                status.HTTP_400_BAD_REQUEST,
+                ErrorCode.invalid_related_exercise,
+                "Related exercise not found",
+            )
+        seen.add(target_id)
+        note = item.note.strip() if item.note else None
+        relations.append(
+            ExerciseRelation(related_exercise_id=target_id, note=note or None, position=position)
+        )
+    return relations
 
 
 @router.post("/media-uploads", response_model=MediaUploadResponse)
@@ -58,12 +131,13 @@ async def list_exercises(
     rows = await session.scalars(
         select(Exercise)
         .where(*filters)
+        .options(selectinload(Exercise.related).selectinload(ExerciseRelation.related_exercise))
         .order_by(Exercise.name)
         .offset(params.offset)
         .limit(params.page_size)
     )
     return Page(
-        items=[ExerciseResponse.model_validate(row) for row in rows.all()],
+        items=[_serialize(row) for row in rows.all()],
         total_count=total or 0,
     )
 
@@ -73,16 +147,16 @@ async def get_exercise(
     exercise_id: uuid.UUID,
     _user: Annotated[User, Depends(current_user)],
     session: Annotated[AsyncSession, Depends(get_session)],
-) -> Exercise:
+) -> ExerciseResponse:
     """A single exercise by id. Visible to any authenticated user."""
-    exercise = await session.get(Exercise, exercise_id)
+    exercise = await _load_exercise(session, exercise_id)
     if exercise is None:
         raise api_error(
             status.HTTP_404_NOT_FOUND,
             ErrorCode.exercise_not_found,
             "Exercise not found",
         )
-    return exercise
+    return _serialize(exercise)
 
 
 @router.post("", response_model=ExerciseResponse, status_code=status.HTTP_201_CREATED)
@@ -90,7 +164,7 @@ async def create_exercise(
     body: CreateExerciseRequest,
     _admin: Annotated[User, Depends(require_admin)],
     session: Annotated[AsyncSession, Depends(get_session)],
-) -> Exercise:
+) -> ExerciseResponse:
     name = body.name.strip()
 
     existing = await session.scalar(select(Exercise).where(Exercise.name == name))
@@ -109,10 +183,13 @@ async def create_exercise(
         thumbnail_key=body.thumbnail_key,
         video_key=body.video_key,
     )
+    exercise.related = await _build_relations(session, exercise.id, body.related_exercises)
     session.add(exercise)
     await session.commit()
-    await session.refresh(exercise)
-    return exercise
+
+    reloaded = await _load_exercise(session, exercise.id)
+    assert reloaded is not None
+    return _serialize(reloaded)
 
 
 @router.put("/{exercise_id}", response_model=ExerciseResponse)
@@ -121,8 +198,8 @@ async def update_exercise(
     body: UpdateExerciseRequest,
     _admin: Annotated[User, Depends(require_admin)],
     session: Annotated[AsyncSession, Depends(get_session)],
-) -> Exercise:
-    exercise = await session.get(Exercise, exercise_id)
+) -> ExerciseResponse:
+    exercise = await _load_exercise(session, exercise_id)
     if exercise is None:
         raise api_error(
             status.HTTP_404_NOT_FOUND,
@@ -148,9 +225,19 @@ async def update_exercise(
     # The request carries the desired final keys (kept, replaced, or cleared).
     exercise.thumbnail_key = body.thumbnail_key
     exercise.video_key = body.video_key
+    # Replace the related list wholesale. Validate the new set first, then flush the
+    # removal of the old rows before inserting — otherwise re-adding the same target
+    # races the orphan delete and trips the (exercise_id, related_exercise_id) unique
+    # constraint.
+    new_relations = await _build_relations(session, exercise.id, body.related_exercises)
+    exercise.related.clear()
+    await session.flush()
+    exercise.related = new_relations
     await session.commit()
-    await session.refresh(exercise)
-    return exercise
+
+    reloaded = await _load_exercise(session, exercise_id)
+    assert reloaded is not None
+    return _serialize(reloaded)
 
 
 @router.delete("/{exercise_id}", status_code=status.HTTP_204_NO_CONTENT)

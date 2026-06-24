@@ -5,6 +5,7 @@ import { z } from 'zod'
 import FormError from '@/components/atoms/form/FormError'
 import MarkdownField from '@/components/atoms/form/MarkdownField'
 import MediaUploadField from '@/components/atoms/form/MediaUploadField'
+import RelatedExercisesField from '@/components/features/exercises/RelatedExercisesField'
 import SelectField from '@/components/atoms/form/SelectField'
 import SubmitButton from '@/components/atoms/form/SubmitButton'
 import TextField from '@/components/atoms/form/TextField'
@@ -15,6 +16,13 @@ const schema = z.object({
   type: z.enum(['gym', 'pool']),
   thumbnailKey: z.string().nullable(),
   videoKey: z.string().nullable(),
+  relatedExercises: z.array(
+    z.object({
+      exerciseId: z.string(),
+      exerciseName: z.string(),
+      note: z.string().trim(),
+    }),
+  ),
 })
 
 export type ExerciseFormValues = z.infer<typeof schema>
@@ -26,6 +34,8 @@ interface ExerciseFormProps {
   /** Preview URLs for media already saved on the exercise (edit mode). */
   initialThumbnailUrl?: string | null | undefined
   initialVideoUrl?: string | null | undefined
+  /** The exercise being edited, so it's excluded from the related-exercise search. */
+  excludeExerciseId?: string | undefined
   /** Form-level error from the parent (e.g. an API failure). */
   rootError?: string | undefined
 }
@@ -35,6 +45,7 @@ function ExerciseForm({
   defaultValues,
   initialThumbnailUrl,
   initialVideoUrl,
+  excludeExerciseId,
   rootError,
 }: ExerciseFormProps) {
   const {
@@ -50,6 +61,7 @@ function ExerciseForm({
       name: '',
       thumbnailKey: null,
       videoKey: null,
+      relatedExercises: [],
       ...defaultValues,
     },
   })
@@ -113,6 +125,11 @@ function ExerciseForm({
             initialPreviewUrl={initialVideoUrl}
           />
         )}
+      />
+      <RelatedExercisesField
+        control={control}
+        register={register}
+        excludeExerciseId={excludeExerciseId}
       />
 
       <FormError message={rootError} />

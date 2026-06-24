@@ -31,6 +31,10 @@ function NewExerciseModal({ open, onClose }: NewExerciseModalProps) {
         type: values.type,
         thumbnail_key: values.thumbnailKey,
         video_key: values.videoKey,
+        related_exercises: values.relatedExercises.map((related) => ({
+          related_exercise_id: related.exerciseId,
+          note: related.note || null,
+        })),
       },
     })
     if (error) {

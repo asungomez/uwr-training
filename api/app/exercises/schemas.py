@@ -8,12 +8,18 @@ from app.pagination import PaginationParams
 from app.storage import MediaKind, public_url
 
 
+class RelatedExerciseInput(BaseModel):
+    related_exercise_id: uuid.UUID
+    note: str | None = None
+
+
 class CreateExerciseRequest(BaseModel):
     name: str
     description: str | None = None
     type: ExerciseType
     thumbnail_key: str | None = None
     video_key: str | None = None
+    related_exercises: list[RelatedExerciseInput] = []
 
 
 class UpdateExerciseRequest(BaseModel):
@@ -22,6 +28,7 @@ class UpdateExerciseRequest(BaseModel):
     type: ExerciseType
     thumbnail_key: str | None = None
     video_key: str | None = None
+    related_exercises: list[RelatedExerciseInput] = []
 
 
 class ExerciseListParams(PaginationParams):
@@ -45,6 +52,20 @@ class MediaUploadResponse(BaseModel):
     fields: dict[str, str]
 
 
+class RelatedExerciseResponse(BaseModel):
+    """An alternative/related exercise as shown on the owning exercise: the target's
+    id + name (to render and round-trip through the form), its thumbnail, plus the note."""
+
+    related_exercise_id: uuid.UUID
+    related_exercise_name: str
+    related_exercise_thumbnail_url: str | None
+    note: str | None
+
+    @field_serializer("related_exercise_id")
+    def serialize_related_id(self, value: uuid.UUID) -> str:
+        return str(value)
+
+
 class ExerciseResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -56,6 +77,7 @@ class ExerciseResponse(BaseModel):
     # Keys round-trip through the edit form; URLs (derived below) are for display.
     thumbnail_key: str | None = None
     video_key: str | None = None
+    related_exercises: list[RelatedExerciseResponse] = []
 
     @field_serializer("id")
     def serialize_id(self, value: uuid.UUID) -> str:

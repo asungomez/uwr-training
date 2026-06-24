@@ -388,6 +388,11 @@ export interface components {
             thumbnail_key?: string | null;
             /** Video Key */
             video_key?: string | null;
+            /**
+             * Related Exercises
+             * @default []
+             */
+            related_exercises: components["schemas"]["RelatedExerciseInput"][];
         };
         /** CreateInvitationRequest */
         CreateInvitationRequest: {
@@ -441,6 +446,11 @@ export interface components {
             thumbnail_key?: string | null;
             /** Video Key */
             video_key?: string | null;
+            /**
+             * Related Exercises
+             * @default []
+             */
+            related_exercises: components["schemas"]["RelatedExerciseResponse"][];
             /** Thumbnail Url */
             readonly thumbnail_url: string | null;
             /** Video Url */
@@ -537,6 +547,31 @@ export interface components {
             /** Total Count */
             total_count: number;
         };
+        /** RelatedExerciseInput */
+        RelatedExerciseInput: {
+            /**
+             * Related Exercise Id
+             * Format: uuid
+             */
+            related_exercise_id: string;
+            /** Note */
+            note?: string | null;
+        };
+        /**
+         * RelatedExerciseResponse
+         * @description An alternative/related exercise as shown on the owning exercise: the target's
+         *     id + name (to render and round-trip through the form), its thumbnail, plus the note.
+         */
+        RelatedExerciseResponse: {
+            /** Related Exercise Id */
+            related_exercise_id: string;
+            /** Related Exercise Name */
+            related_exercise_name: string;
+            /** Related Exercise Thumbnail Url */
+            related_exercise_thumbnail_url: string | null;
+            /** Note */
+            note: string | null;
+        };
         /**
          * ResetCodeResponse
          * @description Returned once when an admin generates a reset code; only its hash is stored.
@@ -597,6 +632,11 @@ export interface components {
             thumbnail_key?: string | null;
             /** Video Key */
             video_key?: string | null;
+            /**
+             * Related Exercises
+             * @default []
+             */
+            related_exercises: components["schemas"]["RelatedExerciseInput"][];
         };
         /**
          * UpdateUserRequest

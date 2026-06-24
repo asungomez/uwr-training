@@ -87,6 +87,42 @@ function ExerciseDetailPage() {
             <p className="mt-4 text-slate-500">Sin descripción.</p>
           )}
 
+          {data.related_exercises.length > 0 && (
+            <div className="mt-8">
+              <h3 className="text-lg font-semibold text-slate-100">Ejercicios relacionados</h3>
+              <ul className="mt-3 flex flex-col gap-3">
+                {data.related_exercises.map((related) => (
+                  <li
+                    key={related.related_exercise_id}
+                    className="flex gap-4 rounded-lg border border-slate-700 bg-slate-800/50 p-4"
+                  >
+                    {related.related_exercise_thumbnail_url && (
+                      <Link to={`/ejercicios/${related.related_exercise_id}`} className="shrink-0">
+                        <img
+                          src={related.related_exercise_thumbnail_url}
+                          alt=""
+                          loading="lazy"
+                          className="h-16 w-24 rounded-md object-cover"
+                        />
+                      </Link>
+                    )}
+                    <div className="min-w-0">
+                      <Link
+                        to={`/ejercicios/${related.related_exercise_id}`}
+                        className="font-medium text-indigo-400 transition-colors hover:text-indigo-300"
+                      >
+                        {related.related_exercise_name}
+                      </Link>
+                      {related.note && (
+                        <p className="mt-1 text-sm text-slate-300">{related.note}</p>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {isAdmin && (
             <div className="mt-6 flex flex-wrap gap-2">
               <button

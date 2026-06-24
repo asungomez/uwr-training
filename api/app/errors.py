@@ -24,6 +24,7 @@ class ErrorCode(enum.StrEnum):
     exercise_not_found = "exercise_not_found"
     invalid_media_type = "invalid_media_type"
     invalid_training_subtype = "invalid_training_subtype"
+    invalid_related_exercise = "invalid_related_exercise"
 
 
 def api_error(status_code: int, code: ErrorCode, message: str) -> HTTPException:

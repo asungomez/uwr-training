@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, func
+from sqlalchemy import DateTime, ForeignKey, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -110,6 +110,40 @@ class Exercise(Base):
     thumbnail_key: Mapped[str | None] = mapped_column(default=None)
     video_key: Mapped[str | None] = mapped_column(default=None)
     created_at: Mapped[datetime] = mapped_column(_TZ, server_default=func.now())
+
+    # Alternative/related exercises (directional), each with a note. Ordered.
+    related: Mapped[list["ExerciseRelation"]] = relationship(
+        back_populates="exercise",
+        foreign_keys="ExerciseRelation.exercise_id",
+        cascade="all, delete-orphan",
+        order_by="ExerciseRelation.position",
+    )
+
+
+class ExerciseRelation(Base):
+    """A directional link from one exercise to an alternative/related one, with a
+    note explaining when or why to use it (e.g. "si no tienes barra de dominadas…").
+    """
+
+    __tablename__ = "exercise_relations"
+    __table_args__ = (
+        UniqueConstraint("exercise_id", "related_exercise_id", name="uq_exercise_relation"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    exercise_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("exercises.id", ondelete="CASCADE"), index=True
+    )
+    related_exercise_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("exercises.id", ondelete="CASCADE"), index=True
+    )
+    note: Mapped[str | None] = mapped_column(default=None)
+    position: Mapped[int] = mapped_column(default=0)
+
+    exercise: Mapped["Exercise"] = relationship(
+        back_populates="related", foreign_keys=[exercise_id]
+    )
+    related_exercise: Mapped["Exercise"] = relationship(foreign_keys=[related_exercise_id])
 
 
 class TrainingSession(Base):
