@@ -1,8 +1,27 @@
+import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
 import { ChevronRight, Plus } from 'lucide-react'
+import { useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 
-import { useQuery } from '@/api/client'
+import { api, useMutate, useQuery } from '@/api/client'
+import { errorMessage } from '@/api/errors'
+import type { components } from '@/api/schema'
 import { useAuth } from '@/auth/context'
+import SortableTrainingRow from '@/components/features/trainings/SortableTrainingRow'
 import {
   categoryFromSlug,
   categoryLabels,
@@ -12,11 +31,13 @@ import {
 } from '@/components/features/trainings/trainingLabels'
 import Pagination from '@/components/molecules/Pagination'
 import SearchInput from '@/components/molecules/SearchInput'
+import { useToast } from '@/components/toast/context'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { useUrlListState } from '@/hooks/useUrlListState'
 
+type TrainingSession = components['schemas']['TrainingSessionResponse']
+
 const PAGE_SIZE = 10
-const BLANK = 'Sin título'
 
 function TrainingSubtypePage() {
   // Route: /entrenamientos/{categorySlug}/{subtypeSlug} — read both from the path.
@@ -28,6 +49,8 @@ function TrainingSubtypePage() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
   const navigate = useNavigate()
+  const toast = useToast()
+  const mutate = useMutate()
 
   const { page, search, setPage, setSearch } = useUrlListState()
   const debouncedSearch = useDebouncedValue(search.trim(), 300)
@@ -48,12 +71,53 @@ function TrainingSubtypePage() {
     { keepPreviousData: true },
   )
 
+  // Local copy so a drag reorders instantly; resynced whenever server data
+  // changes. Adjusting state during render (vs. an effect) avoids a cascading
+  // re-render — see https://react.dev/learn/you-might-not-need-an-effect.
+  const [ordered, setOrdered] = useState<TrainingSession[]>([])
+  const [syncedItems, setSyncedItems] = useState(data?.items)
+  if (data?.items !== syncedItems) {
+    setSyncedItems(data?.items)
+    setOrdered(data?.items ?? [])
+  }
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
   // Unknown category → landing; unknown subtype (for a valid category) → its category.
   if (!category) return <Navigate to="/entrenamientos" replace />
   if (!subtype) return <Navigate to={`/entrenamientos/${categorySlugs[category]}`} replace />
 
-  const sessions = data?.items
+  // Reordering only makes sense on an unfiltered, admin view.
+  const canReorder = isAdmin && !debouncedSearch
   const pageCount = Math.ceil((data?.total_count ?? 0) / PAGE_SIZE)
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const from = ordered.findIndex((s) => s.id === active.id)
+    const to = ordered.findIndex((s) => s.id === over.id)
+    if (from === -1 || to === -1) return
+
+    const previous = ordered
+    const reordered = arrayMove(ordered, from, to)
+    setOrdered(reordered) // optimistic
+
+    // Absolute position across pages = offset of this page + index within it.
+    const absolutePosition = (page - 1) * PAGE_SIZE + to
+    const { error: patchError } = await api.PATCH('/trainings/{training_id}/position', {
+      params: { path: { training_id: String(active.id) } },
+      body: { position: absolutePosition },
+    })
+    if (patchError) {
+      setOrdered(previous) // roll back
+      toast.error(errorMessage(patchError))
+      return
+    }
+    await mutate(['/trainings'])
+  }
 
   return (
     <section>
@@ -92,7 +156,7 @@ function TrainingSubtypePage() {
       {isLoading && <p className="mt-4 text-slate-400">Cargando…</p>}
       {error && <p className="mt-4 text-red-400">No se pudieron cargar los entrenamientos.</p>}
 
-      {sessions?.length === 0 && (
+      {ordered.length === 0 && !isLoading && (
         <p className="mt-4 text-slate-400">
           {debouncedSearch
             ? 'No hay entrenamientos que coincidan con la búsqueda.'
@@ -100,21 +164,29 @@ function TrainingSubtypePage() {
         </p>
       )}
 
-      {sessions && sessions.length > 0 && (
+      {ordered.length > 0 && (
         <>
-          <ul className="mt-6 flex flex-col gap-3">
-            {sessions.map((session) => (
-              <li key={session.id}>
-                <button
-                  type="button"
-                  onClick={() => void navigate(`/entrenamientos/${session.id}`)}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-800 p-4 text-left font-medium text-slate-100 transition-colors hover:bg-slate-700"
-                >
-                  {session.title ?? <span className="text-slate-500">{BLANK}</span>}
-                </button>
-              </li>
-            ))}
-          </ul>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={(event) => void handleDragEnd(event)}
+          >
+            <SortableContext
+              items={ordered.map((s) => s.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <ul className="mt-6 flex flex-col gap-3">
+                {ordered.map((session) => (
+                  <SortableTrainingRow
+                    key={session.id}
+                    session={session}
+                    draggable={canReorder}
+                    onOpen={() => void navigate(`/entrenamientos/${session.id}`)}
+                  />
+                ))}
+              </ul>
+            </SortableContext>
+          </DndContext>
 
           <Pagination page={page} pageCount={pageCount} onPageChange={setPage} />
         </>

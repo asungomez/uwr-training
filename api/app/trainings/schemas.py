@@ -39,6 +39,13 @@ class UpdateTrainingRequest(BaseModel):
     blocks: list[BlockInput] = []
 
 
+class UpdatePositionRequest(BaseModel):
+    """Move a training to a new 0-based position within its category+subtype; the
+    others in that scope shift to keep a contiguous order."""
+
+    position: int
+
+
 class TrainingListParams(PaginationParams):
     """Query params for the trainings list: pagination + filters."""
 
@@ -55,6 +62,7 @@ class TrainingSessionResponse(BaseModel):
     id: uuid.UUID
     category: TrainingCategory
     subtype: TrainingSubtype
+    position: int
     title: str | None
     created_at: datetime
 

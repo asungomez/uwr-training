@@ -6,6 +6,7 @@ import { api, useMutate, useQuery } from '@/api/client'
 import { errorMessage } from '@/api/errors'
 import type { components } from '@/api/schema'
 import TrainingForm, { type TrainingFormValues } from '@/components/features/trainings/TrainingForm'
+import { trainingToFormValues } from '@/components/features/trainings/trainingFormValues'
 import { useToast } from '@/components/toast/context'
 
 type Subtype = components['schemas']['TrainingSubtype']
@@ -80,25 +81,7 @@ function EditTrainingPage() {
           <div className="mt-6">
             <TrainingForm
               onSubmit={handleSubmit}
-              defaultValues={{
-                title: data.title ?? '',
-                category: data.category,
-                subtype: data.subtype,
-                blocks: data.blocks.map((block) => ({
-                  id: block.id,
-                  name: block.name,
-                  subBlocks: block.sub_blocks.map((sub) => ({
-                    id: sub.id,
-                    name: sub.name,
-                    notes: sub.notes ?? '',
-                    items: sub.items.map((item) => ({
-                      id: item.id,
-                      kind: 'note' as const,
-                      text: item.text ?? '',
-                    })),
-                  })),
-                })),
-              }}
+              defaultValues={trainingToFormValues(data)}
               rootError={rootError}
               submitLabel="Guardar cambios"
               pendingLabel="Guardando…"

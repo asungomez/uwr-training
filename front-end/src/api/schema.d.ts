@@ -390,6 +390,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/trainings/{training_id}/position": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Reorder Training
+         * @description Move a training to a new 0-based position within its category+subtype; the
+         *     rest of the scope shifts to stay a contiguous 0..n-1 sequence.
+         */
+        patch: operations["reorder_training_trainings__training_id__position_patch"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -747,6 +768,8 @@ export interface components {
             id: string;
             category: components["schemas"]["TrainingCategory"];
             subtype: components["schemas"]["TrainingSubtype"];
+            /** Position */
+            position: number;
             /** Title */
             title: string | null;
             /**
@@ -769,6 +792,8 @@ export interface components {
             id: string;
             category: components["schemas"]["TrainingCategory"];
             subtype: components["schemas"]["TrainingSubtype"];
+            /** Position */
+            position: number;
             /** Title */
             title: string | null;
             /**
@@ -803,6 +828,15 @@ export interface components {
              * @default []
              */
             parameters: components["schemas"]["ParameterInput"][];
+        };
+        /**
+         * UpdatePositionRequest
+         * @description Move a training to a new 0-based position within its category+subtype; the
+         *     others in that scope shift to keep a contiguous order.
+         */
+        UpdatePositionRequest: {
+            /** Position */
+            position: number;
         };
         /** UpdateTrainingRequest */
         UpdateTrainingRequest: {
@@ -1699,6 +1733,43 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reorder_training_trainings__training_id__position_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                training_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePositionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrainingSessionResponse"];
+                };
             };
             /** @description Validation Error */
             422: {

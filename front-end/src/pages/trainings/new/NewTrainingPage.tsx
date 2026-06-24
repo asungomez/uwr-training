@@ -1,11 +1,12 @@
 import { ChevronRight } from 'lucide-react'
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
-import { api } from '@/api/client'
+import { api, useQuery } from '@/api/client'
 import { errorMessage } from '@/api/errors'
 import type { components } from '@/api/schema'
 import TrainingForm, { type TrainingFormValues } from '@/components/features/trainings/TrainingForm'
+import { trainingToFormValues } from '@/components/features/trainings/trainingFormValues'
 import { useToast } from '@/components/toast/context'
 
 type Subtype = components['schemas']['TrainingSubtype']
@@ -15,9 +16,18 @@ function NewTrainingPage() {
   const toast = useToast()
   const [rootError, setRootError] = useState<string | undefined>(undefined)
 
+  // ?copiar_de=<id> pre-populates the form with another training's data.
+  const [searchParams] = useSearchParams()
+  const copyFromId = searchParams.get('copiar_de')
+
+  const { data, isLoading, error } = useQuery(
+    '/trainings/{training_id}',
+    copyFromId ? { params: { path: { training_id: copyFromId } } } : null,
+  )
+
   async function handleSubmit(values: TrainingFormValues) {
     setRootError(undefined)
-    const { data, error } = await api.POST('/trainings', {
+    const { data: created, error: createError } = await api.POST('/trainings', {
       body: {
         category: values.category,
         // The form validated this against the category; the API re-checks too.
@@ -33,12 +43,12 @@ function NewTrainingPage() {
         })),
       },
     })
-    if (error || !data) {
-      setRootError(errorMessage(error))
+    if (createError || !created) {
+      setRootError(errorMessage(createError))
       return
     }
     toast.success('Entrenamiento creado.')
-    void navigate(`/entrenamientos/${data.id}`)
+    void navigate(`/entrenamientos/${created.id}`)
   }
 
   return (
@@ -53,9 +63,22 @@ function NewTrainingPage() {
 
       <h2 className="mt-6 text-2xl font-semibold tracking-tight">Nuevo entrenamiento</h2>
 
-      <div className="mt-6">
-        <TrainingForm onSubmit={handleSubmit} rootError={rootError} />
-      </div>
+      {/* When copying, wait for the source training before mounting the form
+          (default values are only read once, at mount). */}
+      {copyFromId && isLoading && <p className="mt-6 text-slate-400">Cargando…</p>}
+      {copyFromId && error && (
+        <p className="mt-6 text-red-400">No se ha encontrado el entrenamiento a copiar.</p>
+      )}
+
+      {(!copyFromId || data) && (
+        <div className="mt-6">
+          <TrainingForm
+            onSubmit={handleSubmit}
+            {...(data ? { defaultValues: trainingToFormValues(data) } : {})}
+            rootError={rootError}
+          />
+        </div>
+      )}
     </section>
   )
 }

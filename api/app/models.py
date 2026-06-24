@@ -178,10 +178,23 @@ class TrainingSession(Base):
     later, not on the plan itself."""
 
     __tablename__ = "training_sessions"
+    # Ordering within a category+subtype. Deferrable so a reorder can shuffle rows
+    # one-by-one within a transaction without tripping uniqueness mid-shuffle.
+    __table_args__ = (
+        UniqueConstraint(
+            "category",
+            "subtype",
+            "position",
+            name="uq_training_session_position",
+            deferrable=True,
+            initially="DEFERRED",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     category: Mapped[TrainingCategory]
     subtype: Mapped[TrainingSubtype]
+    position: Mapped[int] = mapped_column(default=0, server_default="0")
     title: Mapped[str | None] = mapped_column(default=None)
     created_at: Mapped[datetime] = mapped_column(_TZ, server_default=func.now())
 

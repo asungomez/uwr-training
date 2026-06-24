@@ -1,4 +1,4 @@
-import { ChevronRight, Pencil, Trash2 } from 'lucide-react'
+import { ChevronRight, Copy, Pencil, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
@@ -6,6 +6,12 @@ import { api, useMutate, useQuery } from '@/api/client'
 import { errorMessage } from '@/api/errors'
 import { useAuth } from '@/auth/context'
 import { CategoryBadge, SubtypeBadge } from '@/components/features/trainings/trainingBadges'
+import {
+  categoryLabels,
+  categorySlugs,
+  subtypeLabels,
+  subtypeSlugs,
+} from '@/components/features/trainings/trainingLabels'
 import ConfirmDialog from '@/components/molecules/ConfirmDialog'
 import { useToast } from '@/components/toast/context'
 
@@ -50,6 +56,24 @@ function TrainingDetailPage() {
         <Link to="/entrenamientos" className="transition-colors hover:text-slate-200">
           Entrenamientos
         </Link>
+        {data && (
+          <>
+            <ChevronRight size={14} />
+            <Link
+              to={`/entrenamientos/${categorySlugs[data.category]}`}
+              className="transition-colors hover:text-slate-200"
+            >
+              {categoryLabels[data.category]}
+            </Link>
+            <ChevronRight size={14} />
+            <Link
+              to={`/entrenamientos/${categorySlugs[data.category]}/${subtypeSlugs[data.subtype]}`}
+              className="transition-colors hover:text-slate-200"
+            >
+              {subtypeLabels[data.subtype]}
+            </Link>
+          </>
+        )}
         <ChevronRight size={14} />
         <span className="text-slate-200">{data?.title ?? '…'}</span>
       </nav>
@@ -107,6 +131,13 @@ function TrainingDetailPage() {
               >
                 <Pencil size={16} />
                 Editar
+              </Link>
+              <Link
+                to={`/entrenamientos/nuevo?copiar_de=${trainingId}`}
+                className="inline-flex items-center gap-2 rounded-md border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+              >
+                <Copy size={16} />
+                Copiar entrenamiento
               </Link>
               <button
                 type="button"

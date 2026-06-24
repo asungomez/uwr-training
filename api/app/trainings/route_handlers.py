@@ -29,6 +29,7 @@ from app.trainings.schemas import (
     TrainingListParams,
     TrainingSessionDetailResponse,
     TrainingSessionResponse,
+    UpdatePositionRequest,
     UpdateTrainingRequest,
 )
 
@@ -95,6 +96,19 @@ def _build_items(items: list[ItemInput]) -> list[TrainingItem]:
     return rows
 
 
+async def _next_position(
+    session: AsyncSession, category: TrainingCategory, subtype: TrainingSubtype
+) -> int:
+    """The next free position at the end of a category+subtype scope."""
+    max_position = await session.scalar(
+        select(func.max(TrainingSession.position)).where(
+            TrainingSession.category == category,
+            TrainingSession.subtype == subtype,
+        )
+    )
+    return 0 if max_position is None else max_position + 1
+
+
 async def _load_with_blocks(
     session: AsyncSession, training_id: uuid.UUID
 ) -> TrainingSession | None:
@@ -131,7 +145,7 @@ async def list_trainings(
     rows = await session.scalars(
         select(TrainingSession)
         .where(*filters)
-        .order_by(TrainingSession.created_at.desc())
+        .order_by(TrainingSession.position)
         .offset(params.offset)
         .limit(params.page_size)
     )
@@ -167,7 +181,12 @@ async def create_training(
     _validate_subtype(body.category, body.subtype)
 
     title = body.title.strip() if body.title else None
-    training = TrainingSession(category=body.category, subtype=body.subtype, title=title or None)
+    training = TrainingSession(
+        category=body.category,
+        subtype=body.subtype,
+        position=await _next_position(session, body.category, body.subtype),
+        title=title or None,
+    )
     training.blocks = _build_blocks(body.blocks)
     session.add(training)
     await session.commit()
@@ -193,6 +212,11 @@ async def update_training(
         )
     _validate_subtype(body.category, body.subtype)
 
+    # If the scope changed, move it to the end of the new one so its old position
+    # can't collide there.
+    if training.category != body.category or training.subtype != body.subtype:
+        training.position = await _next_position(session, body.category, body.subtype)
+
     title = body.title.strip() if body.title else None
     training.category = body.category
     training.subtype = body.subtype
@@ -204,6 +228,48 @@ async def update_training(
     reloaded = await _load_with_blocks(session, training_id)
     assert reloaded is not None
     return reloaded
+
+
+@router.patch("/{training_id}/position", response_model=TrainingSessionResponse)
+async def reorder_training(
+    training_id: uuid.UUID,
+    body: UpdatePositionRequest,
+    _admin: Annotated[User, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> TrainingSession:
+    """Move a training to a new 0-based position within its category+subtype; the
+    rest of the scope shifts to stay a contiguous 0..n-1 sequence."""
+    training = await session.get(TrainingSession, training_id)
+    if training is None:
+        raise api_error(
+            status.HTTP_404_NOT_FOUND,
+            ErrorCode.training_not_found,
+            "Training not found",
+        )
+
+    # All sessions in this scope, in current order.
+    scope = list(
+        await session.scalars(
+            select(TrainingSession)
+            .where(
+                TrainingSession.category == training.category,
+                TrainingSession.subtype == training.subtype,
+            )
+            .order_by(TrainingSession.position)
+        )
+    )
+
+    # Re-insert the moved training at the clamped target index, then renumber.
+    target = max(0, min(body.position, len(scope) - 1))
+    scope.remove(training)
+    scope.insert(target, training)
+    for index, item in enumerate(scope):
+        item.position = index
+    # The deferrable unique constraint is checked at commit, so the renumber above
+    # can transiently repeat positions without erroring.
+    await session.commit()
+    await session.refresh(training)
+    return training
 
 
 @router.delete("/{training_id}", status_code=status.HTTP_204_NO_CONTENT)
