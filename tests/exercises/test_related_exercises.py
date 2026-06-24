@@ -103,15 +103,17 @@ def test_admin_adds_related_exercise_when_creating(
     log_in_as(admin)
     page.goto(f"{app_url}/ejercicios")
 
-    # When creating a new exercise and adding a related one via search.
+    # When creating a new exercise and adding a related one via search. Scope to
+    # the modal — the list page behind it also has a "Jalón al pecho" card.
     page.get_by_role("button", name="Nuevo ejercicio").click()
-    page.get_by_label("Nombre").fill("Dominada prona")
-    page.get_by_placeholder(SEARCH_PLACEHOLDER).fill("Jalón")
-    page.get_by_role("button", name="Jalón al pecho").click()
-    page.get_by_placeholder("Nota (cuándo o por qué usar esta alternativa)…").fill(
+    dialog = page.get_by_role("dialog", name="Nuevo ejercicio")
+    dialog.get_by_label("Nombre").fill("Dominada prona")
+    dialog.get_by_placeholder(SEARCH_PLACEHOLDER).fill("Jalón")
+    dialog.get_by_role("button", name="Jalón al pecho", exact=True).click()
+    dialog.get_by_placeholder("Nota (cuándo o por qué usar esta alternativa)…").fill(
         "Si no tienes barra"
     )
-    page.get_by_role("button", name="Guardar ejercicio").click()
+    dialog.get_by_role("button", name="Guardar ejercicio").click()
     expect(page.get_by_role("status").filter(has_text="Ejercicio creado.")).to_be_visible()
 
     # Then the relation shows on the new exercise's detail page.
@@ -139,16 +141,18 @@ def test_edit_prefills_and_removes_related(
     log_in_as(admin)
     page.goto(f"{app_url}/ejercicios")
 
-    # When editing, the existing relation is pre-filled.
+    # When editing, the existing relation is pre-filled. Scope to the modal — the
+    # list page behind it also has a "Jalón al pecho" card.
     page.get_by_role("button", name="Editar Dominada prona").click()
-    expect(page.get_by_text("Jalón al pecho")).to_be_visible()
+    dialog = page.get_by_role("dialog", name="Editar ejercicio")
+    expect(dialog.get_by_text("Jalón al pecho")).to_be_visible()
     expect(
-        page.get_by_placeholder("Nota (cuándo o por qué usar esta alternativa)…")
+        dialog.get_by_placeholder("Nota (cuándo o por qué usar esta alternativa)…")
     ).to_have_value("Si no tienes barra")
 
     # When I remove it and save.
-    page.get_by_role("button", name="Quitar Jalón al pecho").click()
-    page.get_by_role("button", name="Guardar ejercicio").click()
+    dialog.get_by_role("button", name="Quitar Jalón al pecho").click()
+    dialog.get_by_role("button", name="Guardar ejercicio").click()
     expect(page.get_by_role("status").filter(has_text="Ejercicio actualizado.")).to_be_visible()
 
     # Then the detail page no longer shows a related section.
@@ -169,7 +173,8 @@ def test_cannot_relate_exercise_to_itself(
     log_in_as(admin)
     page.goto(f"{app_url}/ejercicios")
     page.get_by_role("button", name="Editar Dominada prona").click()
+    dialog = page.get_by_role("dialog", name="Editar ejercicio")
 
     # When I search in the related-exercise picker, the exercise itself is excluded.
-    page.get_by_placeholder(SEARCH_PLACEHOLDER).fill("Dominada")
-    expect(page.get_by_text("No hay ejercicios que coincidan.")).to_be_visible()
+    dialog.get_by_placeholder(SEARCH_PLACEHOLDER).fill("Dominada")
+    expect(dialog.get_by_text("No hay ejercicios que coincidan.")).to_be_visible()
