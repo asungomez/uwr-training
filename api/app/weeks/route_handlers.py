@@ -1,0 +1,206 @@
+import uuid
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Query, status
+from sqlalchemy import ColumnElement, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.auth.dependencies import current_user, require_admin
+from app.db import get_session
+from app.errors import ErrorCode, api_error
+from app.models import (
+    SUBTYPES_BY_CATEGORY,
+    User,
+    Week,
+    WeekRequirement,
+)
+from app.pagination import Page
+from app.weeks.schemas import (
+    CreateWeekRequest,
+    RequirementInput,
+    UpdateWeekPositionRequest,
+    UpdateWeekRequest,
+    WeekDetailResponse,
+    WeekListParams,
+    WeekResponse,
+)
+
+router = APIRouter(prefix="/weeks", tags=["weeks"])
+
+
+def _build_requirements(requirements: list[RequirementInput]) -> list[WeekRequirement]:
+    """Build ordered WeekRequirement rows from the submitted list. Rejects a
+    subtype that doesn't belong to its category, or a non-positive count."""
+    rows: list[WeekRequirement] = []
+    for position, item in enumerate(requirements):
+        if item.subtype not in SUBTYPES_BY_CATEGORY[item.category]:
+            raise api_error(
+                status.HTTP_400_BAD_REQUEST,
+                ErrorCode.invalid_week,
+                f"Subtype {item.subtype.value} is not valid for category {item.category.value}",
+            )
+        if item.count < 1:
+            raise api_error(
+                status.HTTP_400_BAD_REQUEST,
+                ErrorCode.invalid_week,
+                "Each requirement needs a count of at least 1",
+            )
+        rows.append(
+            WeekRequirement(
+                position=position,
+                category=item.category,
+                subtype=item.subtype,
+                count=item.count,
+            )
+        )
+    return rows
+
+
+async def _next_position(session: AsyncSession) -> int:
+    """The next free position at the end of the calendar."""
+    max_position = await session.scalar(select(func.max(Week.position)))
+    return 0 if max_position is None else max_position + 1
+
+
+async def _load_with_requirements(session: AsyncSession, week_id: uuid.UUID) -> Week | None:
+    """Fetch a week with its requirements (ordered) loaded."""
+    week: Week | None = await session.scalar(
+        select(Week).where(Week.id == week_id).options(selectinload(Week.requirements))
+    )
+    return week
+
+
+@router.get("")
+async def list_weeks(
+    _user: Annotated[User, Depends(current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    params: Annotated[WeekListParams, Query()],
+) -> Page[WeekResponse]:
+    """All weeks in order, filterable by name search and phase. Visible to any
+    authenticated user."""
+    filters: list[ColumnElement[bool]] = []
+    if params.search:
+        filters.append(Week.name.ilike(f"%{params.search.strip()}%"))
+    if params.phase is not None:
+        filters.append(Week.phase == params.phase)
+
+    total = await session.scalar(select(func.count()).select_from(Week).where(*filters))
+    rows = await session.scalars(
+        select(Week)
+        .where(*filters)
+        .order_by(Week.position)
+        .offset(params.offset)
+        .limit(params.page_size)
+    )
+    return Page(
+        items=[WeekResponse.model_validate(row) for row in rows.all()],
+        total_count=total or 0,
+    )
+
+
+@router.get("/{week_id}", response_model=WeekDetailResponse)
+async def get_week(
+    week_id: uuid.UUID,
+    _user: Annotated[User, Depends(current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> Week:
+    """A single week (with its requirements) by id. Visible to any user."""
+    week = await _load_with_requirements(session, week_id)
+    if week is None:
+        raise api_error(status.HTTP_404_NOT_FOUND, ErrorCode.week_not_found, "Week not found")
+    return week
+
+
+@router.post("", response_model=WeekDetailResponse, status_code=status.HTTP_201_CREATED)
+async def create_week(
+    body: CreateWeekRequest,
+    _admin: Annotated[User, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> Week:
+    name = body.name.strip()
+    if not name:
+        raise api_error(status.HTTP_400_BAD_REQUEST, ErrorCode.invalid_week, "Name is required")
+    recommended_date = body.recommended_date.strip() if body.recommended_date else None
+    week = Week(
+        name=name,
+        position=await _next_position(session),
+        recommended_date=recommended_date or None,
+        phase=body.phase,
+    )
+    week.requirements = _build_requirements(body.requirements)
+    session.add(week)
+    await session.commit()
+
+    reloaded = await _load_with_requirements(session, week.id)
+    assert reloaded is not None
+    return reloaded
+
+
+@router.put("/{week_id}", response_model=WeekDetailResponse)
+async def update_week(
+    week_id: uuid.UUID,
+    body: UpdateWeekRequest,
+    _admin: Annotated[User, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> Week:
+    week = await _load_with_requirements(session, week_id)
+    if week is None:
+        raise api_error(status.HTTP_404_NOT_FOUND, ErrorCode.week_not_found, "Week not found")
+
+    name = body.name.strip()
+    if not name:
+        raise api_error(status.HTTP_400_BAD_REQUEST, ErrorCode.invalid_week, "Name is required")
+    recommended_date = body.recommended_date.strip() if body.recommended_date else None
+    week.name = name
+    week.recommended_date = recommended_date or None
+    week.phase = body.phase
+    # Replace the requirement list wholesale with the submitted (ordered) one.
+    week.requirements = _build_requirements(body.requirements)
+    await session.commit()
+
+    reloaded = await _load_with_requirements(session, week_id)
+    assert reloaded is not None
+    return reloaded
+
+
+@router.patch("/{week_id}/position", response_model=WeekResponse)
+async def reorder_week(
+    week_id: uuid.UUID,
+    body: UpdateWeekPositionRequest,
+    _admin: Annotated[User, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> Week:
+    """Move a week to a new 0-based position; the rest of the calendar shifts to
+    stay a contiguous 0..n-1 sequence."""
+    week = await session.get(Week, week_id)
+    if week is None:
+        raise api_error(status.HTTP_404_NOT_FOUND, ErrorCode.week_not_found, "Week not found")
+
+    # All weeks, in current order.
+    scope = list(await session.scalars(select(Week).order_by(Week.position)))
+
+    # Re-insert the moved week at the clamped target index, then renumber.
+    target = max(0, min(body.position, len(scope) - 1))
+    scope.remove(week)
+    scope.insert(target, week)
+    for index, item in enumerate(scope):
+        item.position = index
+    # The deferrable unique constraint is checked at commit, so the renumber above
+    # can transiently repeat positions without erroring.
+    await session.commit()
+    await session.refresh(week)
+    return week
+
+
+@router.delete("/{week_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_week(
+    week_id: uuid.UUID,
+    _admin: Annotated[User, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> None:
+    week = await session.get(Week, week_id)
+    if week is None:
+        raise api_error(status.HTTP_404_NOT_FOUND, ErrorCode.week_not_found, "Week not found")
+    await session.delete(week)
+    await session.commit()

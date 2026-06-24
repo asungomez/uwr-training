@@ -58,6 +58,7 @@ SUBTYPES_BY_CATEGORY: dict[TrainingCategory, tuple[TrainingSubtype, ...]] = {
     TrainingCategory.cardio: (
         TrainingSubtype.aerobic,
         TrainingSubtype.anaerobic,
+        TrainingSubtype.alactic,
     ),
 }
 
@@ -81,6 +82,13 @@ class CardioItemKind(enum.StrEnum):
 class CardioIntervalKind(enum.StrEnum):
     effort = "effort"
     rest = "rest"
+
+
+class MesocyclePhase(enum.StrEnum):
+    adaptation = "adaptation"
+    accumulation = "accumulation"
+    transmutation = "transmutation"
+    realization = "realization"
 
 
 class User(Base):
@@ -382,3 +390,53 @@ class CardioInterval(Base):
     intensity_pct: Mapped[int | None] = mapped_column(default=None)
 
     item: Mapped["CardioItem"] = relationship(back_populates="intervals")
+
+
+class Week(Base):
+    """An ordered planning week in the calendar. It holds how many sessions of each
+    type (category+subtype) are recommended that week — NOT links to specific
+    trainings, which vary per athlete. Belongs to a mesocycle phase."""
+
+    __tablename__ = "weeks"
+    # Ordering across the whole calendar, deferrable so a reorder can shuffle rows
+    # one-by-one within a transaction without tripping uniqueness mid-shuffle.
+    __table_args__ = (
+        UniqueConstraint(
+            "position",
+            name="uq_week_position",
+            deferrable=True,
+            initially="DEFERRED",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    name: Mapped[str]
+    position: Mapped[int] = mapped_column(default=0, server_default="0")
+    # A free-text recommended date ("Semana del 3 de marzo"), no date management.
+    recommended_date: Mapped[str | None] = mapped_column(default=None)
+    phase: Mapped[MesocyclePhase]
+    created_at: Mapped[datetime] = mapped_column(_TZ, server_default=func.now())
+
+    requirements: Mapped[list["WeekRequirement"]] = relationship(
+        back_populates="week",
+        cascade="all, delete-orphan",
+        order_by="WeekRequirement.position",
+    )
+
+
+class WeekRequirement(Base):
+    """How many sessions of one type (category+subtype) a week recommends, e.g.
+    2x pool/endurance. Ordered within its week for stable display."""
+
+    __tablename__ = "week_requirements"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    week_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("weeks.id", ondelete="CASCADE"), index=True
+    )
+    position: Mapped[int]
+    category: Mapped[TrainingCategory]
+    subtype: Mapped[TrainingSubtype]
+    count: Mapped[int]
+
+    week: Mapped["Week"] = relationship(back_populates="requirements")

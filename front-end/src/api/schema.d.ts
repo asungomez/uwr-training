@@ -476,6 +476,71 @@ export interface paths {
         patch: operations["reorder_cardio_training_cardio_trainings__training_id__position_patch"];
         trace?: never;
     };
+    "/weeks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Weeks
+         * @description All weeks in order, filterable by name search and phase. Visible to any
+         *     authenticated user.
+         */
+        get: operations["list_weeks_weeks_get"];
+        put?: never;
+        /** Create Week */
+        post: operations["create_week_weeks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/weeks/{week_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Week
+         * @description A single week (with its requirements) by id. Visible to any user.
+         */
+        get: operations["get_week_weeks__week_id__get"];
+        /** Update Week */
+        put: operations["update_week_weeks__week_id__put"];
+        post?: never;
+        /** Delete Week */
+        delete: operations["delete_week_weeks__week_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/weeks/{week_id}/position": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Reorder Week
+         * @description Move a week to a new 0-based position; the rest of the calendar shifts to
+         *     stay a contiguous 0..n-1 sequence.
+         */
+        patch: operations["reorder_week_weeks__week_id__position_patch"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -666,6 +731,19 @@ export interface components {
              * @default []
              */
             blocks: components["schemas"]["BlockInput"][];
+        };
+        /** CreateWeekRequest */
+        CreateWeekRequest: {
+            /** Name */
+            name: string;
+            /** Recommended Date */
+            recommended_date?: string | null;
+            phase: components["schemas"]["MesocyclePhase"];
+            /**
+             * Requirements
+             * @default []
+             */
+            requirements: components["schemas"]["RequirementInput"][];
         };
         /**
          * DirectoryEntryResponse
@@ -870,6 +948,11 @@ export interface components {
                 [key: string]: string;
             };
         };
+        /**
+         * MesocyclePhase
+         * @enum {string}
+         */
+        MesocyclePhase: "adaptation" | "accumulation" | "transmutation" | "realization";
         /** Page[CardioTrainingResponse] */
         Page_CardioTrainingResponse_: {
             /** Items */
@@ -895,6 +978,13 @@ export interface components {
         Page_TrainingSessionResponse_: {
             /** Items */
             items: components["schemas"]["TrainingSessionResponse"][];
+            /** Total Count */
+            total_count: number;
+        };
+        /** Page[WeekResponse] */
+        Page_WeekResponse_: {
+            /** Items */
+            items: components["schemas"]["WeekResponse"][];
             /** Total Count */
             total_count: number;
         };
@@ -938,6 +1028,25 @@ export interface components {
             related_exercise_thumbnail_url: string | null;
             /** Note */
             note: string | null;
+        };
+        /**
+         * RequirementInput
+         * @description How many sessions of one type a week recommends, e.g. 2x pool/endurance.
+         */
+        RequirementInput: {
+            category: components["schemas"]["TrainingCategory"];
+            subtype: components["schemas"]["TrainingSubtype"];
+            /** Count */
+            count: number;
+        };
+        /** RequirementResponse */
+        RequirementResponse: {
+            /** Id */
+            id: string;
+            category: components["schemas"]["TrainingCategory"];
+            subtype: components["schemas"]["TrainingSubtype"];
+            /** Count */
+            count: number;
         };
         /**
          * ResetCodeResponse
@@ -1116,6 +1225,27 @@ export interface components {
             status?: components["schemas"]["DirectoryStatus"] | null;
         };
         /**
+         * UpdateWeekPositionRequest
+         * @description Move a week to a new 0-based position; the others shift to keep order.
+         */
+        UpdateWeekPositionRequest: {
+            /** Position */
+            position: number;
+        };
+        /** UpdateWeekRequest */
+        UpdateWeekRequest: {
+            /** Name */
+            name: string;
+            /** Recommended Date */
+            recommended_date?: string | null;
+            phase: components["schemas"]["MesocyclePhase"];
+            /**
+             * Requirements
+             * @default []
+             */
+            requirements: components["schemas"]["RequirementInput"][];
+        };
+        /**
          * UserDetailResponse
          * @description Full detail for a single directory entry (a user or an invitation).
          */
@@ -1160,6 +1290,51 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /**
+         * WeekDetailResponse
+         * @description Detail view: the week plus its ordered session requirements.
+         */
+        WeekDetailResponse: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Position */
+            position: number;
+            /** Recommended Date */
+            recommended_date: string | null;
+            phase: components["schemas"]["MesocyclePhase"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Requirements
+             * @default []
+             */
+            requirements: components["schemas"]["RequirementResponse"][];
+        };
+        /**
+         * WeekResponse
+         * @description List view: the week itself, without its requirements.
+         */
+        WeekResponse: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Position */
+            position: number;
+            /** Recommended Date */
+            recommended_date: string | null;
+            phase: components["schemas"]["MesocyclePhase"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
     };
     responses: never;
@@ -2236,6 +2411,215 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CardioTrainingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_weeks_weeks_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+                search?: string | null;
+                phase?: components["schemas"]["MesocyclePhase"] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_WeekResponse_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_week_weeks_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateWeekRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WeekDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_week_weeks__week_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                week_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WeekDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_week_weeks__week_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                week_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateWeekRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WeekDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_week_weeks__week_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                week_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reorder_week_weeks__week_id__position_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                week_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateWeekPositionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WeekResponse"];
                 };
             };
             /** @description Validation Error */

@@ -23,6 +23,10 @@ import TrainingsPage from '@/pages/trainings/TrainingsPage'
 import TrainingSubtypePage from '@/pages/trainings/TrainingSubtypePage'
 import UserDetailPage from '@/pages/users/[id]/UserDetailPage'
 import UsersPage from '@/pages/users/UsersPage'
+import EditWeekPage from '@/pages/weeks/[id]/edit/EditWeekPage'
+import WeekDetailPage from '@/pages/weeks/[id]/WeekDetailPage'
+import NewWeekPage from '@/pages/weeks/new/NewWeekPage'
+import WeeksPage from '@/pages/weeks/WeeksPage'
 
 function App() {
   const { user, isLoading } = useAuth()
@@ -84,6 +88,14 @@ function App() {
               <Route path=":id/editar" element={<EditExercisePage />} />
             </Route>
             <Route path=":id" element={<ExerciseDetailPage />} />
+          </Route>
+          <Route path="/calendario">
+            <Route index element={<WeeksPage />} />
+            <Route element={<AdminRoute />}>
+              <Route path="nueva" element={<NewWeekPage />} />
+              <Route path=":id/editar" element={<EditWeekPage />} />
+            </Route>
+            <Route path=":id" element={<WeekDetailPage />} />
           </Route>
           <Route path="/usuarios" element={<AdminRoute />}>
             <Route index element={<UsersPage />} />

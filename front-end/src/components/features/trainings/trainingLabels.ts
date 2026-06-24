@@ -34,7 +34,7 @@ export const subtypeLabels: Record<Subtype, string> = {
 export const subtypesByCategory: Record<Category, Subtype[]> = {
   gym: ['adaptation', 'accumulation', 'transmutation', 'realization'],
   pool: ['endurance', 'anaerobic', 'alactic'],
-  cardio: ['aerobic', 'anaerobic'],
+  cardio: ['aerobic', 'anaerobic', 'alactic'],
 }
 
 export const categoryOptions: { value: Category; label: string }[] = (
