@@ -118,10 +118,10 @@ def test_admin_deletes_training_from_detail(
     expect(page.get_by_role("status").filter(has_text="Entrenamiento eliminado.")).to_be_visible()
     expect(page).to_have_url(f"{app_url}/entrenamientos")
 
-    # And it no longer appears in its category list.
-    page.goto(f"{app_url}/entrenamientos/gimnasio")
-    expect(page.get_by_role("cell", name="A borrar")).not_to_be_visible()
-    expect(page.get_by_text("Todavía no hay entrenamientos en esta categoría.")).to_be_visible()
+    # And it no longer appears in its subtype list.
+    page.goto(f"{app_url}/entrenamientos/gimnasio/acumulacion")
+    expect(page.get_by_role("button", name="A borrar")).not_to_be_visible()
+    expect(page.get_by_text("Todavía no hay entrenamientos en este subtipo.")).to_be_visible()
 
 
 def test_delete_can_be_cancelled(

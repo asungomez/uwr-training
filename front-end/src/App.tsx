@@ -15,6 +15,7 @@ import TrainingDetailPage from '@/pages/trainings/[id]/TrainingDetailPage'
 import NewTrainingPage from '@/pages/trainings/new/NewTrainingPage'
 import TrainingsLandingPage from '@/pages/trainings/TrainingsLandingPage'
 import TrainingsPage from '@/pages/trainings/TrainingsPage'
+import TrainingSubtypePage from '@/pages/trainings/TrainingSubtypePage'
 import UserDetailPage from '@/pages/users/[id]/UserDetailPage'
 import UsersPage from '@/pages/users/UsersPage'
 
@@ -46,10 +47,20 @@ function App() {
               <Route path="nuevo" element={<NewTrainingPage />} />
               <Route path=":id/editar" element={<EditTrainingPage />} />
             </Route>
-            {/* Static category slugs rank above the dynamic :id detail route. */}
-            <Route path="gimnasio" element={<TrainingsPage />} />
-            <Route path="piscina" element={<TrainingsPage />} />
-            <Route path="cardio" element={<TrainingsPage />} />
+            {/* Static category slugs rank above the dynamic :id detail route; each
+                has a subtype-scoped list one level deeper. */}
+            <Route path="gimnasio">
+              <Route index element={<TrainingsPage />} />
+              <Route path=":subtype" element={<TrainingSubtypePage />} />
+            </Route>
+            <Route path="piscina">
+              <Route index element={<TrainingsPage />} />
+              <Route path=":subtype" element={<TrainingSubtypePage />} />
+            </Route>
+            <Route path="cardio">
+              <Route index element={<TrainingsPage />} />
+              <Route path=":subtype" element={<TrainingSubtypePage />} />
+            </Route>
             <Route path=":id" element={<TrainingDetailPage />} />
           </Route>
           <Route path="/ejercicios">

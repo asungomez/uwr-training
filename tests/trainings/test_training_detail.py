@@ -12,18 +12,18 @@ def test_list_row_links_to_detail(
     create_training: Callable[..., TrainingSession],
     log_in_as: Callable[[User], None],
 ) -> None:
-    # Given a training in its category list.
+    # Given a training in its subtype list.
     member = create_user(role="member", email="member@example.com")
     training = create_training(title="Fuerza máxima", category="gym", subtype="accumulation")
     log_in_as(member)
-    page.goto(f"{app_url}/entrenamientos/gimnasio")
+    page.goto(f"{app_url}/entrenamientos/gimnasio/acumulacion")
 
     # When I click its row.
-    page.get_by_role("cell", name="Fuerza máxima").click()
+    page.get_by_role("button", name="Fuerza máxima").click()
 
     # Then I land on its detail page.
     expect(page).to_have_url(f"{app_url}/entrenamientos/{training.id}")
-    expect(page.get_by_role("heading", name="Fuerza máxima")).to_be_visible()
+    expect(page.get_by_role("main").get_by_role("heading", name="Fuerza máxima")).to_be_visible()
 
 
 def test_detail_shows_title_and_badges(
