@@ -30,14 +30,15 @@ def test_admin_edits_training_from_detail(
     page.get_by_label("Subtipo").select_option(label="Resistencia")
     page.get_by_role("button", name="Guardar cambios").click()
 
-    # Then a toast confirms it and the detail page reflects the changes. Scope to
-    # main — the sidebar also has a "Piscina" category link.
+    # Then a toast confirms it and the detail page reflects the changes. The new
+    # category/subtype show as badges (spans) — scope away from the breadcrumb
+    # links (and the sidebar) that share the same text.
     expect(page.get_by_role("status").filter(has_text="Entrenamiento actualizado.")).to_be_visible()
     expect(page).to_have_url(f"{app_url}/entrenamientos/{training.id}")
     main = page.get_by_role("main")
     expect(main.get_by_role("heading", name="Editado")).to_be_visible()
-    expect(main.get_by_text("Piscina")).to_be_visible()
-    expect(main.get_by_text("Resistencia")).to_be_visible()
+    expect(main.locator("span").get_by_text("Piscina")).to_be_visible()
+    expect(main.locator("span").get_by_text("Resistencia")).to_be_visible()
 
 
 def test_edit_subtype_resets_on_category_change(
