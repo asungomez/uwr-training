@@ -23,7 +23,13 @@ function NewTrainingPage() {
         // The form validated this against the category; the API re-checks too.
         subtype: values.subtype as Subtype,
         title: values.title || null,
-        blocks: values.blocks.map((block) => ({ name: block.name })),
+        blocks: values.blocks.map((block) => ({
+          name: block.name,
+          sub_blocks: block.subBlocks.map((sub) => ({
+            name: sub.name,
+            notes: sub.notes || null,
+          })),
+        })),
       },
     })
     if (error || !data) {

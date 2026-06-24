@@ -55,8 +55,8 @@ def test_blocks_start_expanded_and_can_collapse_all(
     # New blocks start expanded: a "Colapsar todo" control is offered, not "Expandir todo".
     expect(page.get_by_role("button", name="Colapsar todo")).to_be_visible()
     expect(page.get_by_role("button", name="Expandir todo")).not_to_be_visible()
-    # Each block's expanded body (its placeholder) is visible.
-    expect(page.get_by_text("Los sub-bloques y series se añadirán aquí próximamente.")).to_have_count(2)
+    # Each block's expanded body is visible (its "Añadir sub-bloque" action shows).
+    expect(page.get_by_role("button", name="Añadir sub-bloque")).to_have_count(2)
 
     # When I collapse all.
     page.get_by_role("button", name="Colapsar todo").click()
@@ -64,7 +64,7 @@ def test_blocks_start_expanded_and_can_collapse_all(
     # Then only "Expandir todo" remains and the bodies are hidden.
     expect(page.get_by_role("button", name="Expandir todo")).to_be_visible()
     expect(page.get_by_role("button", name="Colapsar todo")).not_to_be_visible()
-    expect(page.get_by_text("Los sub-bloques y series se añadirán aquí próximamente.")).to_have_count(0)
+    expect(page.get_by_role("button", name="Añadir sub-bloque")).to_have_count(0)
 
 
 def test_mixed_collapse_state_shows_both_controls(

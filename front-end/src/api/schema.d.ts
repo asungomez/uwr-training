@@ -408,6 +408,11 @@ export interface components {
         BlockInput: {
             /** Name */
             name: string;
+            /**
+             * Sub Blocks
+             * @default []
+             */
+            sub_blocks: components["schemas"]["SubBlockInput"][];
         };
         /** BlockResponse */
         BlockResponse: {
@@ -415,6 +420,11 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+            /**
+             * Sub Blocks
+             * @default []
+             */
+            sub_blocks: components["schemas"]["SubBlockResponse"][];
         };
         /** CreateExerciseRequest */
         CreateExerciseRequest: {
@@ -673,6 +683,22 @@ export interface components {
             code: string;
             /** Password */
             password: string;
+        };
+        /** SubBlockInput */
+        SubBlockInput: {
+            /** Name */
+            name: string;
+            /** Notes */
+            notes?: string | null;
+        };
+        /** SubBlockResponse */
+        SubBlockResponse: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Notes */
+            notes: string | null;
         };
         /**
          * TrainingCategory

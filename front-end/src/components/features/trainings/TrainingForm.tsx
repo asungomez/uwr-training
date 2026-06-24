@@ -22,8 +22,14 @@ const schema = z.object({
     .enum(['', 'gym', 'pool', 'cardio'])
     .refine((value): value is Category => value !== '', { message: 'La categoría es obligatoria' }),
   subtype: z.string().min(1, 'El subtipo es obligatorio'),
-  // Client-side id (for list keys + DnD) plus the editable name.
-  blocks: z.array(z.object({ id: z.string(), name: z.string() })),
+  // Client-side id (for list keys + DnD) plus the editable fields.
+  blocks: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      subBlocks: z.array(z.object({ id: z.string(), name: z.string(), notes: z.string() })),
+    }),
+  ),
 })
 
 export type TrainingFormValues = z.infer<typeof schema>

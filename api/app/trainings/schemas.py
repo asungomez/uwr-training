@@ -7,8 +7,14 @@ from app.models import TrainingCategory, TrainingSubtype
 from app.pagination import PaginationParams
 
 
+class SubBlockInput(BaseModel):
+    name: str
+    notes: str | None = None
+
+
 class BlockInput(BaseModel):
     name: str
+    sub_blocks: list[SubBlockInput] = []
 
 
 class CreateTrainingRequest(BaseModel):
@@ -49,11 +55,24 @@ class TrainingSessionResponse(BaseModel):
         return str(value)
 
 
+class SubBlockResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    notes: str | None
+
+    @field_serializer("id")
+    def serialize_id(self, value: uuid.UUID) -> str:
+        return str(value)
+
+
 class BlockResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
     name: str
+    sub_blocks: list[SubBlockResponse] = []
 
     @field_serializer("id")
     def serialize_id(self, value: uuid.UUID) -> str:

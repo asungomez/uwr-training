@@ -14,6 +14,7 @@ from app.models import (
     TrainingBlock,
     TrainingCategory,
     TrainingSession,
+    TrainingSubBlock,
     TrainingSubtype,
     User,
 )
@@ -21,6 +22,7 @@ from app.pagination import Page
 from app.trainings.schemas import (
     BlockInput,
     CreateTrainingRequest,
+    SubBlockInput,
     TrainingListParams,
     TrainingSessionDetailResponse,
     TrainingSessionResponse,
@@ -41,8 +43,8 @@ def _validate_subtype(category: TrainingCategory, subtype: TrainingSubtype) -> N
 
 
 def _build_blocks(blocks: list[BlockInput]) -> list[TrainingBlock]:
-    """Build ordered TrainingBlock rows from the submitted list (its order defines
-    position). Rejects blank names."""
+    """Build ordered TrainingBlock rows (with their sub-blocks) from the submitted
+    list — its order defines position. Rejects blank block/sub-block names."""
     rows: list[TrainingBlock] = []
     for position, item in enumerate(blocks):
         name = item.name.strip()
@@ -52,18 +54,38 @@ def _build_blocks(blocks: list[BlockInput]) -> list[TrainingBlock]:
                 ErrorCode.invalid_block,
                 "Block name is required",
             )
-        rows.append(TrainingBlock(name=name, position=position))
+        rows.append(
+            TrainingBlock(
+                name=name, position=position, sub_blocks=_build_sub_blocks(item.sub_blocks)
+            )
+        )
+    return rows
+
+
+def _build_sub_blocks(sub_blocks: list[SubBlockInput]) -> list[TrainingSubBlock]:
+    """Build ordered TrainingSubBlock rows from the submitted list. Rejects blank names."""
+    rows: list[TrainingSubBlock] = []
+    for position, item in enumerate(sub_blocks):
+        name = item.name.strip()
+        if not name:
+            raise api_error(
+                status.HTTP_400_BAD_REQUEST,
+                ErrorCode.invalid_block,
+                "Sub-block name is required",
+            )
+        notes = item.notes.strip() if item.notes else None
+        rows.append(TrainingSubBlock(name=name, position=position, notes=notes or None))
     return rows
 
 
 async def _load_with_blocks(
     session: AsyncSession, training_id: uuid.UUID
 ) -> TrainingSession | None:
-    """Fetch a session with its blocks (ordered) loaded."""
+    """Fetch a session with its blocks and their sub-blocks (ordered) loaded."""
     training: TrainingSession | None = await session.scalar(
         select(TrainingSession)
         .where(TrainingSession.id == training_id)
-        .options(selectinload(TrainingSession.blocks))
+        .options(selectinload(TrainingSession.blocks).selectinload(TrainingBlock.sub_blocks))
     )
     return training
 

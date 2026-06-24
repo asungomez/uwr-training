@@ -1,31 +1,82 @@
-import { useSortable } from '@dnd-kit/sortable'
+import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { ChevronDown, ChevronRight, GripVertical, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronRight, GripVertical, Plus, Trash2 } from 'lucide-react'
 
-import type { BlockDraft } from './TrainingBlocksEditor'
+import SortableSubBlockCard from './SortableSubBlockCard'
+import type { BlockDraft, SubBlockDraft } from './TrainingBlocksEditor'
 
 interface SortableBlockCardProps {
   block: BlockDraft
   collapsed: boolean
   onToggleCollapsed: () => void
-  onRename: (name: string) => void
+  onChange: (block: BlockDraft) => void
   onRemove: () => void
+}
+
+function newSubBlock(): SubBlockDraft {
+  return { id: crypto.randomUUID(), name: '', notes: '' }
 }
 
 function SortableBlockCard({
   block,
   collapsed,
   onToggleCollapsed,
-  onRename,
+  onChange,
   onRemove,
 }: SortableBlockCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: block.id,
   })
 
+  // Sub-blocks get their OWN DnD context, so dragging one reorders only within this
+  // block — drags never cross into another block.
+  const subSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+  }
+
+  function handleSubDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const from = block.subBlocks.findIndex((s) => s.id === active.id)
+    const to = block.subBlocks.findIndex((s) => s.id === over.id)
+    if (from === -1 || to === -1) return
+    onChange({ ...block, subBlocks: arrayMove(block.subBlocks, from, to) })
+  }
+
+  function addSubBlock() {
+    onChange({ ...block, subBlocks: [...block.subBlocks, newSubBlock()] })
+  }
+
+  function updateSubBlock(updated: SubBlockDraft) {
+    onChange({
+      ...block,
+      subBlocks: block.subBlocks.map((s) => (s.id === updated.id ? updated : s)),
+    })
+  }
+
+  function removeSubBlock(id: string) {
+    onChange({ ...block, subBlocks: block.subBlocks.filter((s) => s.id !== id) })
   }
 
   return (
@@ -58,7 +109,7 @@ function SortableBlockCard({
 
         <input
           value={block.name}
-          onChange={(event) => onRename(event.target.value)}
+          onChange={(event) => onChange({ ...block, name: event.target.value })}
           placeholder="Nombre del bloque (p. ej. Calentamiento)"
           aria-label="Nombre del bloque"
           className="flex-1 rounded-md border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
@@ -75,10 +126,41 @@ function SortableBlockCard({
       </div>
 
       {!collapsed && (
-        <div className="border-t border-slate-700 px-4 py-3">
-          <p className="text-sm text-slate-500">
-            Los sub-bloques y series se añadirán aquí próximamente.
-          </p>
+        <div className="flex flex-col gap-3 border-t border-slate-700 px-4 py-3">
+          {block.subBlocks.length === 0 && (
+            <p className="text-sm text-slate-500">Todavía no hay sub-bloques.</p>
+          )}
+
+          <DndContext
+            sensors={subSensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleSubDragEnd}
+          >
+            <SortableContext
+              items={block.subBlocks.map((s) => s.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <ul className="flex flex-col gap-2">
+                {block.subBlocks.map((subBlock) => (
+                  <SortableSubBlockCard
+                    key={subBlock.id}
+                    subBlock={subBlock}
+                    onChange={updateSubBlock}
+                    onRemove={() => removeSubBlock(subBlock.id)}
+                  />
+                ))}
+              </ul>
+            </SortableContext>
+          </DndContext>
+
+          <button
+            type="button"
+            onClick={addSubBlock}
+            className="inline-flex items-center gap-2 self-start rounded-md border border-dashed border-slate-600 px-3 py-1.5 text-sm text-slate-300 transition-colors hover:border-indigo-500 hover:text-white focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+          >
+            <Plus size={16} />
+            Añadir sub-bloque
+          </button>
         </div>
       )}
     </li>

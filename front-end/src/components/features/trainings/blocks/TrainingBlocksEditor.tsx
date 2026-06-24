@@ -18,14 +18,22 @@ import { useState } from 'react'
 
 import SortableBlockCard from './SortableBlockCard'
 
+export interface SubBlockDraft {
+  /** Stable client-side id (not the eventual DB id) for list keys + DnD. */
+  id: string
+  name: string
+  notes: string
+}
+
 export interface BlockDraft {
   /** Stable client-side id (not the eventual DB id) for list keys + DnD. */
   id: string
   name: string
+  subBlocks: SubBlockDraft[]
 }
 
 function newBlock(): BlockDraft {
-  return { id: crypto.randomUUID(), name: '' }
+  return { id: crypto.randomUUID(), name: '', subBlocks: [] }
 }
 
 interface TrainingBlocksEditorProps {
@@ -59,8 +67,8 @@ function TrainingBlocksEditor({ value: blocks, onChange }: TrainingBlocksEditorP
     onChange([...blocks, newBlock()])
   }
 
-  function renameBlock(id: string, name: string) {
-    onChange(blocks.map((b) => (b.id === id ? { ...b, name } : b)))
+  function updateBlock(updated: BlockDraft) {
+    onChange(blocks.map((b) => (b.id === updated.id ? updated : b)))
   }
 
   function removeBlock(id: string) {
@@ -128,7 +136,7 @@ function TrainingBlocksEditor({ value: blocks, onChange }: TrainingBlocksEditorP
                 block={block}
                 collapsed={collapsed.has(block.id)}
                 onToggleCollapsed={() => toggleCollapsed(block.id)}
-                onRename={(name) => renameBlock(block.id, name)}
+                onChange={updateBlock}
                 onRemove={() => removeBlock(block.id)}
               />
             ))}
