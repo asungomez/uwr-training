@@ -8,15 +8,32 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import current_user, require_admin
 from app.db import get_session
 from app.errors import ErrorCode, api_error
-from app.models import SUBTYPES_BY_CATEGORY, TrainingSession, User
+from app.models import (
+    SUBTYPES_BY_CATEGORY,
+    TrainingCategory,
+    TrainingSession,
+    TrainingSubtype,
+    User,
+)
 from app.pagination import Page
 from app.trainings.schemas import (
     CreateTrainingRequest,
     TrainingListParams,
     TrainingSessionResponse,
+    UpdateTrainingRequest,
 )
 
 router = APIRouter(prefix="/trainings", tags=["trainings"])
+
+
+def _validate_subtype(category: TrainingCategory, subtype: TrainingSubtype) -> None:
+    """Reject a subtype that doesn't belong to the category."""
+    if subtype not in SUBTYPES_BY_CATEGORY[category]:
+        raise api_error(
+            status.HTTP_400_BAD_REQUEST,
+            ErrorCode.invalid_training_subtype,
+            f"Subtype {subtype.value} is not valid for category {category.value}",
+        )
 
 
 @router.get("")
@@ -72,12 +89,7 @@ async def create_training(
     _admin: Annotated[User, Depends(require_admin)],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> TrainingSession:
-    if body.subtype not in SUBTYPES_BY_CATEGORY[body.category]:
-        raise api_error(
-            status.HTTP_400_BAD_REQUEST,
-            ErrorCode.invalid_training_subtype,
-            f"Subtype {body.subtype.value} is not valid for category {body.category.value}",
-        )
+    _validate_subtype(body.category, body.subtype)
 
     title = body.title.strip() if body.title else None
     training = TrainingSession(category=body.category, subtype=body.subtype, title=title or None)
@@ -85,3 +97,45 @@ async def create_training(
     await session.commit()
     await session.refresh(training)
     return training
+
+
+@router.put("/{training_id}", response_model=TrainingSessionResponse)
+async def update_training(
+    training_id: uuid.UUID,
+    body: UpdateTrainingRequest,
+    _admin: Annotated[User, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> TrainingSession:
+    training = await session.get(TrainingSession, training_id)
+    if training is None:
+        raise api_error(
+            status.HTTP_404_NOT_FOUND,
+            ErrorCode.training_not_found,
+            "Training not found",
+        )
+    _validate_subtype(body.category, body.subtype)
+
+    title = body.title.strip() if body.title else None
+    training.category = body.category
+    training.subtype = body.subtype
+    training.title = title or None
+    await session.commit()
+    await session.refresh(training)
+    return training
+
+
+@router.delete("/{training_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_training(
+    training_id: uuid.UUID,
+    _admin: Annotated[User, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> None:
+    training = await session.get(TrainingSession, training_id)
+    if training is None:
+        raise api_error(
+            status.HTTP_404_NOT_FOUND,
+            ErrorCode.training_not_found,
+            "Training not found",
+        )
+    await session.delete(training)
+    await session.commit()

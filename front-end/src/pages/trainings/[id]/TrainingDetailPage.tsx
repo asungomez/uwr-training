@@ -1,17 +1,48 @@
-import { ChevronRight } from 'lucide-react'
-import { Link, useParams } from 'react-router-dom'
+import { ChevronRight, Pencil, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 
-import { useQuery } from '@/api/client'
+import { api, useMutate, useQuery } from '@/api/client'
+import { errorMessage } from '@/api/errors'
+import { useAuth } from '@/auth/context'
 import { CategoryBadge, SubtypeBadge } from '@/components/features/trainings/trainingBadges'
+import ConfirmDialog from '@/components/molecules/ConfirmDialog'
+import { useToast } from '@/components/toast/context'
 
 const BLANK = 'Sin título'
 
 function TrainingDetailPage() {
   const { id } = useParams<{ id: string }>()
   const trainingId = id ?? ''
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
+  const toast = useToast()
+  const mutate = useMutate()
+  const navigate = useNavigate()
+
   const { data, isLoading, error } = useQuery('/trainings/{training_id}', {
     params: { path: { training_id: trainingId } },
   })
+
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deletePending, setDeletePending] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | undefined>(undefined)
+
+  async function confirmDelete() {
+    setDeletePending(true)
+    setDeleteError(undefined)
+    const { error: deleteErr } = await api.DELETE('/trainings/{training_id}', {
+      params: { path: { training_id: trainingId } },
+    })
+    setDeletePending(false)
+    if (deleteErr) {
+      setDeleteError(errorMessage(deleteErr))
+      return
+    }
+    toast.success('Entrenamiento eliminado.')
+    await mutate(['/trainings'])
+    void navigate('/entrenamientos')
+  }
 
   return (
     <section>
@@ -35,7 +66,44 @@ function TrainingDetailPage() {
             <CategoryBadge category={data.category} />
             <SubtypeBadge subtype={data.subtype} />
           </div>
+
+          {isAdmin && (
+            <div className="mt-6 flex flex-wrap gap-2">
+              <Link
+                to={`/entrenamientos/${trainingId}/editar`}
+                className="inline-flex items-center gap-2 rounded-md border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+              >
+                <Pencil size={16} />
+                Editar
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteError(undefined)
+                  setConfirmingDelete(true)
+                }}
+                className="inline-flex items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-500 focus:ring-2 focus:ring-red-400 focus:outline-none"
+              >
+                <Trash2 size={16} />
+                Eliminar
+              </button>
+            </div>
+          )}
         </div>
+      )}
+
+      {isAdmin && data && (
+        <ConfirmDialog
+          open={confirmingDelete}
+          title="Eliminar entrenamiento"
+          message={`¿Seguro que quieres eliminar «${data.title ?? BLANK}»? Esta acción no se puede deshacer.`}
+          confirmLabel={deletePending ? 'Eliminando…' : 'Eliminar'}
+          pending={deletePending}
+          destructive
+          error={deleteError}
+          onConfirm={() => void confirmDelete()}
+          onCancel={() => setConfirmingDelete(false)}
+        />
       )}
     </section>
   )

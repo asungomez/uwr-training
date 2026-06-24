@@ -31,14 +31,23 @@ interface TrainingFormProps {
   defaultValues?: Partial<z.input<typeof schema>>
   /** Form-level error from the parent (e.g. an API failure). */
   rootError?: string | undefined
+  /** Submit button labels — defaults suit creation; override for editing. */
+  submitLabel?: string
+  pendingLabel?: string
 }
 
-function TrainingForm({ onSubmit, defaultValues, rootError }: TrainingFormProps) {
+function TrainingForm({
+  onSubmit,
+  defaultValues,
+  rootError,
+  submitLabel = 'Crear entrenamiento',
+  pendingLabel = 'Creando…',
+}: TrainingFormProps) {
   const {
     register,
     control,
     handleSubmit,
-    resetField,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<z.input<typeof schema>, unknown, TrainingFormValues>({
     resolver: zodResolver(schema),
@@ -70,8 +79,8 @@ function TrainingForm({ onSubmit, defaultValues, rootError }: TrainingFormProps)
         error={errors.category?.message}
         options={[{ value: '', label: 'Selecciona una categoría' }, ...categoryOptions]}
         {...register('category', {
-          // Changing category invalidates any chosen subtype.
-          onChange: () => resetField('subtype'),
+          // Changing category clears any chosen subtype (it may no longer be valid).
+          onChange: () => setValue('subtype', ''),
         })}
       />
       <SelectField
@@ -88,8 +97,8 @@ function TrainingForm({ onSubmit, defaultValues, rootError }: TrainingFormProps)
 
       <FormError message={rootError} />
 
-      <SubmitButton pending={isSubmitting} pendingLabel="Creando…">
-        Crear entrenamiento
+      <SubmitButton pending={isSubmitting} pendingLabel={pendingLabel}>
+        {submitLabel}
       </SubmitButton>
     </form>
   )

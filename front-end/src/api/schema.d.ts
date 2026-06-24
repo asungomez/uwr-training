@@ -380,9 +380,11 @@ export interface paths {
          * @description A single training session by id. Visible to any authenticated user.
          */
         get: operations["get_training_trainings__training_id__get"];
-        put?: never;
+        /** Update Training */
+        put: operations["update_training_trainings__training_id__put"];
         post?: never;
-        delete?: never;
+        /** Delete Training */
+        delete: operations["delete_training_trainings__training_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -669,6 +671,13 @@ export interface components {
              * @default []
              */
             related_exercises: components["schemas"]["RelatedExerciseInput"][];
+        };
+        /** UpdateTrainingRequest */
+        UpdateTrainingRequest: {
+            category: components["schemas"]["TrainingCategory"];
+            subtype: components["schemas"]["TrainingSubtype"];
+            /** Title */
+            title?: string | null;
         };
         /**
          * UpdateUserRequest
@@ -1485,6 +1494,74 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["TrainingSessionResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_training_trainings__training_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                training_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTrainingRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrainingSessionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_training_trainings__training_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                training_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
