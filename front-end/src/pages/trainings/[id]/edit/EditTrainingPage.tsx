@@ -4,12 +4,19 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { api, useMutate, useQuery } from '@/api/client'
 import { errorMessage } from '@/api/errors'
-import type { components } from '@/api/schema'
 import TrainingForm, { type TrainingFormValues } from '@/components/features/trainings/TrainingForm'
-import { trainingToFormValues } from '@/components/features/trainings/trainingFormValues'
+import {
+  categoryLabels,
+  categorySlugs,
+  exerciseTypeForCategory,
+  subtypeLabels,
+  subtypeSlugs,
+} from '@/components/features/trainings/trainingLabels'
+import {
+  formValuesToBlocks,
+  trainingToFormValues,
+} from '@/components/features/trainings/trainingFormValues'
 import { useToast } from '@/components/toast/context'
-
-type Subtype = components['schemas']['TrainingSubtype']
 
 function EditTrainingPage() {
   const { id } = useParams<{ id: string }>()
@@ -25,20 +32,12 @@ function EditTrainingPage() {
 
   async function handleSubmit(values: TrainingFormValues) {
     setRootError(undefined)
+    // Category and subtype are immutable, so the body only carries title + blocks.
     const { error: putError } = await api.PUT('/trainings/{training_id}', {
       params: { path: { training_id: trainingId } },
       body: {
-        category: values.category,
-        subtype: values.subtype as Subtype,
         title: values.title || null,
-        blocks: values.blocks.map((block) => ({
-          name: block.name,
-          sub_blocks: block.subBlocks.map((sub) => ({
-            name: sub.name,
-            notes: sub.notes || null,
-            items: sub.items.map((item) => ({ kind: item.kind, text: item.text || null })),
-          })),
-        })),
+        blocks: formValuesToBlocks(values),
       },
     })
     if (putError) {
@@ -61,6 +60,20 @@ function EditTrainingPage() {
         {data && (
           <>
             <Link
+              to={`/entrenamientos/${categorySlugs[data.category]}`}
+              className="transition-colors hover:text-slate-200"
+            >
+              {categoryLabels[data.category]}
+            </Link>
+            <ChevronRight size={14} />
+            <Link
+              to={`/entrenamientos/${categorySlugs[data.category]}/${subtypeSlugs[data.subtype]}`}
+              className="transition-colors hover:text-slate-200"
+            >
+              {subtypeLabels[data.subtype]}
+            </Link>
+            <ChevronRight size={14} />
+            <Link
               to={`/entrenamientos/${trainingId}`}
               className="transition-colors hover:text-slate-200"
             >
@@ -77,10 +90,13 @@ function EditTrainingPage() {
 
       {data && (
         <>
-          <h2 className="mt-6 text-2xl font-semibold tracking-tight">Editar entrenamiento</h2>
+          <h2 className="mt-6 text-2xl font-semibold tracking-tight">
+            Editar entrenamiento · {categoryLabels[data.category]} / {subtypeLabels[data.subtype]}
+          </h2>
           <div className="mt-6">
             <TrainingForm
               onSubmit={handleSubmit}
+              exerciseType={exerciseTypeForCategory[data.category]}
               defaultValues={trainingToFormValues(data)}
               rootError={rootError}
               submitLabel="Guardar cambios"

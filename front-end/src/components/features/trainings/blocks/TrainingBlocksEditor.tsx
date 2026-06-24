@@ -16,15 +16,36 @@ import {
 import { ChevronsDownUp, ChevronsUpDown, Plus } from 'lucide-react'
 import { useState } from 'react'
 
+import type { components } from '@/api/schema'
+
 import SortableBlockCard from './SortableBlockCard'
 
-export interface ItemDraft {
+type ExerciseType = components['schemas']['ExerciseType']
+
+export interface NoteDraft {
   /** Stable client-side id (not the eventual DB id) for list keys + DnD. */
   id: string
-  // Only notes for now; series will join later under the same item list.
   kind: 'note'
   text: string
 }
+
+export interface SeriesDraft {
+  /** Stable client-side id (not the eventual DB id) for list keys + DnD. */
+  id: string
+  kind: 'series'
+  exerciseId: string
+  exerciseName: string
+  sets: string
+  reps: string
+  // mm:ss in the form; converted to/from duration_seconds at the API boundary.
+  time: string
+  distance: string
+  effort: string
+  notes: string
+}
+
+/** A sub-block's items are an ordered mix of free-text notes and exercise series. */
+export type ItemDraft = NoteDraft | SeriesDraft
 
 export interface SubBlockDraft {
   /** Stable client-side id (not the eventual DB id) for list keys + DnD. */
@@ -48,11 +69,17 @@ function newBlock(): BlockDraft {
 interface TrainingBlocksEditorProps {
   value: BlockDraft[]
   onChange: (blocks: BlockDraft[]) => void
+  /** Restrict the exercise picker to this type (null = no restriction, e.g. cardio). */
+  exerciseType: ExerciseType | null
 }
 
 /** Drag-and-drop editor for a training's ordered blocks. `value`/`onChange` are
  *  the form-owned block list; collapse state is local UI. */
-function TrainingBlocksEditor({ value: blocks, onChange }: TrainingBlocksEditorProps) {
+function TrainingBlocksEditor({
+  value: blocks,
+  onChange,
+  exerciseType,
+}: TrainingBlocksEditorProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
 
   const sensors = useSensors(
@@ -147,6 +174,7 @@ function TrainingBlocksEditor({ value: blocks, onChange }: TrainingBlocksEditorP
                 onToggleCollapsed={() => toggleCollapsed(block.id)}
                 onChange={updateBlock}
                 onRemove={() => removeBlock(block.id)}
+                exerciseType={exerciseType}
               />
             ))}
           </ul>

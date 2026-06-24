@@ -9,9 +9,18 @@ from app.pagination import PaginationParams
 
 
 class ItemInput(BaseModel):
-    # Only notes for now; series will extend this later.
-    kind: Literal["note"]
+    """One entry in a sub-block. A `note` carries free text; a `series` carries an
+    exercise plus an all-optional prescription (sets/reps/time/distance/effort)."""
+
+    kind: Literal["note", "series"]
     text: str | None = None
+    # series only — the exercise is required, the rest are optional.
+    exercise_id: uuid.UUID | None = None
+    sets: int | None = None
+    reps: int | None = None
+    duration_seconds: int | None = None
+    distance_meters: int | None = None
+    effort: str | None = None
 
 
 class SubBlockInput(BaseModel):
@@ -33,8 +42,8 @@ class CreateTrainingRequest(BaseModel):
 
 
 class UpdateTrainingRequest(BaseModel):
-    category: TrainingCategory
-    subtype: TrainingSubtype
+    # Category and subtype are immutable, so they're not accepted here — only the
+    # title and the block tree can change.
     title: str | None = None
     blocks: list[BlockInput] = []
 
@@ -77,10 +86,23 @@ class ItemResponse(BaseModel):
     id: uuid.UUID
     kind: TrainingItemKind
     text: str | None
+    # series only — the exercise (id + name, for rendering and round-tripping) plus
+    # its prescription. All null for notes (and unset series fields).
+    exercise_id: uuid.UUID | None = None
+    exercise_name: str | None = None
+    sets: int | None = None
+    reps: int | None = None
+    duration_seconds: int | None = None
+    distance_meters: int | None = None
+    effort: str | None = None
 
     @field_serializer("id")
     def serialize_id(self, value: uuid.UUID) -> str:
         return str(value)
+
+    @field_serializer("exercise_id")
+    def serialize_exercise_id(self, value: uuid.UUID | None) -> str | None:
+        return str(value) if value is not None else None
 
 
 class SubBlockResponse(BaseModel):

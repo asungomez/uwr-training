@@ -17,20 +17,46 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical, Plus, Trash2 } from 'lucide-react'
 
+import type { components } from '@/api/schema'
+
+import SortableExerciseItem from './SortableExerciseItem'
 import SortableNoteItem from './SortableNoteItem'
-import type { ItemDraft, SubBlockDraft } from './TrainingBlocksEditor'
+import type { ItemDraft, SeriesDraft, SubBlockDraft } from './TrainingBlocksEditor'
+
+type ExerciseType = components['schemas']['ExerciseType']
 
 interface SortableSubBlockCardProps {
   subBlock: SubBlockDraft
   onChange: (subBlock: SubBlockDraft) => void
   onRemove: () => void
+  exerciseType: ExerciseType | null
 }
 
 function newNote(): ItemDraft {
   return { id: crypto.randomUUID(), kind: 'note', text: '' }
 }
 
-function SortableSubBlockCard({ subBlock, onChange, onRemove }: SortableSubBlockCardProps) {
+function newSeries(): SeriesDraft {
+  return {
+    id: crypto.randomUUID(),
+    kind: 'series',
+    exerciseId: '',
+    exerciseName: '',
+    sets: '',
+    reps: '',
+    time: '',
+    distance: '',
+    effort: '',
+    notes: '',
+  }
+}
+
+function SortableSubBlockCard({
+  subBlock,
+  onChange,
+  onRemove,
+  exerciseType,
+}: SortableSubBlockCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: subBlock.id,
   })
@@ -58,6 +84,10 @@ function SortableSubBlockCard({ subBlock, onChange, onRemove }: SortableSubBlock
 
   function addNote() {
     onChange({ ...subBlock, items: [...subBlock.items, newNote()] })
+  }
+
+  function addSeries() {
+    onChange({ ...subBlock, items: [...subBlock.items, newSeries()] })
   }
 
   function updateItem(updated: ItemDraft) {
@@ -106,7 +136,7 @@ function SortableSubBlockCard({ subBlock, onChange, onRemove }: SortableSubBlock
             className="w-full rounded-md border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
           />
 
-          {/* Items: just notes for now, reorderable within this sub-block. */}
+          {/* Items: a mix of notes and exercise series, reorderable within this sub-block. */}
           {subBlock.items.length > 0 && (
             <DndContext
               sensors={itemSensors}
@@ -118,27 +148,47 @@ function SortableSubBlockCard({ subBlock, onChange, onRemove }: SortableSubBlock
                 strategy={verticalListSortingStrategy}
               >
                 <ul className="flex flex-col gap-2">
-                  {subBlock.items.map((item) => (
-                    <SortableNoteItem
-                      key={item.id}
-                      item={item}
-                      onChange={updateItem}
-                      onRemove={() => removeItem(item.id)}
-                    />
-                  ))}
+                  {subBlock.items.map((item) =>
+                    item.kind === 'series' ? (
+                      <SortableExerciseItem
+                        key={item.id}
+                        item={item}
+                        onChange={updateItem}
+                        onRemove={() => removeItem(item.id)}
+                        exerciseType={exerciseType}
+                      />
+                    ) : (
+                      <SortableNoteItem
+                        key={item.id}
+                        item={item}
+                        onChange={updateItem}
+                        onRemove={() => removeItem(item.id)}
+                      />
+                    ),
+                  )}
                 </ul>
               </SortableContext>
             </DndContext>
           )}
 
-          <button
-            type="button"
-            onClick={addNote}
-            className="inline-flex items-center gap-2 self-start rounded-md border border-dashed border-slate-600 px-3 py-1.5 text-sm text-slate-300 transition-colors hover:border-indigo-500 hover:text-white focus:ring-2 focus:ring-indigo-400 focus:outline-none"
-          >
-            <Plus size={14} />
-            Añadir nota
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={addNote}
+              className="inline-flex items-center gap-2 self-start rounded-md border border-dashed border-slate-600 px-3 py-1.5 text-sm text-slate-300 transition-colors hover:border-indigo-500 hover:text-white focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+            >
+              <Plus size={14} />
+              Añadir nota
+            </button>
+            <button
+              type="button"
+              onClick={addSeries}
+              className="inline-flex items-center gap-2 self-start rounded-md border border-dashed border-slate-600 px-3 py-1.5 text-sm text-slate-300 transition-colors hover:border-indigo-500 hover:text-white focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+            >
+              <Plus size={14} />
+              Añadir ejercicio
+            </button>
+          </div>
         </div>
 
         <button

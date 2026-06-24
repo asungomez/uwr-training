@@ -2,11 +2,11 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical, Trash2 } from 'lucide-react'
 
-import type { ItemDraft } from './TrainingBlocksEditor'
+import type { NoteDraft } from './TrainingBlocksEditor'
 
 interface SortableNoteItemProps {
-  item: ItemDraft
-  onChange: (item: ItemDraft) => void
+  item: NoteDraft
+  onChange: (item: NoteDraft) => void
   onRemove: () => void
 }
 

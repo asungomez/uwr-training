@@ -13,10 +13,9 @@ from app.models import (
 
 
 def _go_to_new_form(page: Page, app_url: str) -> None:
-    page.goto(f"{app_url}/entrenamientos/nuevo")
+    # Category + subtype come from the URL now, not form fields.
+    page.goto(f"{app_url}/entrenamientos/gimnasio/acumulacion/nuevo")
     page.get_by_label("Título").fill("Sesión con notas")
-    page.get_by_label("Categoría").select_option(label="Gimnasio")
-    page.get_by_label("Subtipo").select_option(label="Acumulación")
     page.get_by_role("button", name="Añadir bloque").click()
     page.get_by_label("Nombre del bloque").fill("Bloque")
     page.get_by_role("button", name="Añadir sub-bloque").click()

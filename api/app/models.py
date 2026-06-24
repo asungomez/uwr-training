@@ -279,3 +279,9 @@ class TrainingItem(Base):
 
     sub_block: Mapped["TrainingSubBlock"] = relationship(back_populates="items")
     exercise: Mapped["Exercise | None"] = relationship()
+
+    @property
+    def exercise_name(self) -> str | None:
+        """The linked exercise's name, for series items (None for notes). Requires
+        the `exercise` relationship to be loaded."""
+        return self.exercise.name if self.exercise is not None else None

@@ -6,6 +6,7 @@ import { api, useMutate, useQuery } from '@/api/client'
 import { errorMessage } from '@/api/errors'
 import { useAuth } from '@/auth/context'
 import { CategoryBadge, SubtypeBadge } from '@/components/features/trainings/trainingBadges'
+import TrainingItemView from '@/components/features/trainings/TrainingItemView'
 import {
   categoryLabels,
   categorySlugs,
@@ -104,9 +105,9 @@ function TrainingDetailPage() {
                           <h3 className="font-medium text-slate-200">{sub.name}</h3>
                           {sub.notes && <p className="mt-1 text-sm text-slate-400">{sub.notes}</p>}
                           {sub.items.length > 0 && (
-                            <ol className="mt-2 flex list-decimal flex-col gap-1 pl-5 text-sm text-slate-300 marker:text-slate-500">
+                            <ol className="mt-2 flex list-decimal flex-col gap-1 pl-5 text-sm marker:text-slate-500">
                               {sub.items.map((item) => (
-                                <li key={item.id}>{item.text}</li>
+                                <TrainingItemView key={item.id} item={item} />
                               ))}
                             </ol>
                           )}
@@ -133,7 +134,7 @@ function TrainingDetailPage() {
                 Editar
               </Link>
               <Link
-                to={`/entrenamientos/nuevo?copiar_de=${trainingId}`}
+                to={`/entrenamientos/${categorySlugs[data.category]}/${subtypeSlugs[data.subtype]}/nuevo?copiar_de=${trainingId}`}
                 className="inline-flex items-center gap-2 rounded-md border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
               >
                 <Copy size={16} />

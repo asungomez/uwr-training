@@ -11,6 +11,7 @@ from app.db import get_session
 from app.errors import ErrorCode, api_error
 from app.models import (
     SUBTYPES_BY_CATEGORY,
+    Exercise,
     TrainingBlock,
     TrainingCategory,
     TrainingItem,
@@ -88,12 +89,60 @@ def _build_sub_blocks(sub_blocks: list[SubBlockInput]) -> list[TrainingSubBlock]
 
 
 def _build_items(items: list[ItemInput]) -> list[TrainingItem]:
-    """Build ordered TrainingItem rows from the submitted list (just notes for now)."""
+    """Build ordered TrainingItem rows from the submitted list — notes (free text)
+    and series (an exercise plus an optional prescription). Rejects a series with no
+    exercise; referenced exercises are validated to exist by `_validate_exercises`."""
     rows: list[TrainingItem] = []
     for position, item in enumerate(items):
-        text = item.text.strip() if item.text else None
-        rows.append(TrainingItem(kind=TrainingItemKind.note, position=position, text=text or None))
+        if item.kind == "series":
+            if item.exercise_id is None:
+                raise api_error(
+                    status.HTTP_400_BAD_REQUEST,
+                    ErrorCode.invalid_item,
+                    "A series requires an exercise",
+                )
+            effort = item.effort.strip() if item.effort else None
+            text = item.text.strip() if item.text else None
+            rows.append(
+                TrainingItem(
+                    kind=TrainingItemKind.series,
+                    position=position,
+                    exercise_id=item.exercise_id,
+                    sets=item.sets,
+                    reps=item.reps,
+                    duration_seconds=item.duration_seconds,
+                    distance_meters=item.distance_meters,
+                    effort=effort or None,
+                    text=text or None,
+                )
+            )
+        else:
+            text = item.text.strip() if item.text else None
+            rows.append(
+                TrainingItem(kind=TrainingItemKind.note, position=position, text=text or None)
+            )
     return rows
+
+
+async def _validate_exercises(session: AsyncSession, blocks: list[BlockInput]) -> None:
+    """Ensure every exercise referenced by a series item exists, in one query."""
+    referenced = {
+        item.exercise_id
+        for block in blocks
+        for sub in block.sub_blocks
+        for item in sub.items
+        if item.kind == "series" and item.exercise_id is not None
+    }
+    if not referenced:
+        return
+    found = set(await session.scalars(select(Exercise.id).where(Exercise.id.in_(referenced))))
+    missing = referenced - found
+    if missing:
+        raise api_error(
+            status.HTTP_400_BAD_REQUEST,
+            ErrorCode.exercise_not_found,
+            f"Unknown exercise(s): {', '.join(str(eid) for eid in missing)}",
+        )
 
 
 async def _next_position(
@@ -112,7 +161,8 @@ async def _next_position(
 async def _load_with_blocks(
     session: AsyncSession, training_id: uuid.UUID
 ) -> TrainingSession | None:
-    """Fetch a session with its blocks, sub-blocks, and items (ordered) loaded."""
+    """Fetch a session with its blocks, sub-blocks, items, and each item's linked
+    exercise (for the series' name) loaded — all ordered."""
     training: TrainingSession | None = await session.scalar(
         select(TrainingSession)
         .where(TrainingSession.id == training_id)
@@ -120,6 +170,7 @@ async def _load_with_blocks(
             selectinload(TrainingSession.blocks)
             .selectinload(TrainingBlock.sub_blocks)
             .selectinload(TrainingSubBlock.items)
+            .selectinload(TrainingItem.exercise)
         )
     )
     return training
@@ -179,6 +230,7 @@ async def create_training(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> TrainingSession:
     _validate_subtype(body.category, body.subtype)
+    await _validate_exercises(session, body.blocks)
 
     title = body.title.strip() if body.title else None
     training = TrainingSession(
@@ -210,16 +262,11 @@ async def update_training(
             ErrorCode.training_not_found,
             "Training not found",
         )
-    _validate_subtype(body.category, body.subtype)
+    await _validate_exercises(session, body.blocks)
 
-    # If the scope changed, move it to the end of the new one so its old position
-    # can't collide there.
-    if training.category != body.category or training.subtype != body.subtype:
-        training.position = await _next_position(session, body.category, body.subtype)
-
+    # Category and subtype are immutable — a training belongs to its scope for life.
+    # Only the title and the block tree can change.
     title = body.title.strip() if body.title else None
-    training.category = body.category
-    training.subtype = body.subtype
     training.title = title or None
     # Replace the block list wholesale with the submitted (ordered) one.
     training.blocks = _build_blocks(body.blocks)

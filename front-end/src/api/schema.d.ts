@@ -582,15 +582,31 @@ export interface components {
              */
             expires_at: string;
         };
-        /** ItemInput */
+        /**
+         * ItemInput
+         * @description One entry in a sub-block. A `note` carries free text; a `series` carries an
+         *     exercise plus an all-optional prescription (sets/reps/time/distance/effort).
+         */
         ItemInput: {
             /**
              * Kind
-             * @constant
+             * @enum {string}
              */
-            kind: "note";
+            kind: "note" | "series";
             /** Text */
             text?: string | null;
+            /** Exercise Id */
+            exercise_id?: string | null;
+            /** Sets */
+            sets?: number | null;
+            /** Reps */
+            reps?: number | null;
+            /** Duration Seconds */
+            duration_seconds?: number | null;
+            /** Distance Meters */
+            distance_meters?: number | null;
+            /** Effort */
+            effort?: string | null;
         };
         /** ItemResponse */
         ItemResponse: {
@@ -599,6 +615,20 @@ export interface components {
             kind: components["schemas"]["TrainingItemKind"];
             /** Text */
             text: string | null;
+            /** Exercise Id */
+            exercise_id?: string | null;
+            /** Exercise Name */
+            exercise_name?: string | null;
+            /** Sets */
+            sets?: number | null;
+            /** Reps */
+            reps?: number | null;
+            /** Duration Seconds */
+            duration_seconds?: number | null;
+            /** Distance Meters */
+            distance_meters?: number | null;
+            /** Effort */
+            effort?: string | null;
         };
         /** LoginRequest */
         LoginRequest: {
@@ -840,8 +870,6 @@ export interface components {
         };
         /** UpdateTrainingRequest */
         UpdateTrainingRequest: {
-            category: components["schemas"]["TrainingCategory"];
-            subtype: components["schemas"]["TrainingSubtype"];
             /** Title */
             title?: string | null;
             /**

@@ -17,8 +17,12 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { ChevronDown, ChevronRight, GripVertical, Plus, Trash2 } from 'lucide-react'
 
+import type { components } from '@/api/schema'
+
 import SortableSubBlockCard from './SortableSubBlockCard'
 import type { BlockDraft, SubBlockDraft } from './TrainingBlocksEditor'
+
+type ExerciseType = components['schemas']['ExerciseType']
 
 interface SortableBlockCardProps {
   block: BlockDraft
@@ -26,6 +30,7 @@ interface SortableBlockCardProps {
   onToggleCollapsed: () => void
   onChange: (block: BlockDraft) => void
   onRemove: () => void
+  exerciseType: ExerciseType | null
 }
 
 function newSubBlock(): SubBlockDraft {
@@ -38,6 +43,7 @@ function SortableBlockCard({
   onToggleCollapsed,
   onChange,
   onRemove,
+  exerciseType,
 }: SortableBlockCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: block.id,
@@ -147,6 +153,7 @@ function SortableBlockCard({
                     subBlock={subBlock}
                     onChange={updateSubBlock}
                     onRemove={() => removeSubBlock(subBlock.id)}
+                    exerciseType={exerciseType}
                   />
                 ))}
               </ul>

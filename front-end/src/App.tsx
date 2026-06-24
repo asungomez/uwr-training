@@ -44,23 +44,20 @@ function App() {
           <Route path="/entrenamientos">
             <Route index element={<TrainingsLandingPage />} />
             <Route element={<AdminRoute />}>
-              <Route path="nuevo" element={<NewTrainingPage />} />
               <Route path=":id/editar" element={<EditTrainingPage />} />
             </Route>
             {/* Static category slugs rank above the dynamic :id detail route; each
-                has a subtype-scoped list one level deeper. */}
-            <Route path="gimnasio">
-              <Route index element={<TrainingsPage />} />
-              <Route path=":subtype" element={<TrainingSubtypePage />} />
-            </Route>
-            <Route path="piscina">
-              <Route index element={<TrainingsPage />} />
-              <Route path=":subtype" element={<TrainingSubtypePage />} />
-            </Route>
-            <Route path="cardio">
-              <Route index element={<TrainingsPage />} />
-              <Route path=":subtype" element={<TrainingSubtypePage />} />
-            </Route>
+                has a subtype-scoped list one level deeper, and creation is scoped
+                under that subtype (category + subtype come from the URL). */}
+            {['gimnasio', 'piscina', 'cardio'].map((categorySlug) => (
+              <Route key={categorySlug} path={categorySlug}>
+                <Route index element={<TrainingsPage />} />
+                <Route path=":subtype" element={<TrainingSubtypePage />} />
+                <Route element={<AdminRoute />}>
+                  <Route path=":subtype/nuevo" element={<NewTrainingPage />} />
+                </Route>
+              </Route>
+            ))}
             <Route path=":id" element={<TrainingDetailPage />} />
           </Route>
           <Route path="/ejercicios">

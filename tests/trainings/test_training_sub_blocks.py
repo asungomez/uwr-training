@@ -6,10 +6,9 @@ from app.models import TrainingBlock, TrainingSession, TrainingSubBlock, User
 
 
 def _go_to_new_form(page: Page, app_url: str) -> None:
-    page.goto(f"{app_url}/entrenamientos/nuevo")
+    # Category + subtype come from the URL now, not form fields.
+    page.goto(f"{app_url}/entrenamientos/gimnasio/acumulacion/nuevo")
     page.get_by_label("Título").fill("Sesión anidada")
-    page.get_by_label("Categoría").select_option(label="Gimnasio")
-    page.get_by_label("Subtipo").select_option(label="Acumulación")
 
 
 def _drag_below(page: Page, source: Locator, target: Locator) -> None:

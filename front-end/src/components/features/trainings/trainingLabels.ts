@@ -2,6 +2,15 @@ import type { components } from '@/api/schema'
 
 type Category = components['schemas']['TrainingCategory']
 type Subtype = components['schemas']['TrainingSubtype']
+type ExerciseType = components['schemas']['ExerciseType']
+
+// Which exercise type each training category draws from, so the exercise picker
+// only offers relevant ones. Cardio has no dedicated type → no filter (null).
+export const exerciseTypeForCategory: Record<Category, ExerciseType | null> = {
+  gym: 'gym',
+  pool: 'pool',
+  cardio: null,
+}
 
 export const categoryLabels: Record<Category, string> = {
   gym: 'Gimnasio',

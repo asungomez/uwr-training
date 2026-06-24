@@ -73,14 +73,18 @@ def test_admin_copy_button_opens_prepopulated_form(
     # When they click "Copiar entrenamiento".
     page.get_by_role("link", name="Copiar entrenamiento").click()
 
-    # Then they land on the new-training form, carrying the source id in the URL.
-    expect(page).to_have_url(f"{app_url}/entrenamientos/nuevo?copiar_de={training.id}")
-    expect(page.get_by_role("heading", name="Nuevo entrenamiento")).to_be_visible()
+    # Then they land on the new-training form in the source's scope, carrying the
+    # source id in the URL.
+    expect(page).to_have_url(
+        f"{app_url}/entrenamientos/gimnasio/acumulacion/nuevo?copiar_de={training.id}"
+    )
+    expect(page.get_by_role("heading", name="Gimnasio / Acumulación")).to_be_visible()
 
-    # And the form is pre-populated with the source training's data.
+    # And the form is pre-populated with the source training's data (category and
+    # subtype are fixed by the URL, not editable fields).
     expect(page.get_by_label("Título")).to_have_value("Sesión original")
-    expect(page.get_by_label("Categoría")).to_have_value("gym")
-    expect(page.get_by_label("Subtipo")).to_have_value("accumulation")
+    expect(page.get_by_label("Categoría")).to_have_count(0)
+    expect(page.get_by_label("Subtipo")).to_have_count(0)
     expect(page.get_by_label("Nombre del bloque")).to_have_value("Calentamiento")
     expect(page.get_by_label("Nombre del sub-bloque")).to_have_value("Movilidad")
     notes = page.get_by_label("Nota", exact=True)
@@ -100,7 +104,7 @@ def test_copy_creates_a_separate_training(
     admin = create_user(role="admin", email="admin@example.com")
     training = _training_with_content(create_training)
     log_in_as(admin)
-    page.goto(f"{app_url}/entrenamientos/nuevo?copiar_de={training.id}")
+    page.goto(f"{app_url}/entrenamientos/gimnasio/acumulacion/nuevo?copiar_de={training.id}")
 
     # When they tweak the title and submit.
     page.get_by_label("Título").fill("Sesión copiada")
@@ -127,7 +131,10 @@ def test_copy_unknown_id_shows_not_found(
     # Given an admin opening the copy form for a non-existent training.
     admin = create_user(role="admin", email="admin@example.com")
     log_in_as(admin)
-    page.goto(f"{app_url}/entrenamientos/nuevo?copiar_de=00000000-0000-0000-0000-000000000000")
+    page.goto(
+        f"{app_url}/entrenamientos/gimnasio/acumulacion/nuevo"
+        "?copiar_de=00000000-0000-0000-0000-000000000000"
+    )
 
     # Then a not-found message shows instead of the form.
     expect(page.get_by_text("No se ha encontrado el entrenamiento a copiar.")).to_be_visible()

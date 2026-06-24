@@ -140,7 +140,7 @@ function TrainingSubtypePage() {
         <h2 className="text-2xl font-semibold tracking-tight">{subtypeLabels[subtype]}</h2>
         {isAdmin && (
           <Link
-            to="/entrenamientos/nuevo"
+            to={`/entrenamientos/${categorySlugs[category]}/${subtypeSlug}/nuevo`}
             className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
           >
             <Plus size={16} />

@@ -27,6 +27,7 @@ class ErrorCode(enum.StrEnum):
     invalid_related_exercise = "invalid_related_exercise"
     invalid_parameter = "invalid_parameter"
     invalid_block = "invalid_block"
+    invalid_item = "invalid_item"
     training_not_found = "training_not_found"
 
 
