@@ -30,12 +30,14 @@ def test_admin_edits_training_from_detail(
     page.get_by_label("Subtipo").select_option(label="Resistencia")
     page.get_by_role("button", name="Guardar cambios").click()
 
-    # Then a toast confirms it and the detail page reflects the changes.
+    # Then a toast confirms it and the detail page reflects the changes. Scope to
+    # main — the sidebar also has a "Piscina" category link.
     expect(page.get_by_role("status").filter(has_text="Entrenamiento actualizado.")).to_be_visible()
     expect(page).to_have_url(f"{app_url}/entrenamientos/{training.id}")
-    expect(page.get_by_role("heading", name="Editado")).to_be_visible()
-    expect(page.get_by_text("Piscina")).to_be_visible()
-    expect(page.get_by_text("Resistencia")).to_be_visible()
+    main = page.get_by_role("main")
+    expect(main.get_by_role("heading", name="Editado")).to_be_visible()
+    expect(main.get_by_text("Piscina")).to_be_visible()
+    expect(main.get_by_text("Resistencia")).to_be_visible()
 
 
 def test_edit_subtype_resets_on_category_change(
@@ -112,10 +114,14 @@ def test_admin_deletes_training_from_detail(
     expect(dialog).to_be_visible()
     dialog.get_by_role("button", name="Eliminar").click()
 
-    # Then a toast confirms it and they return to the list, which no longer lists it.
+    # Then a toast confirms it and they return to the trainings landing page.
     expect(page.get_by_role("status").filter(has_text="Entrenamiento eliminado.")).to_be_visible()
     expect(page).to_have_url(f"{app_url}/entrenamientos")
+
+    # And it no longer appears in its category list.
+    page.goto(f"{app_url}/entrenamientos/gimnasio")
     expect(page.get_by_role("cell", name="A borrar")).not_to_be_visible()
+    expect(page.get_by_text("Todavía no hay entrenamientos en esta categoría.")).to_be_visible()
 
 
 def test_delete_can_be_cancelled(

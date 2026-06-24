@@ -31,3 +31,22 @@ export const subtypesByCategory: Record<Category, Subtype[]> = {
 export const categoryOptions: { value: Category; label: string }[] = (
   Object.keys(categoryLabels) as Category[]
 ).map((value) => ({ value, label: categoryLabels[value] }))
+
+// Spanish URL slugs for each category (code stays English, URLs are Spanish).
+export const categorySlugs: Record<Category, string> = {
+  gym: 'gimnasio',
+  pool: 'piscina',
+  cardio: 'cardio',
+}
+
+const slugToCategory: Record<string, Category> = Object.fromEntries(
+  (Object.keys(categorySlugs) as Category[]).map((category) => [categorySlugs[category], category]),
+)
+
+/** Resolve a URL slug to its category, or undefined if it isn't a known one. */
+export function categoryFromSlug(slug: string | undefined): Category | undefined {
+  return slug ? slugToCategory[slug] : undefined
+}
+
+// Ordered list for the sidebar / landing cards.
+export const orderedCategories: Category[] = ['gym', 'pool', 'cardio']

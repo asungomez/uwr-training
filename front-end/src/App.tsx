@@ -13,6 +13,7 @@ import LoginPage from '@/pages/login/LoginPage'
 import EditTrainingPage from '@/pages/trainings/[id]/edit/EditTrainingPage'
 import TrainingDetailPage from '@/pages/trainings/[id]/TrainingDetailPage'
 import NewTrainingPage from '@/pages/trainings/new/NewTrainingPage'
+import TrainingsLandingPage from '@/pages/trainings/TrainingsLandingPage'
 import TrainingsPage from '@/pages/trainings/TrainingsPage'
 import UserDetailPage from '@/pages/users/[id]/UserDetailPage'
 import UsersPage from '@/pages/users/UsersPage'
@@ -40,11 +41,15 @@ function App() {
         <Route element={<AppLayout />}>
           <Route index element={<Navigate to="/entrenamientos" replace />} />
           <Route path="/entrenamientos">
-            <Route index element={<TrainingsPage />} />
+            <Route index element={<TrainingsLandingPage />} />
             <Route element={<AdminRoute />}>
               <Route path="nuevo" element={<NewTrainingPage />} />
               <Route path=":id/editar" element={<EditTrainingPage />} />
             </Route>
+            {/* Static category slugs rank above the dynamic :id detail route. */}
+            <Route path="gimnasio" element={<TrainingsPage />} />
+            <Route path="piscina" element={<TrainingsPage />} />
+            <Route path="cardio" element={<TrainingsPage />} />
             <Route path=":id" element={<TrainingDetailPage />} />
           </Route>
           <Route path="/ejercicios">

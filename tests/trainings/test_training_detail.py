@@ -12,11 +12,11 @@ def test_list_row_links_to_detail(
     create_training: Callable[..., TrainingSession],
     log_in_as: Callable[[User], None],
 ) -> None:
-    # Given a training in the list.
+    # Given a training in its category list.
     member = create_user(role="member", email="member@example.com")
     training = create_training(title="Fuerza máxima", category="gym", subtype="accumulation")
     log_in_as(member)
-    page.goto(f"{app_url}/entrenamientos")
+    page.goto(f"{app_url}/entrenamientos/gimnasio")
 
     # When I click its row.
     page.get_by_role("cell", name="Fuerza máxima").click()
@@ -41,10 +41,12 @@ def test_detail_shows_title_and_badges(
     # When I open its detail page.
     page.goto(f"{app_url}/entrenamientos/{training.id}")
 
-    # Then the title heading and the category/subtype badges show.
-    expect(page.get_by_role("heading", name="Apnea larga")).to_be_visible()
-    expect(page.get_by_text("Piscina")).to_be_visible()
-    expect(page.get_by_text("Resistencia")).to_be_visible()
+    # Then the title heading and the category/subtype badges show. Scope to main —
+    # the sidebar also has a "Piscina" category link.
+    main = page.get_by_role("main")
+    expect(main.get_by_role("heading", name="Apnea larga")).to_be_visible()
+    expect(main.get_by_text("Piscina")).to_be_visible()
+    expect(main.get_by_text("Resistencia")).to_be_visible()
 
 
 def test_detail_breadcrumb_returns_to_list(

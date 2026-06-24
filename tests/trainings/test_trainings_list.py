@@ -6,68 +6,57 @@ from playwright.sync_api import Page, expect
 from app.models import TrainingSession, User
 
 
-def test_list_shows_trainings_with_category_and_subtype(
-    page: Page,
-    app_url: str,
-    create_user: Callable[..., User],
-    create_training: Callable[..., TrainingSession],
-    log_in_as: Callable[[User], None],
-) -> None:
-    # Given a couple of trainings.
-    member = create_user(role="member", email="member@example.com")
-    create_training(title="Fuerza máxima", category="gym", subtype="accumulation")
-    create_training(title="Apnea larga", category="pool", subtype="endurance")
-    log_in_as(member)
-
-    # When the list loads.
-    page.goto(f"{app_url}/entrenamientos")
-
-    # Then each training shows its title, category and subtype.
-    expect(page.get_by_role("cell", name="Fuerza máxima")).to_be_visible()
-    expect(page.get_by_role("cell", name="Gimnasio")).to_be_visible()
-    expect(page.get_by_role("cell", name="Acumulación")).to_be_visible()
-    expect(page.get_by_role("cell", name="Apnea larga")).to_be_visible()
-    expect(page.get_by_role("cell", name="Piscina")).to_be_visible()
+# ---------------------------------------------------------------- landing page
 
 
-def test_empty_list_shows_message(
+def test_landing_shows_category_cards(
     page: Page,
     app_url: str,
     create_user: Callable[..., User],
     log_in_as: Callable[[User], None],
 ) -> None:
-    # Given no trainings.
+    # Given a logged-in user on the trainings landing page.
     member = create_user(role="member", email="member@example.com")
     log_in_as(member)
-
-    # When the list loads, an empty message shows.
     page.goto(f"{app_url}/entrenamientos")
-    expect(page.get_by_text("Todavía no hay entrenamientos.")).to_be_visible()
+
+    # Then the three category cards are shown as links to their pages. Scope to
+    # main — the sidebar also has these category links.
+    main = page.get_by_role("main")
+    expect(main.get_by_role("link", name="Gimnasio")).to_have_attribute(
+        "href", "/entrenamientos/gimnasio"
+    )
+    expect(main.get_by_role("link", name="Piscina")).to_have_attribute(
+        "href", "/entrenamientos/piscina"
+    )
+    expect(main.get_by_role("link", name="Cardio")).to_have_attribute(
+        "href", "/entrenamientos/cardio"
+    )
 
 
-def test_search_filters_by_title(
+def test_landing_card_navigates_to_category(
     page: Page,
     app_url: str,
     create_user: Callable[..., User],
-    create_training: Callable[..., TrainingSession],
     log_in_as: Callable[[User], None],
 ) -> None:
-    # Given two distinctly titled trainings.
+    # Given the landing page.
     member = create_user(role="member", email="member@example.com")
-    create_training(title="Fuerza máxima", category="gym", subtype="accumulation")
-    create_training(title="Apnea larga", category="pool", subtype="endurance")
     log_in_as(member)
     page.goto(f"{app_url}/entrenamientos")
 
-    # When I search by a partial title.
-    page.get_by_label("Buscar").fill("fuerza")
+    # When I click the Piscina card (scope to main — the sidebar has the link too).
+    page.get_by_role("main").get_by_role("link", name="Piscina").click()
 
-    # Then only the match remains.
-    expect(page.get_by_role("cell", name="Fuerza máxima")).to_be_visible()
-    expect(page.get_by_role("cell", name="Apnea larga")).not_to_be_visible()
+    # Then I land on that category's list, headed by its name.
+    expect(page).to_have_url(f"{app_url}/entrenamientos/piscina")
+    expect(page.get_by_role("main").get_by_role("heading", name="Piscina")).to_be_visible()
 
 
-def test_filter_by_category(
+# ------------------------------------------------------------ category list page
+
+
+def test_category_list_shows_only_its_trainings(
     page: Page,
     app_url: str,
     create_user: Callable[..., User],
@@ -79,17 +68,72 @@ def test_filter_by_category(
     create_training(title="Fuerza máxima", category="gym", subtype="accumulation")
     create_training(title="Apnea larga", category="pool", subtype="endurance")
     log_in_as(member)
-    page.goto(f"{app_url}/entrenamientos")
 
-    # When I filter by Piscina.
-    page.get_by_label("Filtrar por categoría").select_option(label="Piscina")
+    # When I open the gym category page.
+    page.goto(f"{app_url}/entrenamientos/gimnasio")
 
-    # Then only the pool training remains.
-    expect(page.get_by_role("cell", name="Apnea larga")).to_be_visible()
-    expect(page.get_by_role("cell", name="Fuerza máxima")).not_to_be_visible()
+    # Then only the gym training shows, with its subtype; the pool one does not.
+    expect(page.get_by_role("cell", name="Fuerza máxima")).to_be_visible()
+    expect(page.get_by_role("cell", name="Acumulación")).to_be_visible()
+    expect(page.get_by_role("cell", name="Apnea larga")).not_to_be_visible()
 
 
-def test_filter_by_subtype(
+def test_empty_category_shows_message(
+    page: Page,
+    app_url: str,
+    create_user: Callable[..., User],
+    log_in_as: Callable[[User], None],
+) -> None:
+    # Given no trainings.
+    member = create_user(role="member", email="member@example.com")
+    log_in_as(member)
+
+    # When I open a category page, an empty message shows.
+    page.goto(f"{app_url}/entrenamientos/cardio")
+    expect(page.get_by_text("Todavía no hay entrenamientos en esta categoría.")).to_be_visible()
+
+
+def test_search_filters_by_title_within_category(
+    page: Page,
+    app_url: str,
+    create_user: Callable[..., User],
+    create_training: Callable[..., TrainingSession],
+    log_in_as: Callable[[User], None],
+) -> None:
+    # Given two gym trainings.
+    member = create_user(role="member", email="member@example.com")
+    create_training(title="Fuerza máxima", category="gym", subtype="accumulation")
+    create_training(title="Dominadas", category="gym", subtype="realization")
+    log_in_as(member)
+    page.goto(f"{app_url}/entrenamientos/gimnasio")
+
+    # When I search by a partial title.
+    page.get_by_label("Buscar").fill("fuerza")
+
+    # Then only the match remains.
+    expect(page.get_by_role("cell", name="Fuerza máxima")).to_be_visible()
+    expect(page.get_by_role("cell", name="Dominadas")).not_to_be_visible()
+
+
+def test_subtype_filter_offers_only_category_subtypes(
+    page: Page,
+    app_url: str,
+    create_user: Callable[..., User],
+    log_in_as: Callable[[User], None],
+) -> None:
+    # Given the gym category page.
+    member = create_user(role="member", email="member@example.com")
+    log_in_as(member)
+    page.goto(f"{app_url}/entrenamientos/gimnasio")
+
+    # Then the subtype filter offers gym subtypes, not pool ones.
+    subtype = page.get_by_label("Filtrar por subtipo")
+    expect(subtype.get_by_role("option", name="Acumulación")).to_be_attached()
+    expect(subtype.get_by_role("option", name="Realización")).to_be_attached()
+    expect(subtype.get_by_role("option", name="Resistencia")).to_have_count(0)
+
+
+def test_filter_by_subtype_within_category(
     page: Page,
     app_url: str,
     create_user: Callable[..., User],
@@ -101,7 +145,7 @@ def test_filter_by_subtype(
     create_training(title="Bloque acumulación", category="gym", subtype="accumulation")
     create_training(title="Bloque realización", category="gym", subtype="realization")
     log_in_as(member)
-    page.goto(f"{app_url}/entrenamientos")
+    page.goto(f"{app_url}/entrenamientos/gimnasio")
 
     # When I filter by the Realización subtype.
     page.get_by_label("Filtrar por subtipo").select_option(label="Realización")
@@ -111,20 +155,20 @@ def test_filter_by_subtype(
     expect(page.get_by_role("cell", name="Bloque acumulación")).not_to_be_visible()
 
 
-def test_filters_are_reflected_in_url(
+def test_subtype_filter_reflected_in_url(
     page: Page,
     app_url: str,
     create_user: Callable[..., User],
     log_in_as: Callable[[User], None],
 ) -> None:
-    # Given the list page.
+    # Given the gym category page.
     member = create_user(role="member", email="member@example.com")
     log_in_as(member)
-    page.goto(f"{app_url}/entrenamientos")
+    page.goto(f"{app_url}/entrenamientos/gimnasio")
 
-    # When I set a category filter, it's captured in the URL (shareable).
-    page.get_by_label("Filtrar por categoría").select_option(label="Gimnasio")
-    expect(page).to_have_url(re.compile(r"[?&]category=gym"))
+    # When I set a subtype filter, it's captured in the URL (shareable).
+    page.get_by_label("Filtrar por subtipo").select_option(label="Acumulación")
+    expect(page).to_have_url(re.compile(r"[?&]subtype=accumulation"))
 
 
 def test_member_does_not_see_create_button(
@@ -133,10 +177,10 @@ def test_member_does_not_see_create_button(
     create_user: Callable[..., User],
     log_in_as: Callable[[User], None],
 ) -> None:
-    # Given a logged-in member.
+    # Given a logged-in member on a category page.
     member = create_user(role="member", email="member@example.com")
     log_in_as(member)
 
-    # Then the trainings list has no create button.
-    page.goto(f"{app_url}/entrenamientos")
+    # Then there's no create button.
+    page.goto(f"{app_url}/entrenamientos/gimnasio")
     expect(page.get_by_role("link", name="Nuevo entrenamiento")).not_to_be_visible()

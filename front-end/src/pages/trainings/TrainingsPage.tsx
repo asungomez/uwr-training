@@ -1,11 +1,12 @@
-import { Plus } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { ChevronRight, Plus } from 'lucide-react'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 
 import { useQuery } from '@/api/client'
 import type { components } from '@/api/schema'
 import { useAuth } from '@/auth/context'
-import { CategoryBadge, SubtypeBadge } from '@/components/features/trainings/trainingBadges'
+import { SubtypeBadge } from '@/components/features/trainings/trainingBadges'
 import {
+  categoryFromSlug,
   categoryLabels,
   subtypeLabels,
   subtypesByCategory,
@@ -19,44 +20,24 @@ import { useUrlListState } from '@/hooks/useUrlListState'
 const PAGE_SIZE = 10
 
 type TrainingSession = components['schemas']['TrainingSessionResponse']
-type Category = TrainingSession['category']
 type Subtype = TrainingSession['subtype']
-
-const CATEGORIES = ['gym', 'pool', 'cardio'] as const
-const SUBTYPES = [
-  'adaptation',
-  'accumulation',
-  'transmutation',
-  'realization',
-  'endurance',
-  'anaerobic',
-  'alactic',
-  'aerobic',
-] as const
 
 const BLANK = 'Sin título'
 
 function TrainingsPage() {
+  // The route is a static category slug (…/gimnasio); derive it from the path.
+  const { pathname } = useLocation()
+  const category = categoryFromSlug(pathname.split('/').pop())
+
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
   const navigate = useNavigate()
 
-  const { page, search, setPage, setSearch, getFilter, setFilter, setFilters } = useUrlListState()
-  const category = getFilter('category', CATEGORIES) as Category | ''
-  const subtype = getFilter('subtype', SUBTYPES) as Subtype | ''
+  const { page, search, setPage, setSearch, getFilter, setFilter } = useUrlListState()
+  // Subtypes are scoped to this category.
+  const availableSubtypes: readonly Subtype[] = category ? subtypesByCategory[category] : []
+  const subtype = getFilter('subtype', availableSubtypes) as Subtype | ''
   const debouncedSearch = useDebouncedValue(search.trim(), 300)
-
-  // The subtype filter only offers the selected category's subtypes; with no
-  // category, it offers all of them.
-  const availableSubtypes: readonly Subtype[] = category ? subtypesByCategory[category] : SUBTYPES
-
-  function handleCategoryChange(value: string) {
-    // Drop the subtype if it doesn't belong to the new category. Both changes go
-    // in one URL update so they don't clobber each other.
-    const keepSubtype =
-      !subtype || !value || subtypesByCategory[value as Category].includes(subtype)
-    setFilters({ category: value, subtype: keepSubtype ? subtype : '' })
-  }
 
   const { data, isLoading, error } = useQuery(
     '/trainings',
@@ -65,21 +46,33 @@ function TrainingsPage() {
         query: {
           page,
           page_size: PAGE_SIZE,
-          ...(debouncedSearch ? { search: debouncedSearch } : {}),
           ...(category ? { category } : {}),
+          ...(debouncedSearch ? { search: debouncedSearch } : {}),
           ...(subtype ? { subtype } : {}),
         },
       },
     },
     { keepPreviousData: true },
   )
+
+  // An unknown category slug → back to the landing page.
+  if (!category) return <Navigate to="/entrenamientos" replace />
+
   const sessions = data?.items
   const pageCount = Math.ceil((data?.total_count ?? 0) / PAGE_SIZE)
 
   return (
     <section>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-2xl font-semibold tracking-tight">Entrenamientos</h2>
+      <nav className="flex items-center gap-1 text-sm text-slate-400" aria-label="Migas de pan">
+        <Link to="/entrenamientos" className="transition-colors hover:text-slate-200">
+          Entrenamientos
+        </Link>
+        <ChevronRight size={14} />
+        <span className="text-slate-200">{categoryLabels[category]}</span>
+      </nav>
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-2xl font-semibold tracking-tight">{categoryLabels[category]}</h2>
         {isAdmin && (
           <Link
             to="/entrenamientos/nuevo"
@@ -93,15 +86,6 @@ function TrainingsPage() {
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <SearchInput value={search} onChange={setSearch} placeholder="Buscar por título…" />
-        <FilterSelect
-          value={category}
-          onChange={handleCategoryChange}
-          label="Filtrar por categoría"
-          options={[
-            { value: '', label: 'Todas las categorías' },
-            ...CATEGORIES.map((value) => ({ value, label: categoryLabels[value] })),
-          ]}
-        />
         <FilterSelect
           value={subtype}
           onChange={(value) => setFilter('subtype', value)}
@@ -118,9 +102,9 @@ function TrainingsPage() {
 
       {sessions?.length === 0 && (
         <p className="mt-4 text-slate-400">
-          {debouncedSearch || category || subtype
+          {debouncedSearch || subtype
             ? 'No hay entrenamientos que coincidan con la búsqueda.'
-            : 'Todavía no hay entrenamientos.'}
+            : 'Todavía no hay entrenamientos en esta categoría.'}
         </p>
       )}
 
@@ -131,7 +115,6 @@ function TrainingsPage() {
             <thead>
               <tr className="border-b border-slate-700 text-slate-400">
                 <th className="py-2 pr-4 font-medium">Título</th>
-                <th className="py-2 pr-4 font-medium">Categoría</th>
                 <th className="py-2 font-medium">Subtipo</th>
               </tr>
             </thead>
@@ -144,9 +127,6 @@ function TrainingsPage() {
                 >
                   <td className="py-3 pr-4 text-slate-200">
                     {session.title ?? <span className="text-slate-500">{BLANK}</span>}
-                  </td>
-                  <td className="py-3 pr-4">
-                    <CategoryBadge category={session.category} />
                   </td>
                   <td className="py-3">
                     <SubtypeBadge subtype={session.subtype} />
@@ -168,10 +148,7 @@ function TrainingsPage() {
                   <span className="font-medium text-slate-100">
                     {session.title ?? <span className="text-slate-500">{BLANK}</span>}
                   </span>
-                  <div className="flex flex-wrap gap-2">
-                    <CategoryBadge category={session.category} />
-                    <SubtypeBadge subtype={session.subtype} />
-                  </div>
+                  <SubtypeBadge subtype={session.subtype} />
                 </button>
               </li>
             ))}

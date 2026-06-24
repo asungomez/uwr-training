@@ -2,6 +2,11 @@ import { Dumbbell, ListChecks, Users } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 
 import { useAuth } from '@/auth/context'
+import {
+  categoryLabels,
+  categorySlugs,
+  orderedCategories,
+} from '@/components/features/trainings/trainingLabels'
 
 interface SidebarProps {
   onNavigate?: () => void
@@ -13,16 +18,32 @@ const linkClass = ({ isActive }: { isActive: boolean }) =>
     isActive ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white',
   ].join(' ')
 
+const subLinkClass = ({ isActive }: { isActive: boolean }) =>
+  [
+    'flex items-center rounded-md py-1.5 pr-3 pl-11 text-sm transition-colors',
+    isActive ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white',
+  ].join(' ')
+
 function Sidebar({ onNavigate }: SidebarProps) {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
 
   return (
     <nav className="flex h-full flex-col gap-1 p-4">
-      <NavLink to="/entrenamientos" className={linkClass} onClick={onNavigate}>
+      <NavLink to="/entrenamientos" end className={linkClass} onClick={onNavigate}>
         <Dumbbell size={18} />
         Entrenamientos
       </NavLink>
+      {orderedCategories.map((category) => (
+        <NavLink
+          key={category}
+          to={`/entrenamientos/${categorySlugs[category]}`}
+          className={subLinkClass}
+          onClick={onNavigate}
+        >
+          {categoryLabels[category]}
+        </NavLink>
+      ))}
       <NavLink to="/ejercicios" className={linkClass} onClick={onNavigate}>
         <ListChecks size={18} />
         Ejercicios

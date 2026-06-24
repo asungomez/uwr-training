@@ -12,10 +12,10 @@ def test_admin_navigates_from_button_to_new_training(
     create_user: Callable[..., User],
     log_in_as: Callable[[User], None],
 ) -> None:
-    # Given a logged-in admin on the trainings page.
+    # Given a logged-in admin on a category page.
     admin = create_user(role="admin", email="admin@example.com")
     log_in_as(admin)
-    page.goto(f"{app_url}/entrenamientos")
+    page.goto(f"{app_url}/entrenamientos/gimnasio")
 
     # When they click "Nuevo entrenamiento".
     page.get_by_role("link", name="Nuevo entrenamiento").click()
@@ -31,10 +31,10 @@ def test_member_does_not_see_new_training_button(
     create_user: Callable[..., User],
     log_in_as: Callable[[User], None],
 ) -> None:
-    # Given a logged-in member on the trainings page.
+    # Given a logged-in member on a category page (where an admin would see it).
     member = create_user(role="member", email="member@example.com")
     log_in_as(member)
-    page.goto(f"{app_url}/entrenamientos")
+    page.goto(f"{app_url}/entrenamientos/gimnasio")
 
     # Then there's no create button.
     expect(page.get_by_role("link", name="Nuevo entrenamiento")).not_to_be_visible()
