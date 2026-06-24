@@ -18,11 +18,20 @@ import { useState } from 'react'
 
 import SortableBlockCard from './SortableBlockCard'
 
+export interface ItemDraft {
+  /** Stable client-side id (not the eventual DB id) for list keys + DnD. */
+  id: string
+  // Only notes for now; series will join later under the same item list.
+  kind: 'note'
+  text: string
+}
+
 export interface SubBlockDraft {
   /** Stable client-side id (not the eventual DB id) for list keys + DnD. */
   id: string
   name: string
   notes: string
+  items: ItemDraft[]
 }
 
 export interface BlockDraft {

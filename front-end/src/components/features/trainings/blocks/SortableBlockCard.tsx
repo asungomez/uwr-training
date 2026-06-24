@@ -29,7 +29,7 @@ interface SortableBlockCardProps {
 }
 
 function newSubBlock(): SubBlockDraft {
-  return { id: crypto.randomUUID(), name: '', notes: '' }
+  return { id: crypto.randomUUID(), name: '', notes: '', items: [] }
 }
 
 function SortableBlockCard({

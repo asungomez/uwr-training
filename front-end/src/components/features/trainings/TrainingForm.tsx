@@ -27,7 +27,14 @@ const schema = z.object({
     z.object({
       id: z.string(),
       name: z.string(),
-      subBlocks: z.array(z.object({ id: z.string(), name: z.string(), notes: z.string() })),
+      subBlocks: z.array(
+        z.object({
+          id: z.string(),
+          name: z.string(),
+          notes: z.string(),
+          items: z.array(z.object({ id: z.string(), kind: z.literal('note'), text: z.string() })),
+        }),
+      ),
     }),
   ),
 })

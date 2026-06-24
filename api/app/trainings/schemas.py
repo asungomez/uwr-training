@@ -1,15 +1,23 @@
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, field_serializer
 
-from app.models import TrainingCategory, TrainingSubtype
+from app.models import TrainingCategory, TrainingItemKind, TrainingSubtype
 from app.pagination import PaginationParams
+
+
+class ItemInput(BaseModel):
+    # Only notes for now; series will extend this later.
+    kind: Literal["note"]
+    text: str | None = None
 
 
 class SubBlockInput(BaseModel):
     name: str
     notes: str | None = None
+    items: list[ItemInput] = []
 
 
 class BlockInput(BaseModel):
@@ -55,12 +63,25 @@ class TrainingSessionResponse(BaseModel):
         return str(value)
 
 
+class ItemResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    kind: TrainingItemKind
+    text: str | None
+
+    @field_serializer("id")
+    def serialize_id(self, value: uuid.UUID) -> str:
+        return str(value)
+
+
 class SubBlockResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
     name: str
     notes: str | None
+    items: list[ItemResponse] = []
 
     @field_serializer("id")
     def serialize_id(self, value: uuid.UUID) -> str:

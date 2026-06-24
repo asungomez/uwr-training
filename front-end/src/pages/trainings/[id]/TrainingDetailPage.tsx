@@ -79,6 +79,13 @@ function TrainingDetailPage() {
                         <div key={sub.id}>
                           <h3 className="font-medium text-slate-200">{sub.name}</h3>
                           {sub.notes && <p className="mt-1 text-sm text-slate-400">{sub.notes}</p>}
+                          {sub.items.length > 0 && (
+                            <ol className="mt-2 flex list-decimal flex-col gap-1 pl-5 text-sm text-slate-300 marker:text-slate-500">
+                              {sub.items.map((item) => (
+                                <li key={item.id}>{item.text}</li>
+                              ))}
+                            </ol>
+                          )}
                         </div>
                       ))}
                     </div>

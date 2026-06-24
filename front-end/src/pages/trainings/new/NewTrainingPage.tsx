@@ -28,6 +28,7 @@ function NewTrainingPage() {
           sub_blocks: block.subBlocks.map((sub) => ({
             name: sub.name,
             notes: sub.notes || null,
+            items: sub.items.map((item) => ({ kind: item.kind, text: item.text || null })),
           })),
         })),
       },

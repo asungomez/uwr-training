@@ -35,6 +35,7 @@ function EditTrainingPage() {
           sub_blocks: block.subBlocks.map((sub) => ({
             name: sub.name,
             notes: sub.notes || null,
+            items: sub.items.map((item) => ({ kind: item.kind, text: item.text || null })),
           })),
         })),
       },
@@ -90,6 +91,11 @@ function EditTrainingPage() {
                     id: sub.id,
                     name: sub.name,
                     notes: sub.notes ?? '',
+                    items: sub.items.map((item) => ({
+                      id: item.id,
+                      kind: 'note' as const,
+                      text: item.text ?? '',
+                    })),
                   })),
                 })),
               }}

@@ -13,6 +13,8 @@ from app.models import (
     SUBTYPES_BY_CATEGORY,
     TrainingBlock,
     TrainingCategory,
+    TrainingItem,
+    TrainingItemKind,
     TrainingSession,
     TrainingSubBlock,
     TrainingSubtype,
@@ -22,6 +24,7 @@ from app.pagination import Page
 from app.trainings.schemas import (
     BlockInput,
     CreateTrainingRequest,
+    ItemInput,
     SubBlockInput,
     TrainingListParams,
     TrainingSessionDetailResponse,
@@ -63,7 +66,8 @@ def _build_blocks(blocks: list[BlockInput]) -> list[TrainingBlock]:
 
 
 def _build_sub_blocks(sub_blocks: list[SubBlockInput]) -> list[TrainingSubBlock]:
-    """Build ordered TrainingSubBlock rows from the submitted list. Rejects blank names."""
+    """Build ordered TrainingSubBlock rows (with their items) from the submitted
+    list. Rejects blank names."""
     rows: list[TrainingSubBlock] = []
     for position, item in enumerate(sub_blocks):
         name = item.name.strip()
@@ -74,18 +78,35 @@ def _build_sub_blocks(sub_blocks: list[SubBlockInput]) -> list[TrainingSubBlock]
                 "Sub-block name is required",
             )
         notes = item.notes.strip() if item.notes else None
-        rows.append(TrainingSubBlock(name=name, position=position, notes=notes or None))
+        rows.append(
+            TrainingSubBlock(
+                name=name, position=position, notes=notes or None, items=_build_items(item.items)
+            )
+        )
+    return rows
+
+
+def _build_items(items: list[ItemInput]) -> list[TrainingItem]:
+    """Build ordered TrainingItem rows from the submitted list (just notes for now)."""
+    rows: list[TrainingItem] = []
+    for position, item in enumerate(items):
+        text = item.text.strip() if item.text else None
+        rows.append(TrainingItem(kind=TrainingItemKind.note, position=position, text=text or None))
     return rows
 
 
 async def _load_with_blocks(
     session: AsyncSession, training_id: uuid.UUID
 ) -> TrainingSession | None:
-    """Fetch a session with its blocks and their sub-blocks (ordered) loaded."""
+    """Fetch a session with its blocks, sub-blocks, and items (ordered) loaded."""
     training: TrainingSession | None = await session.scalar(
         select(TrainingSession)
         .where(TrainingSession.id == training_id)
-        .options(selectinload(TrainingSession.blocks).selectinload(TrainingBlock.sub_blocks))
+        .options(
+            selectinload(TrainingSession.blocks)
+            .selectinload(TrainingBlock.sub_blocks)
+            .selectinload(TrainingSubBlock.items)
+        )
     )
     return training
 

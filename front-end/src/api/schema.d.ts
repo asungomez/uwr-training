@@ -561,6 +561,24 @@ export interface components {
              */
             expires_at: string;
         };
+        /** ItemInput */
+        ItemInput: {
+            /**
+             * Kind
+             * @constant
+             */
+            kind: "note";
+            /** Text */
+            text?: string | null;
+        };
+        /** ItemResponse */
+        ItemResponse: {
+            /** Id */
+            id: string;
+            kind: components["schemas"]["TrainingItemKind"];
+            /** Text */
+            text: string | null;
+        };
         /** LoginRequest */
         LoginRequest: {
             /**
@@ -690,6 +708,11 @@ export interface components {
             name: string;
             /** Notes */
             notes?: string | null;
+            /**
+             * Items
+             * @default []
+             */
+            items: components["schemas"]["ItemInput"][];
         };
         /** SubBlockResponse */
         SubBlockResponse: {
@@ -699,12 +722,22 @@ export interface components {
             name: string;
             /** Notes */
             notes: string | null;
+            /**
+             * Items
+             * @default []
+             */
+            items: components["schemas"]["ItemResponse"][];
         };
         /**
          * TrainingCategory
          * @enum {string}
          */
         TrainingCategory: "gym" | "pool" | "cardio";
+        /**
+         * TrainingItemKind
+         * @enum {string}
+         */
+        TrainingItemKind: "series" | "note";
         /**
          * TrainingSessionDetailResponse
          * @description Detail view: the session plus its ordered blocks.
