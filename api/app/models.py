@@ -91,6 +91,13 @@ class MesocyclePhase(enum.StrEnum):
     realization = "realization"
 
 
+class SessionLogAction(enum.StrEnum):
+    """Whether the athlete did or skipped a prescribed exercise in a logged session."""
+
+    done = "done"
+    skipped = "skipped"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -440,3 +447,84 @@ class WeekRequirement(Base):
     count: Mapped[int]
 
     week: Mapped["Week"] = relationship(back_populates="requirements")
+
+
+class SessionLog(Base):
+    """A record of one athlete performing a training session once, with a timestamp
+    and an optional note. Cascades away if the session is deleted."""
+
+    __tablename__ = "session_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    training_session_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("training_sessions.id", ondelete="CASCADE"), index=True
+    )
+    athlete_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    performed_at: Mapped[datetime] = mapped_column(_TZ, server_default=func.now())
+    # Free-text note the athlete writes when finishing, to remember something.
+    note: Mapped[str | None] = mapped_column(default=None)
+    created_at: Mapped[datetime] = mapped_column(_TZ, server_default=func.now())
+
+    entries: Mapped[list["SessionLogEntry"]] = relationship(
+        back_populates="log",
+        cascade="all, delete-orphan",
+        order_by="SessionLogEntry.position",
+    )
+
+
+class SessionLogEntry(Base):
+    """One logged exercise within a session log. `action` records whether it was
+    done or skipped; for a done entry, `performed_exercise` is the exercise actually
+    used (the prescribed one or a chosen alternative). Pure FKs — a log entry is
+    deleted if its (planned or performed) exercise is deleted."""
+
+    __tablename__ = "session_log_entries"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    log_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("session_logs.id", ondelete="CASCADE"), index=True
+    )
+    position: Mapped[int]
+    action: Mapped[SessionLogAction]
+    # The prescribed exercise for this item.
+    planned_exercise_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("exercises.id", ondelete="CASCADE"), index=True
+    )
+    # The exercise actually performed — the planned one or an alternative. Null when
+    # the action is `skipped`.
+    performed_exercise_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("exercises.id", ondelete="CASCADE"), default=None
+    )
+
+    log: Mapped["SessionLog"] = relationship(back_populates="entries")
+    planned_exercise: Mapped["Exercise"] = relationship(foreign_keys=[planned_exercise_id])
+    performed_exercise: Mapped["Exercise | None"] = relationship(
+        foreign_keys=[performed_exercise_id]
+    )
+    parameter_values: Mapped[list["SessionLogParameterValue"]] = relationship(
+        back_populates="entry",
+        cascade="all, delete-orphan",
+        order_by="SessionLogParameterValue.position",
+    )
+
+
+class SessionLogParameterValue(Base):
+    """A value the athlete entered for one of the performed exercise's parameters.
+    Pure FK — deleted if the parameter is deleted."""
+
+    __tablename__ = "session_log_parameter_values"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    entry_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("session_log_entries.id", ondelete="CASCADE"), index=True
+    )
+    position: Mapped[int]
+    parameter_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("exercise_parameters.id", ondelete="CASCADE"), index=True
+    )
+    value: Mapped[str]
+
+    entry: Mapped["SessionLogEntry"] = relationship(back_populates="parameter_values")
+    parameter: Mapped["ExerciseParameter"] = relationship()

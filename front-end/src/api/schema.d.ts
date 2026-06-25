@@ -541,6 +541,49 @@ export interface paths {
         patch: operations["reorder_week_weeks__week_id__position_patch"];
         trace?: never;
     };
+    "/trainings/{training_id}/log-form": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Log Form
+         * @description The data an athlete needs to log a session: each exercise with its
+         *     alternatives (to pick a substitution) and parameters (to record values).
+         */
+        get: operations["get_log_form_trainings__training_id__log_form_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/trainings/{training_id}/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Session Log
+         * @description Record that the current athlete went through this session: for each exercise,
+         *     whether it was done or skipped, which exercise was actually performed (standard
+         *     or an alternative), and the parameter values entered. Plus an optional note.
+         */
+        post: operations["create_session_log_trainings__training_id__logs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -719,6 +762,16 @@ export interface components {
              * Format: email
              */
             email: string;
+        };
+        /** CreateSessionLogRequest */
+        CreateSessionLogRequest: {
+            /** Note */
+            note?: string | null;
+            /**
+             * Entries
+             * @default []
+             */
+            entries: components["schemas"]["LogEntryInput"][];
         };
         /** CreateTrainingRequest */
         CreateTrainingRequest: {
@@ -912,6 +965,117 @@ export interface components {
             /** Effort */
             effort?: string | null;
         };
+        /**
+         * LogEntryInput
+         * @description One series item the athlete went through: marked done or skipped. When done,
+         *     `performed_exercise_id` is the exercise actually used (the prescribed one or a
+         *     chosen alternative) and `parameter_values` are the values recorded for it.
+         */
+        LogEntryInput: {
+            /**
+             * Planned Exercise Id
+             * Format: uuid
+             */
+            planned_exercise_id: string;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "done" | "skipped";
+            /** Performed Exercise Id */
+            performed_exercise_id?: string | null;
+            /**
+             * Parameter Values
+             * @default []
+             */
+            parameter_values: components["schemas"]["ParameterValueInput"][];
+        };
+        /** LogEntryResponse */
+        LogEntryResponse: {
+            /** Id */
+            id: string | null;
+            action: components["schemas"]["SessionLogAction"];
+            /** Planned Exercise Id */
+            planned_exercise_id: string | null;
+            /** Planned Exercise Name */
+            planned_exercise_name: string;
+            /** Performed Exercise Id */
+            performed_exercise_id: string | null;
+            /** Performed Exercise Name */
+            performed_exercise_name: string | null;
+            /** Is Alternative */
+            is_alternative: boolean;
+            /**
+             * Parameter Values
+             * @default []
+             */
+            parameter_values: components["schemas"]["LogParameterValueResponse"][];
+        };
+        /**
+         * LogFormAlternative
+         * @description An alternative exercise the athlete may pick instead of the prescribed one.
+         */
+        LogFormAlternative: {
+            /** Exercise Id */
+            exercise_id: string;
+            /** Name */
+            name: string;
+        };
+        /**
+         * LogFormExercise
+         * @description One series item's exercise in the log form: the prescribed exercise plus the
+         *     alternatives it can be swapped for and the parameters the athlete can record.
+         */
+        LogFormExercise: {
+            /** Exercise Id */
+            exercise_id: string;
+            /** Name */
+            name: string;
+            /**
+             * Alternatives
+             * @default []
+             */
+            alternatives: components["schemas"]["LogFormAlternative"][];
+            /**
+             * Parameters
+             * @default []
+             */
+            parameters: components["schemas"]["LogFormParameter"][];
+        };
+        /** LogFormParameter */
+        LogFormParameter: {
+            /** Parameter Id */
+            parameter_id: string;
+            /** Name */
+            name: string;
+        };
+        /**
+         * LogFormResponse
+         * @description Everything needed to render the 'start session' form: the session's exercises
+         *     (in order), each with its alternatives and trackable parameters.
+         */
+        LogFormResponse: {
+            /** Training Id */
+            training_id: string;
+            /** Title */
+            title: string | null;
+            /**
+             * Exercises
+             * @default []
+             */
+            exercises: components["schemas"]["LogFormExercise"][];
+        };
+        /** LogParameterValueResponse */
+        LogParameterValueResponse: {
+            /** Id */
+            id: string;
+            /** Parameter Id */
+            parameter_id: string;
+            /** Name */
+            name: string;
+            /** Value */
+            value: string;
+        };
         /** LoginRequest */
         LoginRequest: {
             /**
@@ -1004,6 +1168,16 @@ export interface components {
             /** Description */
             description: string | null;
         };
+        /** ParameterValueInput */
+        ParameterValueInput: {
+            /**
+             * Parameter Id
+             * Format: uuid
+             */
+            parameter_id: string;
+            /** Value */
+            value: string;
+        };
         /** RelatedExerciseInput */
         RelatedExerciseInput: {
             /**
@@ -1072,6 +1246,31 @@ export interface components {
             code: string;
             /** Password */
             password: string;
+        };
+        /**
+         * SessionLogAction
+         * @description Whether the athlete did or skipped a prescribed exercise in a logged session.
+         * @enum {string}
+         */
+        SessionLogAction: "done" | "skipped";
+        /** SessionLogResponse */
+        SessionLogResponse: {
+            /** Id */
+            id: string;
+            /** Training Session Id */
+            training_session_id: string;
+            /**
+             * Performed At
+             * Format: date-time
+             */
+            performed_at: string;
+            /** Note */
+            note: string | null;
+            /**
+             * Entries
+             * @default []
+             */
+            entries: components["schemas"]["LogEntryResponse"][];
         };
         /** SubBlockInput */
         SubBlockInput: {
@@ -2620,6 +2819,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WeekResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_log_form_trainings__training_id__log_form_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                training_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogFormResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_session_log_trainings__training_id__logs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                training_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSessionLogRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionLogResponse"];
                 };
             };
             /** @description Validation Error */

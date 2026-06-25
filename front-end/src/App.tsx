@@ -16,6 +16,7 @@ import CardioCategoryPage from '@/pages/cardio/CardioCategoryPage'
 import CardioSubtypePage from '@/pages/cardio/CardioSubtypePage'
 import NewCardioPage from '@/pages/cardio/new/NewCardioPage'
 import EditTrainingPage from '@/pages/trainings/[id]/edit/EditTrainingPage'
+import RegisterSessionPage from '@/pages/trainings/[id]/register/RegisterSessionPage'
 import TrainingDetailPage from '@/pages/trainings/[id]/TrainingDetailPage'
 import NewTrainingPage from '@/pages/trainings/new/NewTrainingPage'
 import TrainingsLandingPage from '@/pages/trainings/TrainingsLandingPage'
@@ -79,6 +80,8 @@ function App() {
               </Route>
               <Route path="sesion/:id" element={<CardioDetailPage />} />
             </Route>
+            {/* Any authenticated user can log a session they performed. */}
+            <Route path=":id/registrar" element={<RegisterSessionPage />} />
             <Route path=":id" element={<TrainingDetailPage />} />
           </Route>
           <Route path="/ejercicios">

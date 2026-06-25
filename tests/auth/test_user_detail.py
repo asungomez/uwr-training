@@ -40,8 +40,8 @@ def test_breadcrumb_returns_to_list(
     page.get_by_role("cell", name="admin@example.com").click()
     expect(page.get_by_text("Correo electrónico")).to_be_visible()
 
-    # When I click the Usuarios breadcrumb.
-    page.get_by_role("link", name="Usuarios").click()
+    # When I click the Usuarios breadcrumb (scoped — the sidebar also links it).
+    page.get_by_label("Migas de pan").get_by_role("link", name="Usuarios").click()
 
     # Then I'm back on the list.
     expect(page).to_have_url(f"{app_url}/usuarios")

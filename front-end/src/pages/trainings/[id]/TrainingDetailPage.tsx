@@ -1,4 +1,4 @@
-import { ChevronRight, Copy, Pencil, Trash2 } from 'lucide-react'
+import { ChevronRight, Copy, Pencil, Play, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
@@ -126,6 +126,16 @@ function TrainingDetailPage() {
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <CategoryBadge category={data.category} />
                 <SubtypeBadge subtype={data.subtype} />
+              </div>
+
+              <div className="mt-4">
+                <Link
+                  to={`/entrenamientos/${trainingId}/registrar`}
+                  className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+                >
+                  <Play size={16} />
+                  Empezar
+                </Link>
               </div>
 
               {data.blocks.length > 0 && (
