@@ -472,6 +472,7 @@ class SessionLog(Base):
         cascade="all, delete-orphan",
         order_by="SessionLogEntry.position",
     )
+    training_session: Mapped["TrainingSession"] = relationship()
 
 
 class SessionLogEntry(Base):

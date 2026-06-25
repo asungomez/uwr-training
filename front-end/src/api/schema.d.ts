@@ -346,6 +346,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/exercises/{exercise_id}/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Exercise Logs
+         * @description The current athlete's past occurrences of doing this exercise, most recent
+         *     first — when, in which training, and the parameter values recorded each time.
+         *     A reference for what they used last time.
+         */
+        get: operations["list_exercise_logs_exercises__exercise_id__logs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/trainings": {
         parameters: {
             query?: never;
@@ -571,7 +593,7 @@ export interface paths {
         };
         /**
          * List Session Logs
-         * @description The current athlete's own logs for this session, most recent first.
+         * @description The current athlete's own logs for this session, most recent first, paged.
          */
         get: operations["list_session_logs_trainings__training_id__logs_get"];
         put?: never;
@@ -841,6 +863,41 @@ export interface components {
          * @enum {string}
          */
         DirectoryStatus: "active" | "inactive" | "invitation_pending" | "invitation_expired";
+        /**
+         * ExerciseLogEntry
+         * @description One past occurrence of the athlete doing this exercise: when, in which
+         *     training, whether it stood in as an alternative, and the values recorded.
+         */
+        ExerciseLogEntry: {
+            /** Log Id */
+            log_id: string;
+            /** Training Id */
+            training_id: string;
+            /** Training Title */
+            training_title: string | null;
+            /**
+             * Performed At
+             * Format: date-time
+             */
+            performed_at: string;
+            /** As Alternative For */
+            as_alternative_for: string | null;
+            /**
+             * Parameter Values
+             * @default []
+             */
+            parameter_values: components["schemas"]["ExerciseLogParameterValue"][];
+        };
+        /**
+         * ExerciseLogParameterValue
+         * @description One parameter value recorded for an exercise on a past session.
+         */
+        ExerciseLogParameterValue: {
+            /** Name */
+            name: string;
+            /** Value */
+            value: string;
+        };
         /** ExerciseResponse */
         ExerciseResponse: {
             /** Id */
@@ -1155,10 +1212,24 @@ export interface components {
             /** Total Count */
             total_count: number;
         };
+        /** Page[ExerciseLogEntry] */
+        Page_ExerciseLogEntry_: {
+            /** Items */
+            items: components["schemas"]["ExerciseLogEntry"][];
+            /** Total Count */
+            total_count: number;
+        };
         /** Page[ExerciseResponse] */
         Page_ExerciseResponse_: {
             /** Items */
             items: components["schemas"]["ExerciseResponse"][];
+            /** Total Count */
+            total_count: number;
+        };
+        /** Page[SessionLogSummaryResponse] */
+        Page_SessionLogSummaryResponse_: {
+            /** Items */
+            items: components["schemas"]["SessionLogSummaryResponse"][];
             /** Total Count */
             total_count: number;
         };
@@ -2247,6 +2318,42 @@ export interface operations {
             };
         };
     };
+    list_exercise_logs_exercises__exercise_id__logs_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                exercise_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_ExerciseLogEntry_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_trainings_trainings_get: {
         parameters: {
             query?: {
@@ -2910,7 +3017,10 @@ export interface operations {
     };
     list_session_logs_trainings__training_id__logs_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
             header?: never;
             path: {
                 training_id: string;
@@ -2927,7 +3037,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionLogSummaryResponse"][];
+                    "application/json": components["schemas"]["Page_SessionLogSummaryResponse_"];
                 };
             };
             /** @description Validation Error */

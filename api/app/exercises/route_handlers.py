@@ -12,6 +12,8 @@ from app.errors import ErrorCode, api_error
 from app.exercises.schemas import (
     CreateExerciseRequest,
     ExerciseListParams,
+    ExerciseLogEntry,
+    ExerciseLogParameterValue,
     ExerciseResponse,
     MediaUploadRequest,
     MediaUploadResponse,
@@ -21,8 +23,17 @@ from app.exercises.schemas import (
     RelatedExerciseResponse,
     UpdateExerciseRequest,
 )
-from app.models import Exercise, ExerciseParameter, ExerciseRelation, User
-from app.pagination import Page
+from app.models import (
+    Exercise,
+    ExerciseParameter,
+    ExerciseRelation,
+    SessionLog,
+    SessionLogAction,
+    SessionLogEntry,
+    SessionLogParameterValue,
+    User,
+)
+from app.pagination import Page, PaginationParams
 from app.storage import MEDIA_CONSTRAINTS, create_presigned_upload, public_url
 
 router = APIRouter(prefix="/exercises", tags=["exercises"])
@@ -191,6 +202,72 @@ async def get_exercise(
             "Exercise not found",
         )
     return _serialize(exercise)
+
+
+@router.get("/{exercise_id}/logs", response_model=Page[ExerciseLogEntry])
+async def list_exercise_logs(
+    exercise_id: uuid.UUID,
+    user: Annotated[User, Depends(current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    params: Annotated[PaginationParams, Query()],
+) -> Page[ExerciseLogEntry]:
+    """The current athlete's past occurrences of doing this exercise, most recent
+    first — when, in which training, and the parameter values recorded each time.
+    A reference for what they used last time."""
+    base = (
+        select(SessionLogEntry.id)
+        .join(SessionLog, SessionLogEntry.log_id == SessionLog.id)
+        .where(
+            SessionLogEntry.performed_exercise_id == exercise_id,
+            SessionLogEntry.action == SessionLogAction.done,
+            SessionLog.athlete_id == user.id,
+        )
+    )
+    total = await session.scalar(select(func.count()).select_from(base.subquery()))
+
+    entries = list(
+        await session.scalars(
+            select(SessionLogEntry)
+            .join(SessionLog, SessionLogEntry.log_id == SessionLog.id)
+            .where(
+                SessionLogEntry.performed_exercise_id == exercise_id,
+                SessionLogEntry.action == SessionLogAction.done,
+                SessionLog.athlete_id == user.id,
+            )
+            .order_by(SessionLog.performed_at.desc())
+            .offset(params.offset)
+            .limit(params.page_size)
+            .options(
+                selectinload(SessionLogEntry.log).selectinload(SessionLog.training_session),
+                selectinload(SessionLogEntry.planned_exercise),
+                selectinload(SessionLogEntry.parameter_values).selectinload(
+                    SessionLogParameterValue.parameter
+                ),
+            )
+        )
+    )
+
+    items = []
+    for entry in entries:
+        training = entry.log.training_session
+        # The exercise stood in as an alternative when it isn't the planned one.
+        as_alternative_for = (
+            entry.planned_exercise.name if entry.planned_exercise_id != exercise_id else None
+        )
+        items.append(
+            ExerciseLogEntry(
+                log_id=entry.log_id,
+                training_id=entry.log.training_session_id,
+                training_title=training.title if training else None,
+                performed_at=entry.log.performed_at,
+                as_alternative_for=as_alternative_for,
+                parameter_values=[
+                    ExerciseLogParameterValue(name=value.parameter.name, value=value.value)
+                    for value in entry.parameter_values
+                ],
+            )
+        )
+    return Page(items=items, total_count=total or 0)
 
 
 @router.post("", response_model=ExerciseResponse, status_code=status.HTTP_201_CREATED)

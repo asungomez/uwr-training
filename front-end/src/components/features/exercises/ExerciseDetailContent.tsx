@@ -2,21 +2,21 @@ import { Link } from 'react-router-dom'
 
 import type { components } from '@/api/schema'
 import { ExerciseTypeBadge } from '@/components/features/exercises/exerciseBadges'
+import ExerciseLogList from '@/components/features/exercises/ExerciseLogList'
 import Markdown from '@/components/molecules/Markdown'
 
 type ExerciseResponse = components['schemas']['ExerciseResponse']
 
-interface ExerciseDetailContentProps {
+interface SectionProps {
   exercise: ExerciseResponse
   /** When given, related-exercise clicks call this (panel mode) instead of
    *  navigating to the exercise's own page (default link mode). */
   onSelectExercise?: (exerciseId: string) => void
 }
 
-/** The body of an exercise (media, description, parameters, related), shared by
- *  the exercise detail page and the in-training exercise panel. The owner adds
- *  any surrounding chrome (breadcrumb, admin actions, close button). */
-function ExerciseDetailContent({ exercise, onSelectExercise }: ExerciseDetailContentProps) {
+/** Name + type badge, media (video or thumbnail), and the description. The "left"
+ *  half of the exercise on a wide detail page; the top of the single-column modal. */
+export function ExerciseMediaSection({ exercise }: { exercise: ExerciseResponse }) {
   return (
     <div>
       <div className="flex flex-wrap items-center gap-3">
@@ -46,9 +46,17 @@ function ExerciseDetailContent({ exercise, onSelectExercise }: ExerciseDetailCon
       ) : (
         <p className="mt-4 text-slate-500">Sin descripción.</p>
       )}
+    </div>
+  )
+}
 
+/** Parameters and alternative exercises. The "right" half on a wide detail page;
+ *  below the media in the single-column modal. */
+export function ExerciseMetaSection({ exercise, onSelectExercise }: SectionProps) {
+  return (
+    <div className="flex flex-col gap-8">
       {exercise.parameters.length > 0 && (
-        <div className="mt-8">
+        <div>
           <h3 className="text-lg font-semibold text-slate-100">Parámetros</h3>
           <ul className="mt-3 flex flex-col gap-2">
             {exercise.parameters.map((param) => (
@@ -64,7 +72,7 @@ function ExerciseDetailContent({ exercise, onSelectExercise }: ExerciseDetailCon
       )}
 
       {exercise.related_exercises.length > 0 && (
-        <div className="mt-8">
+        <div>
           <h3 className="text-lg font-semibold text-slate-100">Ejercicios alternativos</h3>
           <ul className="mt-3 flex flex-col gap-3">
             {exercise.related_exercises.map((related) => (
@@ -120,6 +128,23 @@ function ExerciseDetailContent({ exercise, onSelectExercise }: ExerciseDetailCon
           </ul>
         </div>
       )}
+
+      <ExerciseLogList exerciseId={exercise.id} />
+    </div>
+  )
+}
+
+/** The body of an exercise (media, description, parameters, related) stacked in a
+ *  single column — used by the in-training exercise panel/modal. The standalone
+ *  detail page composes the two sections into columns itself. */
+function ExerciseDetailContent({ exercise, onSelectExercise }: SectionProps) {
+  return (
+    <div className="flex flex-col gap-8">
+      <ExerciseMediaSection exercise={exercise} />
+      <ExerciseMetaSection
+        exercise={exercise}
+        {...(onSelectExercise ? { onSelectExercise } : {})}
+      />
     </div>
   )
 }

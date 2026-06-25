@@ -3,6 +3,7 @@ import { useState } from 'react'
 
 import type { components } from '@/api/schema'
 import { controlClass } from '@/components/atoms/form/fieldStyles'
+import ExerciseLogList from '@/components/features/exercises/ExerciseLogList'
 import { prescriptionFields } from '@/components/features/trainings/prescription'
 
 type ItemResponse = components['schemas']['ItemResponse']
@@ -207,6 +208,12 @@ function SeriesLogCard({
           ))}
         </div>
       )}
+
+      {/* History for the exercise actually being performed (standard or chosen
+          alternative) — a reference for the parameters used last time. */}
+      <div className="mt-4 border-t border-slate-700 pt-3">
+        <ExerciseLogList exerciseId={state.performedExerciseId || plannedId} />
+      </div>
     </li>
   )
 }

@@ -1,8 +1,8 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, Query, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -23,6 +23,7 @@ from app.models import (
     TrainingSubBlock,
     User,
 )
+from app.pagination import Page, PaginationParams
 from app.session_logs.schemas import (
     CreateSessionLogRequest,
     LogEntryResponse,
@@ -267,22 +268,30 @@ async def create_session_log(
     return _serialize_log(reloaded)
 
 
-@router.get("/{training_id}/logs", response_model=list[SessionLogSummaryResponse])
+@router.get("/{training_id}/logs", response_model=Page[SessionLogSummaryResponse])
 async def list_session_logs(
     training_id: uuid.UUID,
     user: Annotated[User, Depends(current_user)],
     session: Annotated[AsyncSession, Depends(get_session)],
-) -> list[SessionLog]:
-    """The current athlete's own logs for this session, most recent first."""
+    params: Annotated[PaginationParams, Query()],
+) -> Page[SessionLogSummaryResponse]:
+    """The current athlete's own logs for this session, most recent first, paged."""
+    filters = (
+        SessionLog.training_session_id == training_id,
+        SessionLog.athlete_id == user.id,
+    )
+    total = await session.scalar(select(func.count()).select_from(SessionLog).where(*filters))
     rows = await session.scalars(
         select(SessionLog)
-        .where(
-            SessionLog.training_session_id == training_id,
-            SessionLog.athlete_id == user.id,
-        )
+        .where(*filters)
         .order_by(SessionLog.performed_at.desc())
+        .offset(params.offset)
+        .limit(params.page_size)
     )
-    return list(rows.all())
+    return Page(
+        items=[SessionLogSummaryResponse.model_validate(row) for row in rows.all()],
+        total_count=total or 0,
+    )
 
 
 @router.get("/{training_id}/logs/{log_id}", response_model=SessionLogResponse)

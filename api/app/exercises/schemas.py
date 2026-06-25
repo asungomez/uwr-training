@@ -110,3 +110,27 @@ class ExerciseResponse(BaseModel):
     @computed_field
     def video_url(self) -> str | None:
         return public_url(self.video_key)
+
+
+class ExerciseLogParameterValue(BaseModel):
+    """One parameter value recorded for an exercise on a past session."""
+
+    name: str
+    value: str
+
+
+class ExerciseLogEntry(BaseModel):
+    """One past occurrence of the athlete doing this exercise: when, in which
+    training, whether it stood in as an alternative, and the values recorded."""
+
+    log_id: uuid.UUID
+    training_id: uuid.UUID
+    training_title: str | None
+    performed_at: datetime
+    # Set when this exercise was performed as an alternative to a different planned one.
+    as_alternative_for: str | None
+    parameter_values: list[ExerciseLogParameterValue] = []
+
+    @field_serializer("log_id", "training_id")
+    def serialize_ids(self, value: uuid.UUID) -> str:
+        return str(value)
