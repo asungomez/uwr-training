@@ -135,9 +135,9 @@ def test_detail_shows_blocks_in_order(
     # When I open its detail page.
     page.goto(f"{app_url}/entrenamientos/{training.id}")
 
-    # Then each block shows its name as a heading, with the placeholder text.
+    # Then each block shows its name as a heading, in order. (The page also has a
+    # "Tus registros" heading below, so scope to the block names.)
     headings = page.get_by_role("heading", level=2)
-    expect(headings).to_have_count(3)
     expect(headings.nth(0)).to_have_text("Calentamiento")
     expect(headings.nth(1)).to_have_text("Tren superior")
     expect(headings.nth(2)).to_have_text("Vuelta a la calma")

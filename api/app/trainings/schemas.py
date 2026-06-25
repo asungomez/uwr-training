@@ -74,6 +74,9 @@ class TrainingSessionResponse(BaseModel):
     position: int
     title: str | None
     created_at: datetime
+    # When the requesting athlete last logged this session (their own logs only);
+    # null if they never have.
+    last_performed_at: datetime | None = None
 
     @field_serializer("id")
     def serialize_id(self, value: uuid.UUID) -> str:

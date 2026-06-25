@@ -27,6 +27,7 @@ const messages: Record<string, string> = {
   week_not_found: 'No se ha encontrado la semana.',
   invalid_week: 'Algún dato de la semana no es válido.',
   invalid_session_log: 'No se ha podido registrar la sesión. Revisa los datos.',
+  session_log_not_found: 'No se ha encontrado el registro.',
   invitation_not_found: 'La invitación no existe o ya fue utilizada.',
   invitation_expired: 'La invitación ha caducado.',
 }

@@ -356,7 +356,7 @@ export interface paths {
         /**
          * List Trainings
          * @description All training sessions, filterable by title search, category and subtype.
-         *     Visible to any authenticated user.
+         *     Each carries when the requesting athlete last logged it. Visible to any user.
          */
         get: operations["list_trainings_trainings_get"];
         put?: never;
@@ -569,7 +569,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List Session Logs
+         * @description The current athlete's own logs for this session, most recent first.
+         */
+        get: operations["list_session_logs_trainings__training_id__logs_get"];
         put?: never;
         /**
          * Create Session Log
@@ -578,6 +582,26 @@ export interface paths {
          *     or an alternative), and the parameter values entered. Plus an optional note.
          */
         post: operations["create_session_log_trainings__training_id__logs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/trainings/{training_id}/logs/{log_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Session Log
+         * @description One of the current athlete's logs for this session, with full detail.
+         */
+        get: operations["get_session_log_trainings__training_id__logs__log_id__get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1272,6 +1296,21 @@ export interface components {
              */
             entries: components["schemas"]["LogEntryResponse"][];
         };
+        /**
+         * SessionLogSummaryResponse
+         * @description List view of a log: the date + note, without its entries.
+         */
+        SessionLogSummaryResponse: {
+            /** Id */
+            id: string;
+            /**
+             * Performed At
+             * Format: date-time
+             */
+            performed_at: string;
+            /** Note */
+            note: string | null;
+        };
         /** SubBlockInput */
         SubBlockInput: {
             /** Name */
@@ -1326,6 +1365,8 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Last Performed At */
+            last_performed_at?: string | null;
             /**
              * Blocks
              * @default []
@@ -1350,6 +1391,8 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Last Performed At */
+            last_performed_at?: string | null;
         };
         /**
          * TrainingSubtype
@@ -2865,6 +2908,39 @@ export interface operations {
             };
         };
     };
+    list_session_logs_trainings__training_id__logs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                training_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionLogSummaryResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     create_session_log_trainings__training_id__logs_post: {
         parameters: {
             query?: never;
@@ -2884,6 +2960,40 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionLogResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_session_log_trainings__training_id__logs__log_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                training_id: string;
+                log_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

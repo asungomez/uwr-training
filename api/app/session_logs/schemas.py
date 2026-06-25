@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, field_serializer
+from pydantic import BaseModel, ConfigDict, field_serializer
 
 from app.models import SessionLogAction
 
@@ -120,4 +120,18 @@ class SessionLogResponse(BaseModel):
 
     @field_serializer("id", "training_session_id")
     def serialize_ids(self, value: uuid.UUID) -> str:
+        return str(value)
+
+
+class SessionLogSummaryResponse(BaseModel):
+    """List view of a log: the date + note, without its entries."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    performed_at: datetime
+    note: str | None
+
+    @field_serializer("id")
+    def serialize_id(self, value: uuid.UUID) -> str:
         return str(value)

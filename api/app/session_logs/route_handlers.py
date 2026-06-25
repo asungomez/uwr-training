@@ -32,6 +32,7 @@ from app.session_logs.schemas import (
     LogFormResponse,
     LogParameterValueResponse,
     SessionLogResponse,
+    SessionLogSummaryResponse,
 )
 
 # Mounted under the trainings prefix so the log endpoints sit on a session.
@@ -78,6 +79,23 @@ def _ordered_series_exercises(training: TrainingSession) -> list[Exercise]:
                 seen.add(item.exercise.id)
                 exercises.append(item.exercise)
     return exercises
+
+
+async def _load_full_log(session: AsyncSession, log_id: uuid.UUID) -> SessionLog | None:
+    """Fetch a log with its entries' planned/performed exercises and parameter
+    values + parameters loaded — everything `_serialize_log` needs."""
+    log: SessionLog | None = await session.scalar(
+        select(SessionLog)
+        .where(SessionLog.id == log_id)
+        .options(
+            selectinload(SessionLog.entries).selectinload(SessionLogEntry.planned_exercise),
+            selectinload(SessionLog.entries).selectinload(SessionLogEntry.performed_exercise),
+            selectinload(SessionLog.entries)
+            .selectinload(SessionLogEntry.parameter_values)
+            .selectinload(SessionLogParameterValue.parameter),
+        )
+    )
+    return log
 
 
 def _serialize_log(log: SessionLog) -> SessionLogResponse:
@@ -244,16 +262,40 @@ async def create_session_log(
     session.add(log)
     await session.commit()
 
-    reloaded = await session.scalar(
-        select(SessionLog)
-        .where(SessionLog.id == log.id)
-        .options(
-            selectinload(SessionLog.entries).selectinload(SessionLogEntry.planned_exercise),
-            selectinload(SessionLog.entries).selectinload(SessionLogEntry.performed_exercise),
-            selectinload(SessionLog.entries)
-            .selectinload(SessionLogEntry.parameter_values)
-            .selectinload(SessionLogParameterValue.parameter),
-        )
-    )
+    reloaded = await _load_full_log(session, log.id)
     assert reloaded is not None
     return _serialize_log(reloaded)
+
+
+@router.get("/{training_id}/logs", response_model=list[SessionLogSummaryResponse])
+async def list_session_logs(
+    training_id: uuid.UUID,
+    user: Annotated[User, Depends(current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[SessionLog]:
+    """The current athlete's own logs for this session, most recent first."""
+    rows = await session.scalars(
+        select(SessionLog)
+        .where(
+            SessionLog.training_session_id == training_id,
+            SessionLog.athlete_id == user.id,
+        )
+        .order_by(SessionLog.performed_at.desc())
+    )
+    return list(rows.all())
+
+
+@router.get("/{training_id}/logs/{log_id}", response_model=SessionLogResponse)
+async def get_session_log(
+    training_id: uuid.UUID,
+    log_id: uuid.UUID,
+    user: Annotated[User, Depends(current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> SessionLogResponse:
+    """One of the current athlete's logs for this session, with full detail."""
+    log = await _load_full_log(session, log_id)
+    if log is None or log.training_session_id != training_id or log.athlete_id != user.id:
+        raise api_error(
+            status.HTTP_404_NOT_FOUND, ErrorCode.session_log_not_found, "Session log not found"
+        )
+    return _serialize_log(log)

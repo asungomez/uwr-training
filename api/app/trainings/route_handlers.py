@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
@@ -12,6 +13,7 @@ from app.errors import ErrorCode, api_error
 from app.models import (
     SUBTYPES_BY_CATEGORY,
     Exercise,
+    SessionLog,
     TrainingBlock,
     TrainingCategory,
     TrainingItem,
@@ -178,12 +180,12 @@ async def _load_with_blocks(
 
 @router.get("")
 async def list_trainings(
-    _user: Annotated[User, Depends(current_user)],
+    user: Annotated[User, Depends(current_user)],
     session: Annotated[AsyncSession, Depends(get_session)],
     params: Annotated[TrainingListParams, Query()],
 ) -> Page[TrainingSessionResponse]:
     """All training sessions, filterable by title search, category and subtype.
-    Visible to any authenticated user."""
+    Each carries when the requesting athlete last logged it. Visible to any user."""
     filters: list[ColumnElement[bool]] = []
     if params.search:
         filters.append(TrainingSession.title.ilike(f"%{params.search.strip()}%"))
@@ -193,17 +195,39 @@ async def list_trainings(
         filters.append(TrainingSession.subtype == params.subtype)
 
     total = await session.scalar(select(func.count()).select_from(TrainingSession).where(*filters))
-    rows = await session.scalars(
-        select(TrainingSession)
-        .where(*filters)
-        .order_by(TrainingSession.position)
-        .offset(params.offset)
-        .limit(params.page_size)
+    rows = list(
+        await session.scalars(
+            select(TrainingSession)
+            .where(*filters)
+            .order_by(TrainingSession.position)
+            .offset(params.offset)
+            .limit(params.page_size)
+        )
     )
-    return Page(
-        items=[TrainingSessionResponse.model_validate(row) for row in rows.all()],
-        total_count=total or 0,
-    )
+
+    # When the current athlete last logged each of these sessions (one grouped query).
+    last_performed: dict[uuid.UUID, datetime] = {}
+    if rows:
+        result = await session.execute(
+            select(
+                SessionLog.training_session_id,
+                func.max(SessionLog.performed_at).label("last_performed_at"),
+            )
+            .where(
+                SessionLog.athlete_id == user.id,
+                SessionLog.training_session_id.in_([row.id for row in rows]),
+            )
+            .group_by(SessionLog.training_session_id)
+        )
+        for training_session_id, performed_at in result.all():
+            last_performed[training_session_id] = performed_at
+
+    items = []
+    for row in rows:
+        item = TrainingSessionResponse.model_validate(row)
+        item.last_performed_at = last_performed.get(row.id)
+        items.append(item)
+    return Page(items=items, total_count=total or 0)
 
 
 @router.get("/{training_id}", response_model=TrainingSessionDetailResponse)

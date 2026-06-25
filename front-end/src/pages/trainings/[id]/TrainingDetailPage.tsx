@@ -6,6 +6,7 @@ import { api, useMutate, useQuery } from '@/api/client'
 import { errorMessage } from '@/api/errors'
 import { useAuth } from '@/auth/context'
 import ExercisePanel from '@/components/features/trainings/ExercisePanel'
+import SessionLogList from '@/components/features/trainings/SessionLogList'
 import { CategoryBadge, SubtypeBadge } from '@/components/features/trainings/trainingBadges'
 import TrainingItemView from '@/components/features/trainings/TrainingItemView'
 import {
@@ -205,6 +206,8 @@ function TrainingDetailPage() {
                   </button>
                 </div>
               )}
+
+              <SessionLogList trainingId={trainingId} />
             </div>
           )}
         </div>
