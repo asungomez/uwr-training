@@ -507,8 +507,8 @@ export interface paths {
         };
         /**
          * List Weeks
-         * @description All weeks in order, filterable by name search and phase. Visible to any
-         *     authenticated user.
+         * @description All weeks in order, each with the athlete's progress per requirement.
+         *     Filterable by name search and phase. Visible to any authenticated user.
          */
         get: operations["list_weeks_weeks_get"];
         put?: never;
@@ -529,7 +529,8 @@ export interface paths {
         };
         /**
          * Get Week
-         * @description A single week (with its requirements) by id. Visible to any user.
+         * @description A single week with each requirement's progress and the logs that fulfil it
+         *     (the athlete's own). Visible to any user.
          */
         get: operations["get_week_weeks__week_id__get"];
         /** Update Week */
@@ -1339,6 +1340,25 @@ export interface components {
             note: string | null;
         };
         /**
+         * RequirementDetail
+         * @description A requirement with progress plus the logs (most recent first) that fulfil it.
+         */
+        RequirementDetail: {
+            /** Id */
+            id: string;
+            category: components["schemas"]["TrainingCategory"];
+            subtype: components["schemas"]["TrainingSubtype"];
+            /** Count */
+            count: number;
+            /** Completed */
+            completed: number;
+            /**
+             * Logs
+             * @default []
+             */
+            logs: components["schemas"]["WeekLogSummary"][];
+        };
+        /**
          * RequirementInput
          * @description How many sessions of one type a week recommends, e.g. 2x pool/endurance.
          */
@@ -1348,14 +1368,20 @@ export interface components {
             /** Count */
             count: number;
         };
-        /** RequirementResponse */
-        RequirementResponse: {
+        /**
+         * RequirementProgress
+         * @description A requirement plus how many of the athlete's logs (linked to this week) fulfil
+         *     it — e.g. 1/2 endurance pools done.
+         */
+        RequirementProgress: {
             /** Id */
             id: string;
             category: components["schemas"]["TrainingCategory"];
             subtype: components["schemas"]["TrainingSubtype"];
             /** Count */
             count: number;
+            /** Completed */
+            completed: number;
         };
         /**
          * ResetCodeResponse
@@ -1658,7 +1684,8 @@ export interface components {
         };
         /**
          * WeekDetailResponse
-         * @description Detail view: the week plus its ordered session requirements.
+         * @description Detail view: each requirement carries its progress plus the logs that fulfil
+         *     it (the requesting athlete's own).
          */
         WeekDetailResponse: {
             /** Id */
@@ -1679,11 +1706,28 @@ export interface components {
              * Requirements
              * @default []
              */
-            requirements: components["schemas"]["RequirementResponse"][];
+            requirements: components["schemas"]["RequirementDetail"][];
+        };
+        /**
+         * WeekLogSummary
+         * @description A session log (of the requesting athlete) that counts towards a requirement.
+         */
+        WeekLogSummary: {
+            /** Log Id */
+            log_id: string;
+            /** Training Session Id */
+            training_session_id: string;
+            /** Training Title */
+            training_title: string | null;
+            /**
+             * Performed At
+             * Format: date-time
+             */
+            performed_at: string;
         };
         /**
          * WeekResponse
-         * @description List view: the week itself, without its requirements.
+         * @description List view: the week with its requirements + the athlete's progress on each.
          */
         WeekResponse: {
             /** Id */
@@ -1700,6 +1744,11 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Requirements
+             * @default []
+             */
+            requirements: components["schemas"]["RequirementProgress"][];
         };
     };
     responses: never;

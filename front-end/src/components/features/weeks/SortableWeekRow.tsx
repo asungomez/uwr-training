@@ -5,6 +5,8 @@ import { GripVertical } from 'lucide-react'
 import type { components } from '@/api/schema'
 
 import { PhaseBadge } from './PhaseBadge'
+import { requirementLabel } from './requirementLink'
+import WeekStatusIcon from './WeekStatusIcon'
 
 type Week = components['schemas']['WeekResponse']
 
@@ -43,12 +45,30 @@ function SortableWeekRow({ week, draggable, onOpen }: SortableWeekRowProps) {
       <button
         type="button"
         onClick={onOpen}
-        className={`flex flex-1 items-center justify-between gap-3 py-4 pr-4 text-left ${draggable ? '' : 'pl-4'}`}
+        className={`flex flex-1 items-start justify-between gap-3 py-4 pr-4 text-left ${draggable ? '' : 'pl-4'}`}
       >
-        <span className="flex flex-col">
-          <span className="font-medium text-slate-100">{week.name}</span>
+        <span className="flex min-w-0 flex-col gap-1">
+          <span className="flex items-center gap-2 font-medium text-slate-100">
+            <WeekStatusIcon requirements={week.requirements} size={16} />
+            {week.name}
+          </span>
           {week.recommended_date && (
             <span className="text-sm text-slate-400">{week.recommended_date}</span>
+          )}
+          {week.requirements.length > 0 && (
+            <span className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm text-slate-400">
+              {week.requirements.map((req) => {
+                const complete = req.completed >= req.count
+                return (
+                  <span key={req.id}>
+                    {requirementLabel(req.category, req.subtype)}{' '}
+                    <span className={complete ? 'text-emerald-300' : 'text-slate-200'}>
+                      {req.completed}/{req.count}
+                    </span>
+                  </span>
+                )
+              })}
+            </span>
           )}
         </span>
         <PhaseBadge phase={week.phase} />

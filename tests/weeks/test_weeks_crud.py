@@ -82,10 +82,11 @@ def test_detail_shows_requirements(
     main = page.get_by_role("main")
     expect(main.get_by_role("heading", name="Semana 1")).to_be_visible()
     expect(main.get_by_text("Semana del 3 de marzo")).to_be_visible()
-    expect(main.get_by_text("Piscina · Resistencia")).to_be_visible()
-    expect(main.get_by_text("Gimnasio · Adaptación")).to_be_visible()
-    expect(main.get_by_text("Cardio · Anaeróbico")).to_be_visible()
-    expect(main.get_by_text("1 sesión", exact=True)).to_be_visible()
+    expect(main.get_by_role("link", name="Piscina · Resistencia")).to_be_visible()
+    expect(main.get_by_role("link", name="Gimnasio · Adaptación")).to_be_visible()
+    expect(main.get_by_role("link", name="Cardio · Anaeróbico")).to_be_visible()
+    # No logs yet → progress shown as completed/count (the cardio req is 1).
+    expect(main.get_by_text("0/1", exact=True)).to_be_visible()
 
 
 def test_admin_creates_week(
@@ -116,8 +117,8 @@ def test_admin_creates_week(
     expect(page).to_have_url(re.compile(rf"{re.escape(app_url)}/calendario/[0-9a-f-]+$"))
     main = page.get_by_role("main")
     expect(main.get_by_role("heading", name="Semana inicial")).to_be_visible()
-    expect(main.get_by_text("Piscina · Resistencia")).to_be_visible()
-    expect(main.get_by_text("3 sesiones")).to_be_visible()
+    expect(main.get_by_role("link", name="Piscina · Resistencia")).to_be_visible()
+    expect(main.get_by_text("0/3", exact=True)).to_be_visible()
 
 
 def test_subtype_options_depend_on_category(
