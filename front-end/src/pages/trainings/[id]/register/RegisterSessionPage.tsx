@@ -7,6 +7,7 @@ import { errorMessage } from '@/api/errors'
 import type { components } from '@/api/schema'
 import { controlClass } from '@/components/atoms/form/fieldStyles'
 import FormError from '@/components/atoms/form/FormError'
+import SelectControl from '@/components/atoms/form/SelectControl'
 import SubmitButton from '@/components/atoms/form/SubmitButton'
 import ExercisePanel from '@/components/features/trainings/ExercisePanel'
 import { useToast } from '@/components/toast/context'
@@ -23,6 +24,7 @@ function RegisterSessionPage() {
   const [rootError, setRootError] = useState<string | undefined>(undefined)
   const [submitting, setSubmitting] = useState(false)
   const [note, setNote] = useState('')
+  const [weekId, setWeekId] = useState('')
   // The exercise shown in the description side panel (local — no URL param here).
   const [panelExerciseId, setPanelExerciseId] = useState<string | null>(null)
 
@@ -84,6 +86,7 @@ function RegisterSessionPage() {
 
     const body = {
       note: note.trim() || null,
+      week_id: weekId || null,
       entries: seriesItems.map((item) => {
         const plannedId = item.exercise_id ?? ''
         const state = entries[item.id]
@@ -206,7 +209,26 @@ function RegisterSessionPage() {
                   </div>
                 ))}
 
-                <div className="border-t border-slate-800 pt-6">
+                <div className="flex flex-col gap-4 border-t border-slate-800 pt-6">
+                  {(form.data?.weeks.length ?? 0) > 0 && (
+                    <label className="flex max-w-sm flex-col gap-1 text-sm font-medium text-slate-300">
+                      Semana (opcional)
+                      <SelectControl
+                        value={weekId}
+                        onChange={(event) => setWeekId(event.target.value)}
+                        aria-label="Semana"
+                        className={`${controlClass} mt-1 w-full text-sm`}
+                        options={[
+                          { value: '', label: 'Sin semana' },
+                          ...(form.data?.weeks ?? []).map((week) => ({
+                            value: week.id,
+                            label: week.name,
+                          })),
+                        ]}
+                      />
+                    </label>
+                  )}
+
                   <label className="flex flex-col gap-1 text-sm font-medium text-slate-300">
                     Nota de la sesión (opcional)
                     <textarea

@@ -630,6 +630,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/trainings/{training_id}/logs/{log_id}/week": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Session Log Week
+         * @description Change (or clear) which calendar week this log counts towards. The week, if
+         *     given, must recommend this training's type.
+         */
+        patch: operations["update_session_log_week_trainings__training_id__logs__log_id__week_patch"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -813,6 +834,8 @@ export interface components {
         CreateSessionLogRequest: {
             /** Note */
             note?: string | null;
+            /** Week Id */
+            week_id?: string | null;
             /**
              * Entries
              * @default []
@@ -1133,7 +1156,8 @@ export interface components {
         /**
          * LogFormResponse
          * @description Everything needed to render the 'start session' form: the session's exercises
-         *     (in order), each with its alternatives and trackable parameters.
+         *     (in order), each with its alternatives and trackable parameters, plus the weeks
+         *     this session can be assigned to.
          */
         LogFormResponse: {
             /** Training Id */
@@ -1145,6 +1169,22 @@ export interface components {
              * @default []
              */
             exercises: components["schemas"]["LogFormExercise"][];
+            /**
+             * Weeks
+             * @default []
+             */
+            weeks: components["schemas"]["LogFormWeek"][];
+        };
+        /**
+         * LogFormWeek
+         * @description A calendar week the athlete can assign this log to (one that recommends this
+         *     training's type).
+         */
+        LogFormWeek: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
         };
         /** LogParameterValueResponse */
         LogParameterValueResponse: {
@@ -1351,9 +1391,9 @@ export interface components {
         /** SessionLogResponse */
         SessionLogResponse: {
             /** Id */
-            id: string;
+            id: string | null;
             /** Training Session Id */
-            training_session_id: string;
+            training_session_id: string | null;
             /**
              * Performed At
              * Format: date-time
@@ -1361,6 +1401,10 @@ export interface components {
             performed_at: string;
             /** Note */
             note: string | null;
+            /** Week Id */
+            week_id: string | null;
+            /** Week Name */
+            week_name: string | null;
             /**
              * Entries
              * @default []
@@ -1519,6 +1563,14 @@ export interface components {
         UpdatePositionRequest: {
             /** Position */
             position: number;
+        };
+        /**
+         * UpdateSessionLogWeekRequest
+         * @description Change (or clear) which calendar week a log counts towards.
+         */
+        UpdateSessionLogWeekRequest: {
+            /** Week Id */
+            week_id?: string | null;
         };
         /** UpdateTrainingRequest */
         UpdateTrainingRequest: {
@@ -3101,6 +3153,44 @@ export interface operations {
             };
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionLogResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_session_log_week_trainings__training_id__logs__log_id__week_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                training_id: string;
+                log_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSessionLogWeekRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

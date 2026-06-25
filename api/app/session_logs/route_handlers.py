@@ -22,6 +22,8 @@ from app.models import (
     TrainingSession,
     TrainingSubBlock,
     User,
+    Week,
+    WeekRequirement,
 )
 from app.pagination import Page, PaginationParams
 from app.session_logs.schemas import (
@@ -31,9 +33,11 @@ from app.session_logs.schemas import (
     LogFormExercise,
     LogFormParameter,
     LogFormResponse,
+    LogFormWeek,
     LogParameterValueResponse,
     SessionLogResponse,
     SessionLogSummaryResponse,
+    UpdateSessionLogWeekRequest,
 )
 
 # Mounted under the trainings prefix so the log endpoints sit on a session.
@@ -89,6 +93,7 @@ async def _load_full_log(session: AsyncSession, log_id: uuid.UUID) -> SessionLog
         select(SessionLog)
         .where(SessionLog.id == log_id)
         .options(
+            selectinload(SessionLog.week),
             selectinload(SessionLog.entries).selectinload(SessionLogEntry.planned_exercise),
             selectinload(SessionLog.entries).selectinload(SessionLogEntry.performed_exercise),
             selectinload(SessionLog.entries)
@@ -97,6 +102,22 @@ async def _load_full_log(session: AsyncSession, log_id: uuid.UUID) -> SessionLog
         )
     )
     return log
+
+
+async def _weeks_recommending(session: AsyncSession, training: TrainingSession) -> list[Week]:
+    """Weeks whose requirements include this training's category+subtype, in order.
+    These are the weeks a log of this session can be assigned to."""
+    rows = await session.scalars(
+        select(Week)
+        .join(WeekRequirement, WeekRequirement.week_id == Week.id)
+        .where(
+            WeekRequirement.category == training.category,
+            WeekRequirement.subtype == training.subtype,
+        )
+        .order_by(Week.position)
+        .distinct()
+    )
+    return list(rows.all())
 
 
 def _serialize_log(log: SessionLog) -> SessionLogResponse:
@@ -132,6 +153,8 @@ def _serialize_log(log: SessionLog) -> SessionLogResponse:
         training_session_id=log.training_session_id,
         performed_at=log.performed_at,
         note=log.note,
+        week_id=log.week_id,
+        week_name=log.week.name if log.week else None,
         entries=entries,
     )
 
@@ -168,7 +191,13 @@ async def get_log_form(
         )
         for exercise in _ordered_series_exercises(training)
     ]
-    return LogFormResponse(training_id=training.id, title=training.title, exercises=exercises)
+    weeks = [
+        LogFormWeek(id=week.id, name=week.name)
+        for week in await _weeks_recommending(session, training)
+    ]
+    return LogFormResponse(
+        training_id=training.id, title=training.title, exercises=exercises, weeks=weeks
+    )
 
 
 @router.post(
@@ -195,8 +224,23 @@ async def create_session_log(
     # can validate the submission without trusting the client.
     by_id = {exercise.id: exercise for exercise in _ordered_series_exercises(training)}
 
+    # A chosen week must be one that recommends this training's type.
+    if body.week_id is not None:
+        valid_week_ids = {week.id for week in await _weeks_recommending(session, training)}
+        if body.week_id not in valid_week_ids:
+            raise api_error(
+                status.HTTP_400_BAD_REQUEST,
+                ErrorCode.invalid_session_log,
+                "That week doesn't recommend this type of training",
+            )
+
     note = body.note.strip() if body.note else None
-    log = SessionLog(training_session_id=training.id, athlete_id=user.id, note=note or None)
+    log = SessionLog(
+        training_session_id=training.id,
+        athlete_id=user.id,
+        note=note or None,
+        week_id=body.week_id,
+    )
     for position, entry in enumerate(body.entries):
         planned = by_id.get(entry.planned_exercise_id)
         if planned is None:
@@ -308,3 +352,38 @@ async def get_session_log(
             status.HTTP_404_NOT_FOUND, ErrorCode.session_log_not_found, "Session log not found"
         )
     return _serialize_log(log)
+
+
+@router.patch("/{training_id}/logs/{log_id}/week", response_model=SessionLogResponse)
+async def update_session_log_week(
+    training_id: uuid.UUID,
+    log_id: uuid.UUID,
+    body: UpdateSessionLogWeekRequest,
+    user: Annotated[User, Depends(current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> SessionLogResponse:
+    """Change (or clear) which calendar week this log counts towards. The week, if
+    given, must recommend this training's type."""
+    log = await _load_full_log(session, log_id)
+    if log is None or log.training_session_id != training_id or log.athlete_id != user.id:
+        raise api_error(
+            status.HTTP_404_NOT_FOUND, ErrorCode.session_log_not_found, "Session log not found"
+        )
+
+    if body.week_id is not None:
+        training = await session.get(TrainingSession, training_id)
+        assert training is not None  # the log's session exists (it references it)
+        valid_week_ids = {week.id for week in await _weeks_recommending(session, training)}
+        if body.week_id not in valid_week_ids:
+            raise api_error(
+                status.HTTP_400_BAD_REQUEST,
+                ErrorCode.invalid_session_log,
+                "That week doesn't recommend this type of training",
+            )
+
+    log.week_id = body.week_id
+    await session.commit()
+
+    reloaded = await _load_full_log(session, log_id)
+    assert reloaded is not None
+    return _serialize_log(reloaded)

@@ -462,6 +462,11 @@ class SessionLog(Base):
     athlete_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
+    # The calendar week this log counts towards (optional, editable). SET NULL so
+    # deleting a week doesn't lose the log, just its link.
+    week_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("weeks.id", ondelete="SET NULL"), default=None, index=True
+    )
     performed_at: Mapped[datetime] = mapped_column(_TZ, server_default=func.now())
     # Free-text note the athlete writes when finishing, to remember something.
     note: Mapped[str | None] = mapped_column(default=None)
@@ -473,6 +478,7 @@ class SessionLog(Base):
         order_by="SessionLogEntry.position",
     )
     training_session: Mapped["TrainingSession"] = relationship()
+    week: Mapped["Week | None"] = relationship()
 
 
 class SessionLogEntry(Base):

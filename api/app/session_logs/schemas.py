@@ -43,13 +43,27 @@ class LogFormExercise(BaseModel):
         return str(value)
 
 
+class LogFormWeek(BaseModel):
+    """A calendar week the athlete can assign this log to (one that recommends this
+    training's type)."""
+
+    id: uuid.UUID
+    name: str
+
+    @field_serializer("id")
+    def serialize_id(self, value: uuid.UUID) -> str:
+        return str(value)
+
+
 class LogFormResponse(BaseModel):
     """Everything needed to render the 'start session' form: the session's exercises
-    (in order), each with its alternatives and trackable parameters."""
+    (in order), each with its alternatives and trackable parameters, plus the weeks
+    this session can be assigned to."""
 
     training_id: uuid.UUID
     title: str | None
     exercises: list[LogFormExercise] = []
+    weeks: list[LogFormWeek] = []
 
     @field_serializer("training_id")
     def serialize_training_id(self, value: uuid.UUID) -> str:
@@ -79,7 +93,15 @@ class LogEntryInput(BaseModel):
 
 class CreateSessionLogRequest(BaseModel):
     note: str | None = None
+    # The calendar week this session counts towards (optional).
+    week_id: uuid.UUID | None = None
     entries: list[LogEntryInput] = []
+
+
+class UpdateSessionLogWeekRequest(BaseModel):
+    """Change (or clear) which calendar week a log counts towards."""
+
+    week_id: uuid.UUID | None = None
 
 
 # ---- log read-back (returned on create) -------------------------------------
@@ -116,11 +138,13 @@ class SessionLogResponse(BaseModel):
     training_session_id: uuid.UUID
     performed_at: datetime
     note: str | None
+    week_id: uuid.UUID | None
+    week_name: str | None
     entries: list[LogEntryResponse] = []
 
-    @field_serializer("id", "training_session_id")
-    def serialize_ids(self, value: uuid.UUID) -> str:
-        return str(value)
+    @field_serializer("id", "training_session_id", "week_id")
+    def serialize_ids(self, value: uuid.UUID | None) -> str | None:
+        return str(value) if value is not None else None
 
 
 class SessionLogSummaryResponse(BaseModel):
