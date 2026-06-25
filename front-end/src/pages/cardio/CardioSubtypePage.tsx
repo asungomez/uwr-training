@@ -68,8 +68,12 @@ function CardioSubtypePage() {
   )
 
   // Local copy so a drag reorders instantly; resynced when server data changes
-  // (adjusting state during render avoids a cascading re-render).
-  const [ordered, setOrdered] = useState<CardioTraining[]>([])
+  // (adjusting state during render avoids a cascading re-render). `ordered` and
+  // `syncedItems` must init from the SAME source: on SPA navigation back to a
+  // cached page `data` is already populated on the first render, so seeding
+  // `ordered` with [] would leave it empty (the guard sees them already equal and
+  // never syncs) → a non-empty list rendered as empty.
+  const [ordered, setOrdered] = useState<CardioTraining[]>(data?.items ?? [])
   const [syncedItems, setSyncedItems] = useState(data?.items)
   if (data?.items !== syncedItems) {
     setSyncedItems(data?.items)

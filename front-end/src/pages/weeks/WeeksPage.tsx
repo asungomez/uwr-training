@@ -57,7 +57,11 @@ function WeeksPage() {
   )
 
   // Local copy so a drag reorders instantly; resynced when server data changes.
-  const [ordered, setOrdered] = useState<Week[]>([])
+  // `ordered` and `syncedItems` must init from the SAME source: on SPA navigation
+  // back to a cached page, `data` is already populated on the first render, so
+  // seeding `ordered` with [] here would leave it empty (the sync guard sees them
+  // already equal and never runs) → a non-empty list rendered as empty.
+  const [ordered, setOrdered] = useState<Week[]>(data?.items ?? [])
   const [syncedItems, setSyncedItems] = useState(data?.items)
   if (data?.items !== syncedItems) {
     setSyncedItems(data?.items)
