@@ -2107,7 +2107,7 @@ export interface components {
          * TrainingSubtype
          * @enum {string}
          */
-        TrainingSubtype: "adaptation" | "accumulation" | "transmutation" | "realization" | "endurance" | "alactic" | "aerobic" | "anaerobic" | "strength";
+        TrainingSubtype: "adaptation" | "accumulation" | "transmutation" | "realization" | "endurance" | "alactic" | "aerobic" | "anaerobic" | "strength" | "speed";
         /**
          * UpdateCardioLogWeekRequest
          * @description Change (or clear) which calendar week a cardio log counts towards.

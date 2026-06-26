@@ -43,6 +43,7 @@ class TrainingSubtype(enum.StrEnum):
     anaerobic = "anaerobic"
     # test
     strength = "strength"
+    speed = "speed"
 
 
 # Which subtypes are valid for each category (enforced in the API layer).
@@ -63,7 +64,7 @@ SUBTYPES_BY_CATEGORY: dict[TrainingCategory, tuple[TrainingSubtype, ...]] = {
         TrainingSubtype.anaerobic,
         TrainingSubtype.alactic,
     ),
-    TrainingCategory.test: (TrainingSubtype.strength,),
+    TrainingCategory.test: (TrainingSubtype.strength, TrainingSubtype.speed),
 }
 
 

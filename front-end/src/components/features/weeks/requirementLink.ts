@@ -17,11 +17,13 @@ export function requirementLabel(category: Category, subtype: Subtype): string {
 }
 
 /** Link to the destination for a requirement's type. Cardio is its own model with
- *  its own slugs/route; gym & pool share the standard training list; the strength
- *  test links to its own page. */
+ *  its own slugs/route; gym & pool share the standard training list; each test links
+ *  to its own page. */
 export function requirementLink(category: Category, subtype: Subtype): string | null {
-  // The only test for now is the strength test; link straight to its page.
-  if (category === 'test') return '/pruebas/fuerza'
+  // Tests each have their own explanation page.
+  if (category === 'test') {
+    return subtype === 'speed' ? '/pruebas/velocidad' : '/pruebas/fuerza'
+  }
   if (category === 'cardio') {
     // Cardio subtypes are a subset of the shared subtypes; map via cardio slugs.
     const slug = cardioSubtypeSlugs[subtype as CardioSubtype] ?? subtypeSlugs[subtype]

@@ -32,6 +32,7 @@ export const subtypeLabels: Record<Subtype, string> = {
   alactic: 'Aláctico',
   aerobic: 'Aeróbico',
   strength: 'Fuerza',
+  speed: 'Velocidad',
 }
 
 // Which subtypes belong to each category, mirroring SUBTYPES_BY_CATEGORY on the API.
@@ -39,7 +40,7 @@ export const subtypesByCategory: Record<Category, Subtype[]> = {
   gym: ['adaptation', 'accumulation', 'transmutation', 'realization'],
   pool: ['endurance', 'anaerobic', 'alactic'],
   cardio: ['aerobic', 'anaerobic', 'alactic'],
-  test: ['strength'],
+  test: ['strength', 'speed'],
 }
 
 export const categoryOptions: { value: Category; label: string }[] = (
@@ -77,6 +78,7 @@ export const subtypeSlugs: Record<Subtype, string> = {
   alactic: 'alactico',
   aerobic: 'aerobico',
   strength: 'fuerza',
+  speed: 'velocidad',
 }
 
 /** Resolve a subtype URL slug to its value, scoped to the category (so a slug only

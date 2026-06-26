@@ -8,6 +8,7 @@ import BodyweightPage from '@/pages/bodyweight/BodyweightPage'
 import EditStrengthTestPage from '@/pages/tests/edit/EditStrengthTestPage'
 import StrengthTestLogDetailPage from '@/pages/tests/logs/[logId]/StrengthTestLogDetailPage'
 import RegisterStrengthTestPage from '@/pages/tests/register/RegisterStrengthTestPage'
+import SpeedTestPage from '@/pages/tests/SpeedTestPage'
 import StrengthTestPage from '@/pages/tests/StrengthTestPage'
 import EditExercisePage from '@/pages/exercises/[id]/edit/EditExercisePage'
 import ExerciseDetailPage from '@/pages/exercises/[id]/ExerciseDetailPage'
@@ -120,6 +121,7 @@ function App() {
           <Route element={<AdminRoute />}>
             <Route path="/pruebas/fuerza/editar" element={<EditStrengthTestPage />} />
           </Route>
+          <Route path="/pruebas/velocidad" element={<SpeedTestPage />} />
           <Route path="/usuarios" element={<AdminRoute />}>
             <Route index element={<UsersPage />} />
             <Route path=":id" element={<UserDetailPage />} />

@@ -17,10 +17,9 @@ def test_sidebar_has_pruebas_section(
 
     nav = page.get_by_role("navigation").first
     expect(nav.get_by_text("Pruebas", exact=True)).to_be_visible()
-    # "Prueba de fuerza" is a real link; "Prueba de velocidad" isn't (no destination yet).
+    # Both tests are now real links under the Pruebas section.
     expect(nav.get_by_role("link", name="Prueba de fuerza")).to_be_visible()
-    expect(nav.get_by_role("link", name="Prueba de velocidad")).to_have_count(0)
-    expect(nav.get_by_text("Prueba de velocidad", exact=True)).to_be_visible()
+    expect(nav.get_by_role("link", name="Prueba de velocidad")).to_be_visible()
 
 
 def test_strength_test_link_opens_explanation(

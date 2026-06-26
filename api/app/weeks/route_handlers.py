@@ -12,6 +12,7 @@ from app.errors import ErrorCode, api_error
 from app.models import (
     SUBTYPES_BY_CATEGORY,
     TrainingCategory,
+    TrainingSubtype,
     User,
     Week,
     WeekRequirement,
@@ -35,11 +36,11 @@ router = APIRouter(prefix="/weeks", tags=["weeks"])
 
 def _build_requirements(requirements: list[RequirementInput]) -> list[WeekRequirement]:
     """Build ordered WeekRequirement rows from the submitted list. Rejects a
-    subtype that doesn't belong to its category, or a non-positive count. A week
-    may have at most one "test" requirement, and its count is always 1 (a test is
-    a single event, not a recurring session)."""
+    subtype that doesn't belong to its category, or a non-positive count. Each test
+    (e.g. strength, speed) is a single event: its count is always 1, and a week can
+    have at most one of each test subtype (though it may mix different ones)."""
     rows: list[WeekRequirement] = []
-    test_count = 0
+    seen_test_subtypes: set[TrainingSubtype] = set()
     for position, item in enumerate(requirements):
         if item.subtype not in SUBTYPES_BY_CATEGORY[item.category]:
             raise api_error(
@@ -49,13 +50,13 @@ def _build_requirements(requirements: list[RequirementInput]) -> list[WeekRequir
             )
         count = item.count
         if item.category is TrainingCategory.test:
-            test_count += 1
-            if test_count > 1:
+            if item.subtype in seen_test_subtypes:
                 raise api_error(
                     status.HTTP_400_BAD_REQUEST,
                     ErrorCode.invalid_week,
-                    "A week can have at most one test",
+                    "A week can have at most one of each test",
                 )
+            seen_test_subtypes.add(item.subtype)
             count = 1  # a test is always a single event, ignore any submitted count
         elif count < 1:
             raise api_error(
