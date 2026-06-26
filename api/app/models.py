@@ -564,3 +564,18 @@ class CardioSessionLog(Base):
 
     cardio_training: Mapped["CardioTraining"] = relationship()
     week: Mapped["Week | None"] = relationship()
+
+
+class BodyweightLog(Base):
+    """One body-weight measurement (in kilograms) by an athlete, timestamped. The
+    athlete's weight history — most recent first — and a small recent-points graph
+    are built from these."""
+
+    __tablename__ = "bodyweight_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    athlete_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    weight_kg: Mapped[float] = mapped_column()
+    recorded_at: Mapped[datetime] = mapped_column(_TZ, server_default=func.now())

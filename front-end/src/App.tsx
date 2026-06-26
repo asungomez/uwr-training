@@ -4,6 +4,7 @@ import AdminRoute from '@/auth/AdminRoute'
 import { useAuth } from '@/auth/context'
 import AppLayout from '@/components/features/layout/AppLayout'
 import AcceptInvitationPage from '@/pages/accept-invitation/[token]/AcceptInvitationPage'
+import BodyweightPage from '@/pages/bodyweight/BodyweightPage'
 import EditExercisePage from '@/pages/exercises/[id]/edit/EditExercisePage'
 import ExerciseDetailPage from '@/pages/exercises/[id]/ExerciseDetailPage'
 import ExercisesPage from '@/pages/exercises/ExercisesPage'
@@ -108,6 +109,7 @@ function App() {
             </Route>
             <Route path=":id" element={<WeekDetailPage />} />
           </Route>
+          <Route path="/registro-peso" element={<BodyweightPage />} />
           <Route path="/usuarios" element={<AdminRoute />}>
             <Route index element={<UsersPage />} />
             <Route path=":id" element={<UserDetailPage />} />

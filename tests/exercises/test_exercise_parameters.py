@@ -76,7 +76,7 @@ def test_admin_adds_parameters_when_creating(
     expect(page.get_by_role("status").filter(has_text="Ejercicio creado.")).to_be_visible()
     expect(page.get_by_role("heading", name="Press banca")).to_be_visible()
     expect(page.get_by_role("heading", name="Parámetros")).to_be_visible()
-    expect(page.get_by_text("Peso")).to_be_visible()
+    expect(page.get_by_text("Peso", exact=True)).to_be_visible()
     expect(page.get_by_text("En kilos")).to_be_visible()
 
 

@@ -738,6 +738,51 @@ export interface paths {
         patch: operations["update_cardio_log_week_cardio_trainings__training_id__logs__log_id__week_patch"];
         trace?: never;
     };
+    "/bodyweight-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Bodyweight Logs
+         * @description The current athlete's body-weight history, most recent first (paginated).
+         */
+        get: operations["list_bodyweight_logs_bodyweight_logs_get"];
+        put?: never;
+        /**
+         * Create Bodyweight Log
+         * @description Record the current athlete's body weight (kg), timestamped now.
+         */
+        post: operations["create_bodyweight_log_bodyweight_logs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bodyweight-logs/recent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Recent Bodyweight Logs
+         * @description The athlete's last few measurements for the history graph, oldest first so
+         *     the chart reads left-to-right. Fixed-size and independent of list pagination.
+         */
+        get: operations["recent_bodyweight_logs_bodyweight_logs_recent_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -773,6 +818,21 @@ export interface components {
              * @default []
              */
             sub_blocks: components["schemas"]["SubBlockResponse"][];
+        };
+        /**
+         * BodyweightLogResponse
+         * @description One body-weight measurement: the value in kilos and when it was recorded.
+         */
+        BodyweightLogResponse: {
+            /** Id */
+            id: string;
+            /** Weight Kg */
+            weight_kg: number;
+            /**
+             * Recorded At
+             * Format: date-time
+             */
+            recorded_at: string;
         };
         /**
          * CardioIntervalKind
@@ -940,6 +1000,14 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /**
+         * CreateBodyweightLogRequest
+         * @description Record the athlete's current body weight, in kilograms.
+         */
+        CreateBodyweightLogRequest: {
+            /** Weight Kg */
+            weight_kg: number;
         };
         /** CreateCardioLogRequest */
         CreateCardioLogRequest: {
@@ -1407,6 +1475,13 @@ export interface components {
          * @enum {string}
          */
         MesocyclePhase: "adaptation" | "accumulation" | "transmutation" | "realization";
+        /** Page[BodyweightLogResponse] */
+        Page_BodyweightLogResponse_: {
+            /** Items */
+            items: components["schemas"]["BodyweightLogResponse"][];
+            /** Total Count */
+            total_count: number;
+        };
         /** Page[CardioLogSummaryResponse] */
         Page_CardioLogSummaryResponse_: {
             /** Items */
@@ -3616,6 +3691,106 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CardioLogResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_bodyweight_logs_bodyweight_logs_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_BodyweightLogResponse_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_bodyweight_log_bodyweight_logs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateBodyweightLogRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BodyweightLogResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recent_bodyweight_logs_bodyweight_logs_recent_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BodyweightLogResponse"][];
                 };
             };
             /** @description Validation Error */

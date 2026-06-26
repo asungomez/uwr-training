@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth import router as auth_router
+from app.bodyweight_logs import router as bodyweight_logs_router
 from app.cardio import router as cardio_router
 from app.cardio_logs import router as cardio_logs_router
 from app.exercises import router as exercises_router
@@ -28,3 +29,4 @@ app.include_router(cardio_router)
 app.include_router(weeks_router)
 app.include_router(session_logs_router)
 app.include_router(cardio_logs_router)
+app.include_router(bodyweight_logs_router)

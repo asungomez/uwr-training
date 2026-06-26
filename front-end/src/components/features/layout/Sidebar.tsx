@@ -1,4 +1,4 @@
-import { CalendarDays, Dumbbell, ListChecks, Users } from 'lucide-react'
+import { CalendarDays, Dumbbell, ListChecks, Scale, Users } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 
 import { useAuth } from '@/auth/context'
@@ -51,6 +51,10 @@ function Sidebar({ onNavigate }: SidebarProps) {
       <NavLink to="/calendario" className={linkClass} onClick={onNavigate}>
         <CalendarDays size={18} />
         Calendario
+      </NavLink>
+      <NavLink to="/registro-peso" className={linkClass} onClick={onNavigate}>
+        <Scale size={18} />
+        Registro de peso
       </NavLink>
 
       {isAdmin && (

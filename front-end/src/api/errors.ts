@@ -30,6 +30,7 @@ const messages: Record<string, string> = {
   session_log_not_found: 'No se ha encontrado el registro.',
   invitation_not_found: 'La invitación no existe o ya fue utilizada.',
   invitation_expired: 'La invitación ha caducado.',
+  invalid_bodyweight_log: 'El peso indicado no es válido.',
 }
 
 const FALLBACK = 'Ha ocurrido un error. Inténtalo de nuevo.'
