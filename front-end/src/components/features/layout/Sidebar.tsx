@@ -1,4 +1,4 @@
-import { CalendarDays, Dumbbell, ListChecks, Scale, Users } from 'lucide-react'
+import { CalendarDays, Dumbbell, Gauge, ListChecks, Scale, Users } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 
 import { useAuth } from '@/auth/context'
@@ -56,6 +56,22 @@ function Sidebar({ onNavigate }: SidebarProps) {
         <Scale size={18} />
         Registro de peso
       </NavLink>
+
+      {/* Pruebas: a non-navigating header with its tests beneath. "Prueba de
+          velocidad" has no destination yet → a disabled placeholder. */}
+      <div className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-slate-300">
+        <Gauge size={18} />
+        Pruebas
+      </div>
+      <NavLink to="/pruebas/fuerza" className={subLinkClass} onClick={onNavigate}>
+        Prueba de fuerza
+      </NavLink>
+      <span
+        aria-disabled="true"
+        className="flex cursor-not-allowed items-center rounded-md py-1.5 pr-3 pl-11 text-sm text-slate-600"
+      >
+        Prueba de velocidad
+      </span>
 
       {isAdmin && (
         <>

@@ -783,6 +783,118 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/strength-test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Strength Test
+         * @description The strength test: its ordered exercises and their body-weight multipliers.
+         */
+        get: operations["get_strength_test_strength_test_get"];
+        /**
+         * Update Strength Test
+         * @description Replace the whole strength test with the submitted ordered list. Each item
+         *     must point to an existing gym exercise and carry a positive multiplier.
+         */
+        put: operations["update_strength_test_strength_test_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/strength-test-logs/form": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Strength Test Log Form
+         * @description What the athlete needs to take the test: their latest body weight, each
+         *     exercise with its target load (body weight x multiplier), and the assignable
+         *     weeks (those recommending test/strength and not yet full) + the recommended one.
+         */
+        get: operations["get_strength_test_log_form_strength_test_logs_form_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/strength-test-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Strength Test Logs
+         * @description The current athlete's strength-test logs, most recent first.
+         */
+        get: operations["list_strength_test_logs_strength_test_logs_get"];
+        put?: never;
+        /**
+         * Create Strength Test Log
+         * @description Record the current athlete taking the strength test: the actual load lifted per
+         *     exercise (targets frozen from their latest body weight) and the optional week.
+         */
+        post: operations["create_strength_test_log_strength_test_logs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/strength-test-logs/{log_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Strength Test Log
+         * @description One of the current athlete's strength-test logs.
+         */
+        get: operations["get_strength_test_log_strength_test_logs__log_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/strength-test-logs/{log_id}/week": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Strength Test Log Week
+         * @description Change (or clear) which calendar week this strength-test log counts towards.
+         */
+        patch: operations["update_strength_test_log_week_strength_test_logs__log_id__week_patch"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1070,6 +1182,16 @@ export interface components {
              * @default []
              */
             entries: components["schemas"]["LogEntryInput"][];
+        };
+        /** CreateStrengthTestLogRequest */
+        CreateStrengthTestLogRequest: {
+            /**
+             * Entries
+             * @default []
+             */
+            entries: components["schemas"]["StrengthTestLogEntryInput"][];
+            /** Week Id */
+            week_id?: string | null;
         };
         /** CreateTrainingRequest */
         CreateTrainingRequest: {
@@ -1524,6 +1646,13 @@ export interface components {
             /** Total Count */
             total_count: number;
         };
+        /** Page[StrengthTestLogSummaryResponse] */
+        Page_StrengthTestLogSummaryResponse_: {
+            /** Items */
+            items: components["schemas"]["StrengthTestLogSummaryResponse"][];
+            /** Total Count */
+            total_count: number;
+        };
         /** Page[TrainingSessionResponse] */
         Page_TrainingSessionResponse_: {
             /** Items */
@@ -1702,6 +1831,148 @@ export interface components {
             /** Note */
             note: string | null;
         };
+        /**
+         * StrengthTestItemInput
+         * @description One row of the strength test as submitted by the admin: a gym exercise and
+         *     the multiplier applied to body weight for the target load.
+         */
+        StrengthTestItemInput: {
+            /**
+             * Exercise Id
+             * Format: uuid
+             */
+            exercise_id: string;
+            /** Weight Multiplier */
+            weight_multiplier: number;
+        };
+        /** StrengthTestItemResponse */
+        StrengthTestItemResponse: {
+            /** Id */
+            id: string;
+            /** Exercise Id */
+            exercise_id: string;
+            /** Exercise Name */
+            exercise_name: string;
+            /** Weight Multiplier */
+            weight_multiplier: number;
+        };
+        /**
+         * StrengthTestLogEntryInput
+         * @description The weight the athlete actually lifted for one exercise of the test.
+         */
+        StrengthTestLogEntryInput: {
+            /**
+             * Exercise Id
+             * Format: uuid
+             */
+            exercise_id: string;
+            /** Actual Weight Kg */
+            actual_weight_kg: number;
+        };
+        /** StrengthTestLogEntryResponse */
+        StrengthTestLogEntryResponse: {
+            /** Exercise Id */
+            exercise_id: string;
+            /** Exercise Name */
+            exercise_name: string;
+            /** Target Weight Kg */
+            target_weight_kg: number;
+            /** Actual Weight Kg */
+            actual_weight_kg: number;
+        };
+        /**
+         * StrengthTestLogFormExercise
+         * @description One exercise to perform in the test, with the target load computed from the
+         *     athlete's latest body weight x the exercise's multiplier.
+         */
+        StrengthTestLogFormExercise: {
+            /** Exercise Id */
+            exercise_id: string;
+            /** Exercise Name */
+            exercise_name: string;
+            /** Weight Multiplier */
+            weight_multiplier: number;
+            /** Target Weight Kg */
+            target_weight_kg: number;
+        };
+        /**
+         * StrengthTestLogFormResponse
+         * @description Everything the athlete needs to take the test: the reference body weight, the
+         *     exercises with their target loads, and the assignable weeks (+ recommended one).
+         */
+        StrengthTestLogFormResponse: {
+            /** Bodyweight Kg */
+            bodyweight_kg: number;
+            /**
+             * Exercises
+             * @default []
+             */
+            exercises: components["schemas"]["StrengthTestLogFormExercise"][];
+            /**
+             * Weeks
+             * @default []
+             */
+            weeks: components["schemas"]["StrengthTestLogFormWeek"][];
+            /** Recommended Week Id */
+            recommended_week_id?: string | null;
+        };
+        /**
+         * StrengthTestLogFormWeek
+         * @description A calendar week the athlete can assign this strength-test log to.
+         */
+        StrengthTestLogFormWeek: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /** StrengthTestLogResponse */
+        StrengthTestLogResponse: {
+            /** Id */
+            id: string | null;
+            /**
+             * Performed At
+             * Format: date-time
+             */
+            performed_at: string;
+            /** Bodyweight Kg */
+            bodyweight_kg: number;
+            /** Week Id */
+            week_id: string | null;
+            /** Week Name */
+            week_name: string | null;
+            /**
+             * Entries
+             * @default []
+             */
+            entries: components["schemas"]["StrengthTestLogEntryResponse"][];
+        };
+        /**
+         * StrengthTestLogSummaryResponse
+         * @description List view of a strength-test log: just when it was taken and the reference weight.
+         */
+        StrengthTestLogSummaryResponse: {
+            /** Id */
+            id: string;
+            /**
+             * Performed At
+             * Format: date-time
+             */
+            performed_at: string;
+            /** Bodyweight Kg */
+            bodyweight_kg: number;
+        };
+        /**
+         * StrengthTestResponse
+         * @description The strength test: its ordered exercises with their multipliers.
+         */
+        StrengthTestResponse: {
+            /**
+             * Items
+             * @default []
+             */
+            items: components["schemas"]["StrengthTestItemResponse"][];
+        };
         /** SubBlockInput */
         SubBlockInput: {
             /** Name */
@@ -1856,6 +2127,25 @@ export interface components {
             /** Week Id */
             week_id?: string | null;
         };
+        /**
+         * UpdateStrengthTestLogWeekRequest
+         * @description Change (or clear) which calendar week a strength-test log counts towards.
+         */
+        UpdateStrengthTestLogWeekRequest: {
+            /** Week Id */
+            week_id?: string | null;
+        };
+        /**
+         * UpdateStrengthTestRequest
+         * @description Replaces the whole strength test with this ordered list of items.
+         */
+        UpdateStrengthTestRequest: {
+            /**
+             * Items
+             * @default []
+             */
+            items: components["schemas"]["StrengthTestItemInput"][];
+        };
         /** UpdateTrainingRequest */
         UpdateTrainingRequest: {
             /** Title */
@@ -1969,8 +2259,9 @@ export interface components {
         /**
          * WeekLogSummary
          * @description A log (of the requesting athlete) that counts towards a requirement. `kind`
-         *     tells gym/pool ("training") from cardio logs so the UI can link to the right
-         *     detail page; `training_id` is the TrainingSession or CardioTraining id.
+         *     tells gym/pool ("training") from cardio ("cardio") and strength tests ("test"),
+         *     so the UI links to the right detail page. `training_id` is the TrainingSession or
+         *     CardioTraining id — null for a strength test, which has no training entity.
          */
         WeekLogSummary: {
             /** Log Id */
@@ -1979,9 +2270,9 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "training" | "cardio";
+            kind: "training" | "cardio" | "test";
             /** Training Id */
-            training_id: string;
+            training_id: string | null;
             /** Training Title */
             training_title: string | null;
             /**
@@ -3791,6 +4082,242 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BodyweightLogResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_strength_test_strength_test_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StrengthTestResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_strength_test_strength_test_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateStrengthTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StrengthTestResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_strength_test_log_form_strength_test_logs_form_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StrengthTestLogFormResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_strength_test_logs_strength_test_logs_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_StrengthTestLogSummaryResponse_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_strength_test_log_strength_test_logs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateStrengthTestLogRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StrengthTestLogResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_strength_test_log_strength_test_logs__log_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                log_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StrengthTestLogResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_strength_test_log_week_strength_test_logs__log_id__week_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                log_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateStrengthTestLogWeekRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StrengthTestLogResponse"];
                 };
             };
             /** @description Validation Error */

@@ -31,6 +31,11 @@ const messages: Record<string, string> = {
   invitation_not_found: 'La invitación no existe o ya fue utilizada.',
   invitation_expired: 'La invitación ha caducado.',
   invalid_bodyweight_log: 'El peso indicado no es válido.',
+  invalid_strength_test: 'Algún ejercicio de la prueba no es válido.',
+  invalid_strength_test_log: 'No se ha podido registrar la prueba. Revisa los pesos.',
+  strength_test_log_not_found: 'No se ha encontrado el registro.',
+  no_bodyweight: 'Necesitas al menos un registro de peso corporal para hacer la prueba.',
+  empty_strength_test: 'La prueba de fuerza todavía no tiene ejercicios.',
 }
 
 const FALLBACK = 'Ha ocurrido un error. Inténtalo de nuevo.'

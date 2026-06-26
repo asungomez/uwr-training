@@ -38,6 +38,11 @@ class ErrorCode(enum.StrEnum):
     invalid_cardio_log = "invalid_cardio_log"
     cardio_log_not_found = "cardio_log_not_found"
     invalid_bodyweight_log = "invalid_bodyweight_log"
+    invalid_strength_test = "invalid_strength_test"
+    invalid_strength_test_log = "invalid_strength_test_log"
+    strength_test_log_not_found = "strength_test_log_not_found"
+    no_bodyweight = "no_bodyweight"
+    empty_strength_test = "empty_strength_test"
 
 
 def api_error(status_code: int, code: ErrorCode, message: str) -> HTTPException:

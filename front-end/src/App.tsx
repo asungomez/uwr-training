@@ -5,6 +5,10 @@ import { useAuth } from '@/auth/context'
 import AppLayout from '@/components/features/layout/AppLayout'
 import AcceptInvitationPage from '@/pages/accept-invitation/[token]/AcceptInvitationPage'
 import BodyweightPage from '@/pages/bodyweight/BodyweightPage'
+import EditStrengthTestPage from '@/pages/tests/edit/EditStrengthTestPage'
+import StrengthTestLogDetailPage from '@/pages/tests/logs/[logId]/StrengthTestLogDetailPage'
+import RegisterStrengthTestPage from '@/pages/tests/register/RegisterStrengthTestPage'
+import StrengthTestPage from '@/pages/tests/StrengthTestPage'
 import EditExercisePage from '@/pages/exercises/[id]/edit/EditExercisePage'
 import ExerciseDetailPage from '@/pages/exercises/[id]/ExerciseDetailPage'
 import ExercisesPage from '@/pages/exercises/ExercisesPage'
@@ -110,6 +114,12 @@ function App() {
             <Route path=":id" element={<WeekDetailPage />} />
           </Route>
           <Route path="/registro-peso" element={<BodyweightPage />} />
+          <Route path="/pruebas/fuerza" element={<StrengthTestPage />} />
+          <Route path="/pruebas/fuerza/registrar" element={<RegisterStrengthTestPage />} />
+          <Route path="/pruebas/fuerza/registros/:logId" element={<StrengthTestLogDetailPage />} />
+          <Route element={<AdminRoute />}>
+            <Route path="/pruebas/fuerza/editar" element={<EditStrengthTestPage />} />
+          </Route>
           <Route path="/usuarios" element={<AdminRoute />}>
             <Route index element={<UsersPage />} />
             <Route path=":id" element={<UserDetailPage />} />

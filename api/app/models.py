@@ -583,3 +583,71 @@ class BodyweightLog(Base):
     )
     weight_kg: Mapped[float] = mapped_column()
     recorded_at: Mapped[datetime] = mapped_column(_TZ, server_default=func.now())
+
+
+class StrengthTestItem(Base):
+    """One gym exercise in THE strength test, with a weight multiplier applied to the
+    athlete's body weight to get the target load (e.g. deadlift x1.5). There's a
+    single global, ordered set of these — no per-session tests — so the whole table
+    IS the strength test; admins edit it as one ordered list."""
+
+    __tablename__ = "strength_test_items"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    position: Mapped[int]
+    exercise_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("exercises.id", ondelete="CASCADE"), index=True
+    )
+    weight_multiplier: Mapped[float] = mapped_column()
+
+    exercise: Mapped["Exercise"] = relationship()
+
+
+class StrengthTestLog(Base):
+    """One athlete taking the strength test once: per-exercise, the target load (frozen
+    at log time from their body weight x the exercise's multiplier) and the actual load
+    they lifted. Counts towards a week's test/strength requirement like other logs."""
+
+    __tablename__ = "strength_test_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    athlete_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    # The calendar week this log counts towards (optional, editable). SET NULL so
+    # deleting a week doesn't lose the log, just its link.
+    week_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("weeks.id", ondelete="SET NULL"), default=None, index=True
+    )
+    # The body weight (kg) the targets were computed from, frozen at log time.
+    bodyweight_kg: Mapped[float] = mapped_column()
+    performed_at: Mapped[datetime] = mapped_column(_TZ, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(_TZ, server_default=func.now())
+
+    entries: Mapped[list["StrengthTestLogEntry"]] = relationship(
+        back_populates="log",
+        cascade="all, delete-orphan",
+        order_by="StrengthTestLogEntry.position",
+    )
+    week: Mapped["Week | None"] = relationship()
+
+
+class StrengthTestLogEntry(Base):
+    """One exercise within a strength-test log: the target load (frozen at log time)
+    and the weight the athlete actually lifted."""
+
+    __tablename__ = "strength_test_log_entries"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    log_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("strength_test_logs.id", ondelete="CASCADE"), index=True
+    )
+    position: Mapped[int]
+    exercise_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("exercises.id", ondelete="CASCADE"), index=True
+    )
+    target_weight_kg: Mapped[float] = mapped_column()
+    actual_weight_kg: Mapped[float] = mapped_column()
+
+    log: Mapped["StrengthTestLog"] = relationship(back_populates="entries")
+    exercise: Mapped["Exercise"] = relationship()

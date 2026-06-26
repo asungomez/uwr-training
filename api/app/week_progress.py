@@ -19,6 +19,7 @@ from app.models import (
     CardioSessionLog,
     CardioTraining,
     SessionLog,
+    StrengthTestLog,
     TrainingCategory,
     TrainingSession,
     TrainingSubtype,
@@ -29,18 +30,23 @@ from app.models import (
 
 class WeekLogSummary(BaseModel):
     """A log (of the requesting athlete) that counts towards a requirement. `kind`
-    tells gym/pool ("training") from cardio logs so the UI can link to the right
-    detail page; `training_id` is the TrainingSession or CardioTraining id."""
+    tells gym/pool ("training") from cardio ("cardio") and strength tests ("test"),
+    so the UI links to the right detail page. `training_id` is the TrainingSession or
+    CardioTraining id — null for a strength test, which has no training entity."""
 
     log_id: uuid.UUID
-    kind: Literal["training", "cardio"]
-    training_id: uuid.UUID
+    kind: Literal["training", "cardio", "test"]
+    training_id: uuid.UUID | None
     training_title: str | None
     performed_at: datetime
 
-    @field_serializer("log_id", "training_id")
-    def serialize_ids(self, value: uuid.UUID) -> str:
+    @field_serializer("log_id")
+    def serialize_log_id(self, value: uuid.UUID) -> str:
         return str(value)
+
+    @field_serializer("training_id")
+    def serialize_training_id(self, value: uuid.UUID | None) -> str | None:
+        return str(value) if value is not None else None
 
 
 # The athlete's logs grouped by (week, category, subtype) — what a requirement counts.
@@ -72,37 +78,61 @@ async def logs_by_requirement(
         .where(CardioSessionLog.athlete_id == athlete_id, CardioSessionLog.week_id.in_(week_ids))
         .order_by(CardioSessionLog.performed_at.desc())
     )
+    # strength-test logs: always count as test/strength.
+    test_rows = await session.scalars(
+        select(StrengthTestLog)
+        .where(StrengthTestLog.athlete_id == athlete_id, StrengthTestLog.week_id.in_(week_ids))
+        .order_by(StrengthTestLog.performed_at.desc())
+    )
 
     Row = tuple[uuid.UUID, TrainingCategory, TrainingSubtype, WeekLogSummary]
-    rows: list[Row] = [
-        (
-            log.week_id,
-            training.category,
-            training.subtype,
-            WeekLogSummary(
-                log_id=log.id,
-                kind="training",
-                training_id=training.id,
-                training_title=training.title,
-                performed_at=log.performed_at,
-            ),
-        )
-        for log, training in training_rows.all()
-    ] + [
-        (
-            log.week_id,
-            TrainingCategory.cardio,
-            TrainingSubtype(training.subtype.value),
-            WeekLogSummary(
-                log_id=log.id,
-                kind="cardio",
-                training_id=training.id,
-                training_title=training.title,
-                performed_at=log.performed_at,
-            ),
-        )
-        for log, training in cardio_rows.all()
-    ]
+    rows: list[Row] = (
+        [
+            (
+                log.week_id,
+                training.category,
+                training.subtype,
+                WeekLogSummary(
+                    log_id=log.id,
+                    kind="training",
+                    training_id=training.id,
+                    training_title=training.title,
+                    performed_at=log.performed_at,
+                ),
+            )
+            for log, training in training_rows.all()
+        ]
+        + [
+            (
+                log.week_id,
+                TrainingCategory.cardio,
+                TrainingSubtype(training.subtype.value),
+                WeekLogSummary(
+                    log_id=log.id,
+                    kind="cardio",
+                    training_id=training.id,
+                    training_title=training.title,
+                    performed_at=log.performed_at,
+                ),
+            )
+            for log, training in cardio_rows.all()
+        ]
+        + [
+            (
+                log.week_id,
+                TrainingCategory.test,
+                TrainingSubtype.strength,
+                WeekLogSummary(
+                    log_id=log.id,
+                    kind="test",
+                    training_id=None,
+                    training_title="Prueba de fuerza",
+                    performed_at=log.performed_at,
+                ),
+            )
+            for log in test_rows.all()
+        ]
+    )
 
     # Merge, keeping most-recent-first order per key.
     rows.sort(key=lambda r: r[3].performed_at, reverse=True)
@@ -180,7 +210,16 @@ async def latest_used_week(session: AsyncSession, athlete_id: uuid.UUID) -> Week
             .limit(1)
         )
     ).first()
-    candidates = [row for row in (training_row, cardio_row) if row is not None]
+    test_row = (
+        await session.execute(
+            select(Week, StrengthTestLog.performed_at)
+            .join(StrengthTestLog, StrengthTestLog.week_id == Week.id)
+            .where(StrengthTestLog.athlete_id == athlete_id)
+            .order_by(StrengthTestLog.performed_at.desc())
+            .limit(1)
+        )
+    ).first()
+    candidates = [row for row in (training_row, cardio_row, test_row) if row is not None]
     if not candidates:
         return None
     week: Week = max(candidates, key=lambda row: row[1])[0]

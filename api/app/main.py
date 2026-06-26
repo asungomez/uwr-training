@@ -9,6 +9,8 @@ from app.exercises import router as exercises_router
 from app.health import router as health_router
 from app.session_logs import router as session_logs_router
 from app.settings import settings
+from app.strength_test_logs import router as strength_test_logs_router
+from app.strength_tests import router as strength_tests_router
 from app.trainings import router as trainings_router
 from app.weeks import router as weeks_router
 
@@ -30,3 +32,5 @@ app.include_router(weeks_router)
 app.include_router(session_logs_router)
 app.include_router(cardio_logs_router)
 app.include_router(bodyweight_logs_router)
+app.include_router(strength_tests_router)
+app.include_router(strength_test_logs_router)

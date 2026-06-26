@@ -99,23 +99,31 @@ function WeekDetailPage() {
 
                     {req.logs.length > 0 && (
                       <ul className="mt-3 flex flex-col gap-1 border-t border-slate-700 pt-3">
-                        {req.logs.map((log) => (
-                          <li key={log.log_id}>
-                            <Link
-                              to={
-                                log.kind === 'cardio'
-                                  ? `/entrenamientos/cardio/sesion/${log.training_id}/registros/${log.log_id}`
-                                  : `/entrenamientos/${log.training_id}/registros/${log.log_id}`
-                              }
-                              className="flex items-center justify-between gap-3 text-sm text-slate-300 transition-colors hover:text-slate-100"
-                            >
-                              <span className="truncate">{log.training_title ?? 'Sin título'}</span>
-                              <span className="shrink-0 text-slate-500">
-                                {formatLogDate(log.performed_at)}
-                              </span>
-                            </Link>
-                          </li>
-                        ))}
+                        {req.logs.map((log) => {
+                          // Each log kind has its own detail route; strength-test
+                          // logs aren't tied to a training.
+                          const logLink =
+                            log.kind === 'cardio'
+                              ? `/entrenamientos/cardio/sesion/${log.training_id}/registros/${log.log_id}`
+                              : log.kind === 'test'
+                                ? `/pruebas/fuerza/registros/${log.log_id}`
+                                : `/entrenamientos/${log.training_id}/registros/${log.log_id}`
+                          return (
+                            <li key={log.log_id}>
+                              <Link
+                                to={logLink}
+                                className="flex items-center justify-between gap-3 text-sm text-slate-300 transition-colors hover:text-slate-100"
+                              >
+                                <span className="truncate">
+                                  {log.training_title ?? 'Sin título'}
+                                </span>
+                                <span className="shrink-0 text-slate-500">
+                                  {formatLogDate(log.performed_at)}
+                                </span>
+                              </Link>
+                            </li>
+                          )
+                        })}
                       </ul>
                     )}
                   </li>
