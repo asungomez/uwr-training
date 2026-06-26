@@ -129,7 +129,9 @@ export function ExerciseMetaSection({ exercise, onSelectExercise }: SectionProps
         </div>
       )}
 
-      <ExerciseLogList exerciseId={exercise.id} />
+      {/* In the in-training panel (onSelectExercise set) show only the last time;
+          the standalone detail page shows the full paginated history. */}
+      <ExerciseLogList exerciseId={exercise.id} compact={onSelectExercise !== undefined} />
     </div>
   )
 }

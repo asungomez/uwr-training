@@ -212,7 +212,7 @@ function SeriesLogCard({
       {/* History for the exercise actually being performed (standard or chosen
           alternative) — a reference for the parameters used last time. */}
       <div className="mt-4 border-t border-slate-700 pt-3">
-        <ExerciseLogList exerciseId={state.performedExerciseId || plannedId} />
+        <ExerciseLogList exerciseId={state.performedExerciseId || plannedId} compact />
       </div>
     </li>
   )
