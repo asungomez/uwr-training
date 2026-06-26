@@ -1118,13 +1118,19 @@ export interface components {
         };
         /**
          * LogFormAlternative
-         * @description An alternative exercise the athlete may pick instead of the prescribed one.
+         * @description An alternative exercise the athlete may pick instead of the prescribed one,
+         *     with its own trackable parameters (shown when it's the one performed).
          */
         LogFormAlternative: {
             /** Exercise Id */
             exercise_id: string;
             /** Name */
             name: string;
+            /**
+             * Parameters
+             * @default []
+             */
+            parameters: components["schemas"]["LogFormParameter"][];
         };
         /**
          * LogFormExercise

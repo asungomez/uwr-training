@@ -106,11 +106,19 @@ function RegisterSessionPage() {
           }
         }
         const formExercise = formByExerciseId.get(plannedId)
+        const performedId = state.performedExerciseId || plannedId
+        // Parameters belong to the exercise actually performed — the planned one,
+        // or the chosen alternative (which carries its own parameters).
+        const performedParams =
+          performedId === plannedId
+            ? (formExercise?.parameters ?? [])
+            : (formExercise?.alternatives.find((alt) => alt.exercise_id === performedId)
+                ?.parameters ?? [])
         return {
           planned_exercise_id: plannedId,
           action: 'done' as const,
-          performed_exercise_id: state.performedExerciseId || plannedId,
-          parameter_values: (formExercise?.parameters ?? [])
+          performed_exercise_id: performedId,
+          parameter_values: performedParams
             .map((param) => ({
               parameter_id: param.parameter_id,
               value: state.paramValues[param.parameter_id] ?? '',

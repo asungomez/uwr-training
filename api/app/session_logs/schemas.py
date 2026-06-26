@@ -9,23 +9,25 @@ from app.models import SessionLogAction
 # ---- log form (what the athlete fills in) -----------------------------------
 
 
-class LogFormAlternative(BaseModel):
-    """An alternative exercise the athlete may pick instead of the prescribed one."""
-
-    exercise_id: uuid.UUID
-    name: str
-
-    @field_serializer("exercise_id")
-    def serialize_exercise_id(self, value: uuid.UUID) -> str:
-        return str(value)
-
-
 class LogFormParameter(BaseModel):
     parameter_id: uuid.UUID
     name: str
 
     @field_serializer("parameter_id")
     def serialize_parameter_id(self, value: uuid.UUID) -> str:
+        return str(value)
+
+
+class LogFormAlternative(BaseModel):
+    """An alternative exercise the athlete may pick instead of the prescribed one,
+    with its own trackable parameters (shown when it's the one performed)."""
+
+    exercise_id: uuid.UUID
+    name: str
+    parameters: list[LogFormParameter] = []
+
+    @field_serializer("exercise_id")
+    def serialize_exercise_id(self, value: uuid.UUID) -> str:
         return str(value)
 
 

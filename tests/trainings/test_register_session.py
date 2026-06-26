@@ -20,8 +20,11 @@ def _make_training(
     create_training: Callable[..., TrainingSession],
 ) -> TrainingSession:
     """A gym training with two series — a squat (with a 'Peso' parameter and one
-    alternative) and a plank (no params/alternatives) — plus an inter-item note."""
-    alt = create_exercise(name="Zancada", type="gym")
+    alternative, which also tracks 'Peso') and a plank (no params/alternatives) —
+    plus an inter-item note."""
+    alt = create_exercise(
+        name="Zancada", type="gym", parameters=[ExerciseParameter(name="Peso")]
+    )
     squat = create_exercise(
         name="Sentadilla",
         type="gym",

@@ -47,8 +47,9 @@ router = APIRouter(prefix="/trainings", tags=["session-logs"])
 async def _load_session_exercises(
     session: AsyncSession, training_id: uuid.UUID
 ) -> TrainingSession | None:
-    """Fetch a session with its series items' exercises, and each exercise's
-    related (alternatives) + parameters loaded — for the log form."""
+    """Fetch a session with its series items' exercises, each exercise's parameters
+    and its alternatives (with the alternative's own parameters) loaded — for the
+    log form, where switching to an alternative shows the alternative's parameters."""
     training: TrainingSession | None = await session.scalar(
         select(TrainingSession)
         .where(TrainingSession.id == training_id)
@@ -58,7 +59,8 @@ async def _load_session_exercises(
             .selectinload(TrainingSubBlock.items)
             .selectinload(TrainingItem.exercise)
             .selectinload(Exercise.related)
-            .selectinload(ExerciseRelation.related_exercise),
+            .selectinload(ExerciseRelation.related_exercise)
+            .selectinload(Exercise.parameters),
             selectinload(TrainingSession.blocks)
             .selectinload(TrainingBlock.sub_blocks)
             .selectinload(TrainingSubBlock.items)
@@ -237,6 +239,10 @@ async def get_log_form(
                 LogFormAlternative(
                     exercise_id=relation.related_exercise.id,
                     name=relation.related_exercise.name,
+                    parameters=[
+                        LogFormParameter(parameter_id=param.id, name=param.name)
+                        for param in relation.related_exercise.parameters
+                    ],
                 )
                 for relation in exercise.related
             ],
@@ -343,7 +349,9 @@ async def create_session_log(
                 "Performed exercise is not a valid option for this item",
             )
 
-        params_by_id = {param.id: param for param in planned.parameters}
+        # Parameters belong to the exercise actually performed (the alternative,
+        # when swapped) — not the prescribed one.
+        params_by_id = {param.id: param for param in performed.parameters}
         values = []
         for value_position, value in enumerate(entry.parameter_values):
             if value.parameter_id not in params_by_id:

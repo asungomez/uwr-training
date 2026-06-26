@@ -42,16 +42,18 @@ function SeriesLogCard({
   const [picking, setPicking] = useState(false)
   const fields = prescriptionFields(item)
   const alternatives = formExercise?.alternatives ?? []
-  const parameters = formExercise?.parameters ?? []
   const plannedId = item.exercise_id ?? ''
-
-  // The name to show for the performed exercise (prescribed or a chosen alternative).
-  const performedName =
-    state.performedExerciseId === plannedId
-      ? item.exercise_name
-      : (alternatives.find((alt) => alt.exercise_id === state.performedExerciseId)?.name ??
-        item.exercise_name)
   const isAlternative = state.performedExerciseId !== plannedId
+
+  // The chosen alternative (when swapped) drives the name and which parameters to
+  // record — each exercise has its own parameters.
+  const performedAlt = alternatives.find((alt) => alt.exercise_id === state.performedExerciseId)
+  const performedName = isAlternative
+    ? (performedAlt?.name ?? item.exercise_name)
+    : item.exercise_name
+  const parameters = isAlternative
+    ? (performedAlt?.parameters ?? [])
+    : (formExercise?.parameters ?? [])
 
   function performWith(exerciseId: string) {
     onChange({ ...state, performedExerciseId: exerciseId })
