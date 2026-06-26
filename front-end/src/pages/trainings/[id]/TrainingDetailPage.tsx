@@ -80,7 +80,10 @@ function TrainingDetailPage() {
 
   return (
     <section>
-      <nav className="flex items-center gap-1 text-sm text-slate-400" aria-label="Migas de pan">
+      <nav
+        className="flex flex-wrap items-center gap-1 text-sm break-words text-slate-400"
+        aria-label="Migas de pan"
+      >
         <Link to="/entrenamientos" className="transition-colors hover:text-slate-200">
           Entrenamientos
         </Link>
@@ -121,7 +124,7 @@ function TrainingDetailPage() {
 
           {data && (
             <div className="mt-6">
-              <h1 className="text-2xl font-semibold tracking-tight text-slate-100">
+              <h1 className="text-2xl font-semibold tracking-tight break-words text-slate-100">
                 {data.title ?? <span className="text-slate-500">{BLANK}</span>}
               </h1>
               <div className="mt-2 flex flex-wrap items-center gap-2">

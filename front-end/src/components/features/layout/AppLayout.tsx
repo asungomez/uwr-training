@@ -49,7 +49,10 @@ function AppLayout() {
           </>
         )}
 
-        <main className="flex-1 p-6">
+        {/* min-w-0 lets this flex child shrink instead of being pushed wider than
+            the viewport by long content; overflow-x-hidden is a final guard so a
+            stray wide element never scrolls the whole page sideways on mobile. */}
+        <main className="min-w-0 flex-1 overflow-x-hidden p-6">
           <Outlet />
         </main>
       </div>

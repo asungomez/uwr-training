@@ -20,12 +20,12 @@ function TrainingItemView({ item, onSelectExercise }: TrainingItemViewProps) {
 
   const fields = prescriptionFields(item)
   return (
-    <li className="text-slate-300">
+    <li className="break-words text-slate-300">
       {item.exercise_id ? (
         <button
           type="button"
           onClick={() => onSelectExercise(item.exercise_id!)}
-          className="font-medium text-indigo-400 transition-colors hover:text-indigo-300"
+          className="text-left font-medium break-words text-indigo-400 transition-colors hover:text-indigo-300"
         >
           {item.exercise_name}
         </button>
