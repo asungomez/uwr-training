@@ -22,6 +22,8 @@ from app.models import (
 from app.pagination import Page, PaginationParams
 from app.strength_test_logs.schemas import (
     CreateStrengthTestLogRequest,
+    LatestResult,
+    LatestResultsResponse,
     StrengthTestLogEntryResponse,
     StrengthTestLogFormExercise,
     StrengthTestLogFormResponse,
@@ -190,6 +192,35 @@ async def create_strength_test_log(
     reloaded = await _load_log(session, log.id)
     assert reloaded is not None
     return _serialize(reloaded)
+
+
+@router.get("/latest-results", response_model=LatestResultsResponse)
+async def latest_strength_test_results(
+    user: Annotated[User, Depends(current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> LatestResultsResponse:
+    """The current athlete's most recent lifted weight per exercise, across all their
+    strength-test logs. Used to turn a training item's load % into absolute kg."""
+    rows = await session.execute(
+        select(
+            StrengthTestLogEntry.exercise_id,
+            StrengthTestLogEntry.actual_weight_kg,
+            StrengthTestLog.performed_at,
+        )
+        .join(StrengthTestLog, StrengthTestLogEntry.log_id == StrengthTestLog.id)
+        .where(StrengthTestLog.athlete_id == user.id)
+        .order_by(StrengthTestLog.performed_at.desc())
+    )
+    # Rows are newest-first, so the first time we see an exercise is its latest result.
+    latest: dict[uuid.UUID, float] = {}
+    for exercise_id, weight, _performed_at in rows.all():
+        latest.setdefault(exercise_id, weight)
+    return LatestResultsResponse(
+        results=[
+            LatestResult(exercise_id=exercise_id, weight_kg=weight)
+            for exercise_id, weight in latest.items()
+        ]
+    )
 
 
 @router.get("", response_model=Page[StrengthTestLogSummaryResponse])

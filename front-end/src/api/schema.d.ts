@@ -855,6 +855,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/strength-test-logs/latest-results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Latest Strength Test Results
+         * @description The current athlete's most recent lifted weight per exercise, across all their
+         *     strength-test logs. Used to turn a training item's load % into absolute kg.
+         */
+        get: operations["latest_strength_test_results_strength_test_logs_latest_results_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/strength-test-logs/{log_id}": {
         parameters: {
             query?: never;
@@ -1397,6 +1418,8 @@ export interface components {
             distance_meters?: number | null;
             /** Effort */
             effort?: string | null;
+            /** Load Percentage */
+            load_percentage?: number | null;
         };
         /** ItemResponse */
         ItemResponse: {
@@ -1419,6 +1442,30 @@ export interface components {
             distance_meters?: number | null;
             /** Effort */
             effort?: string | null;
+            /** Load Percentage */
+            load_percentage?: number | null;
+        };
+        /**
+         * LatestResult
+         * @description The athlete's most recent strength-test result for one exercise — the weight
+         *     they lifted. Used to turn a training item's load % into an absolute kg.
+         */
+        LatestResult: {
+            /** Exercise Id */
+            exercise_id: string;
+            /** Weight Kg */
+            weight_kg: number;
+        };
+        /**
+         * LatestResultsResponse
+         * @description The athlete's latest result per exercise (only exercises they've ever tested).
+         */
+        LatestResultsResponse: {
+            /**
+             * Results
+             * @default []
+             */
+            results: components["schemas"]["LatestResult"][];
         };
         /**
          * LogEntryInput
@@ -4248,6 +4295,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StrengthTestLogResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    latest_strength_test_results_strength_test_logs_latest_results_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LatestResultsResponse"];
                 };
             };
             /** @description Validation Error */

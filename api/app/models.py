@@ -308,6 +308,10 @@ class TrainingItem(Base):
     duration_seconds: Mapped[int | None] = mapped_column(default=None)
     distance_meters: Mapped[int | None] = mapped_column(default=None)
     effort: Mapped[str | None] = mapped_column(default=None)
+    # Target load as a percentage (out of 100, may be fractional e.g. 55.6) of the
+    # athlete's latest strength-test result for this exercise. Only meaningful for
+    # exercises in the strength test; the absolute kg is computed per-athlete at view time.
+    load_percentage: Mapped[float | None] = mapped_column(default=None)
 
     # kind == note: free text shown between series.
     text: Mapped[str | None] = mapped_column(default=None)

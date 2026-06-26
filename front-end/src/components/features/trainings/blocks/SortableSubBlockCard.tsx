@@ -47,6 +47,7 @@ function newSeries(): SeriesDraft {
     time: '',
     distance: '',
     effort: '',
+    load: '',
     notes: '',
   }
 }

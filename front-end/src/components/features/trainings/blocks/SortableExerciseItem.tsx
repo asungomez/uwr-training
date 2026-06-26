@@ -27,7 +27,7 @@ interface FieldProps {
   value: string
   onChange: (value: string) => void
   placeholder?: string
-  inputMode?: 'numeric' | 'text'
+  inputMode?: 'numeric' | 'text' | 'decimal'
 }
 
 function SeriesField({ label, value, onChange, placeholder, inputMode = 'numeric' }: FieldProps) {
@@ -80,6 +80,11 @@ function SortableExerciseItem({
     { keepPreviousData: true },
   )
   const results = data?.items ?? []
+
+  // The load field only applies to exercises that are part of the strength test
+  // (its result is what the % is taken from). SWR dedupes this across all rows.
+  const { data: strengthTest } = useQuery('/strength-test', {})
+  const isTested = strengthTest?.items.some((sti) => sti.exercise_id === item.exerciseId) ?? false
 
   function pickExercise(exerciseId: string, exerciseName: string) {
     onChange({ ...item, exerciseId, exerciseName })
@@ -163,6 +168,15 @@ function SortableExerciseItem({
                 onChange={(value) => onChange({ ...item, effort: value })}
                 inputMode="text"
               />
+              {isTested && (
+                <SeriesField
+                  label="Carga (%)"
+                  value={item.load}
+                  onChange={(value) => onChange({ ...item, load: value })}
+                  placeholder="% de la prueba"
+                  inputMode="decimal"
+                />
+              )}
             </div>
             <textarea
               value={item.notes}

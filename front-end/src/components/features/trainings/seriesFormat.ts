@@ -42,3 +42,12 @@ export function parseOptionalInt(value: string): number | null {
   const parsed = Number(trimmed)
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : null
 }
+
+/** Parse a possibly-fractional number string (e.g. "55.6") to a non-negative
+ *  number, or null if blank/invalid. Accepts comma decimals. */
+export function parseOptionalNumber(value: string): number | null {
+  const trimmed = value.trim().replace(',', '.')
+  if (!trimmed) return null
+  const parsed = Number(trimmed)
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null
+}

@@ -33,6 +33,13 @@ function TrainingDetailPage() {
     params: { path: { training_id: trainingId } },
   })
 
+  // The athlete's latest strength-test result per exercise, to turn a series' load %
+  // into an absolute kg. Keyed by exercise id.
+  const { data: latestResults } = useQuery('/strength-test-logs/latest-results', {})
+  const testWeightByExercise = new Map(
+    (latestResults?.results ?? []).map((result) => [result.exercise_id, result.weight_kg]),
+  )
+
   // ?ejercicio=<id> opens that exercise in the side panel; selecting another just
   // replaces the param (no history entry, so Back leaves the training cleanly).
   const [searchParams, setSearchParams] = useSearchParams()
@@ -163,6 +170,11 @@ function TrainingDetailPage() {
                                       key={item.id}
                                       item={item}
                                       onSelectExercise={selectExercise}
+                                      latestTestWeight={
+                                        item.exercise_id
+                                          ? (testWeightByExercise.get(item.exercise_id) ?? null)
+                                          : null
+                                      }
                                     />
                                   ))}
                                 </ol>

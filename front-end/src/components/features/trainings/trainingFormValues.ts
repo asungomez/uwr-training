@@ -1,6 +1,11 @@
 import type { components } from '@/api/schema'
 
-import { formatSecondsAsTime, parseOptionalInt, parseTimeToSeconds } from './seriesFormat'
+import {
+  formatSecondsAsTime,
+  parseOptionalInt,
+  parseOptionalNumber,
+  parseTimeToSeconds,
+} from './seriesFormat'
 import type { TrainingFormValues } from './TrainingForm'
 
 type TrainingDetail = components['schemas']['TrainingSessionDetailResponse']
@@ -20,6 +25,7 @@ function itemToFormValue(item: ItemResponse) {
       time: formatSecondsAsTime(item.duration_seconds),
       distance: item.distance_meters != null ? String(item.distance_meters) : '',
       effort: item.effort ?? '',
+      load: item.load_percentage != null ? String(item.load_percentage) : '',
       notes: item.text ?? '',
     }
   }
@@ -38,6 +44,7 @@ function itemToBody(
       duration_seconds: parseTimeToSeconds(item.time),
       distance_meters: parseOptionalInt(item.distance),
       effort: item.effort.trim() || null,
+      load_percentage: parseOptionalNumber(item.load),
       text: item.notes.trim() || null,
     }
   }

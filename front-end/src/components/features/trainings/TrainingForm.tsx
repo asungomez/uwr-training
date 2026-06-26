@@ -39,6 +39,7 @@ const schema = z.object({
                 time: z.string(),
                 distance: z.string(),
                 effort: z.string(),
+                load: z.string(),
                 notes: z.string(),
               }),
             ]),

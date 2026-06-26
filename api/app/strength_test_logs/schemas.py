@@ -97,3 +97,21 @@ class StrengthTestLogSummaryResponse(BaseModel):
     @field_serializer("id")
     def serialize_id(self, value: uuid.UUID) -> str:
         return str(value)
+
+
+class LatestResult(BaseModel):
+    """The athlete's most recent strength-test result for one exercise — the weight
+    they lifted. Used to turn a training item's load % into an absolute kg."""
+
+    exercise_id: uuid.UUID
+    weight_kg: float
+
+    @field_serializer("exercise_id")
+    def serialize_id(self, value: uuid.UUID) -> str:
+        return str(value)
+
+
+class LatestResultsResponse(BaseModel):
+    """The athlete's latest result per exercise (only exercises they've ever tested)."""
+
+    results: list[LatestResult] = []

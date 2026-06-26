@@ -21,6 +21,9 @@ class ItemInput(BaseModel):
     duration_seconds: int | None = None
     distance_meters: int | None = None
     effort: str | None = None
+    # Load as a % (out of 100, may be fractional) of the athlete's latest
+    # strength-test result for this exercise.
+    load_percentage: float | None = None
 
 
 class SubBlockInput(BaseModel):
@@ -98,6 +101,9 @@ class ItemResponse(BaseModel):
     duration_seconds: int | None = None
     distance_meters: int | None = None
     effort: str | None = None
+    # Target load as a % (out of 100, may be fractional) of the latest strength-test
+    # result for this exercise. The absolute kg is computed per-athlete by the client.
+    load_percentage: float | None = None
 
     @field_serializer("id")
     def serialize_id(self, value: uuid.UUID) -> str:

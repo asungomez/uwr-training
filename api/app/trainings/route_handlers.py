@@ -105,6 +105,8 @@ def _build_items(items: list[ItemInput]) -> list[TrainingItem]:
                 )
             effort = item.effort.strip() if item.effort else None
             text = item.text.strip() if item.text else None
+            # A load only makes sense as a positive percentage; drop 0/negatives.
+            load = item.load_percentage if (item.load_percentage or 0) > 0 else None
             rows.append(
                 TrainingItem(
                     kind=TrainingItemKind.series,
@@ -115,6 +117,7 @@ def _build_items(items: list[ItemInput]) -> list[TrainingItem]:
                     duration_seconds=item.duration_seconds,
                     distance_meters=item.distance_meters,
                     effort=effort or None,
+                    load_percentage=load,
                     text=text or None,
                 )
             )

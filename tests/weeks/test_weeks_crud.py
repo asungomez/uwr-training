@@ -165,10 +165,11 @@ def test_admin_adds_strength_test_without_sessions_count(
     page.get_by_role("button", name="Crear semana").click()
     expect(page.get_by_role("status").filter(has_text="Semana creada.")).to_be_visible()
 
-    # The detail page lists the test as plain text (no training-list link) at 0/1.
+    # The detail page lists the test at 0/1, linking to the strength test page.
     main = page.get_by_role("main")
-    expect(main.get_by_text("Prueba · Fuerza")).to_be_visible()
-    expect(main.get_by_role("link", name="Prueba · Fuerza")).to_have_count(0)
+    test_link = main.get_by_role("link", name="Prueba · Fuerza")
+    expect(test_link).to_be_visible()
+    expect(test_link).to_have_attribute("href", "/pruebas/fuerza")
     expect(main.get_by_text("0/1", exact=True)).to_be_visible()
 
 

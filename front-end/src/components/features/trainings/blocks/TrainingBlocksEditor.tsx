@@ -41,6 +41,8 @@ export interface SeriesDraft {
   time: string
   distance: string
   effort: string
+  // Load as a % of the latest strength-test result (only for tested exercises).
+  load: string
   notes: string
 }
 
