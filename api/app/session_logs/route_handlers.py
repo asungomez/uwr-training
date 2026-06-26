@@ -167,15 +167,30 @@ async def _incomplete_weeks_recommending(
     return [week for week in weeks if done.get(week.id, 0) < required.get(week.id, 0)]
 
 
-async def _latest_used_week_id(session: AsyncSession, athlete_id: uuid.UUID) -> uuid.UUID | None:
+async def _latest_used_week(session: AsyncSession, athlete_id: uuid.UUID) -> Week | None:
     """The week the athlete most recently linked any logged session to (of any type),
     or None if they've never linked a log to a week."""
-    return await session.scalar(
-        select(SessionLog.week_id)
-        .where(SessionLog.athlete_id == athlete_id, SessionLog.week_id.is_not(None))
+    week: Week | None = await session.scalar(
+        select(Week)
+        .join(SessionLog, SessionLog.week_id == Week.id)
+        .where(SessionLog.athlete_id == athlete_id)
         .order_by(SessionLog.performed_at.desc())
         .limit(1)
     )
+    return week
+
+
+def _recommended_week_id(latest: Week | None, selectable: list[Week]) -> uuid.UUID | None:
+    """Which selectable week to pre-select, given the athlete's latest-used week:
+    that week if it's still selectable, else the next selectable one after it by
+    position (e.g. latest week 3, selectable 1,2,5,7 → 5), else nothing."""
+    if latest is None:
+        return None
+    if any(week.id == latest.id for week in selectable):
+        return latest.id
+    # `selectable` is ordered by position; take the first one past the latest week.
+    nxt = next((week for week in selectable if week.position > latest.position), None)
+    return nxt.id if nxt is not None else None
 
 
 def _serialize_log(log: SessionLog) -> SessionLogResponse:
@@ -258,11 +273,11 @@ async def get_log_form(
     selectable = await _incomplete_weeks_recommending(session, training, user.id)
     weeks = [LogFormWeek(id=week.id, name=week.name) for week in selectable]
 
-    # Pre-select the week the athlete is currently working on — the latest one they
-    # logged anything to — but only if it can still take this kind of training.
-    latest = await _latest_used_week_id(session, user.id)
-    selectable_ids = {week.id for week in selectable}
-    recommended_week_id = latest if latest in selectable_ids else None
+    # Pre-select around the week the athlete is currently working on (the latest one
+    # they logged anything to): that week if it can still take this training, else
+    # the next selectable week after it.
+    latest = await _latest_used_week(session, user.id)
+    recommended_week_id = _recommended_week_id(latest, selectable)
 
     return LogFormResponse(
         training_id=training.id,

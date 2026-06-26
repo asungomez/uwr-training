@@ -179,3 +179,61 @@ def test_register_preselects_latest_used_week(
     expect(select).not_to_have_value("")
     selected_label = select.evaluate("el => el.options[el.selectedIndex].label")
     assert selected_label == "Semana dos"
+
+
+def test_register_preselects_next_available_week(
+    page: Page,
+    app_url: str,
+    create_user: Callable[..., User],
+    create_exercise: Callable[..., Exercise],
+    create_training: Callable[..., TrainingSession],
+    create_week: Callable[..., Week],
+    log_in_as: Callable[[User], None],
+) -> None:
+    member = create_user(role="member", email="member@example.com")
+    gym = _gym_accumulation_training(create_exercise, create_training)
+    # A pool training to log into a week that doesn't recommend gym.
+    pool_ex = create_exercise(name="Nado", type="pool")
+    pool = create_training(
+        title="Pool",
+        category="pool",
+        subtype="endurance",
+        blocks=[
+            TrainingBlock(
+                name="B",
+                position=0,
+                sub_blocks=[
+                    TrainingSubBlock(
+                        name="S",
+                        position=0,
+                        items=[
+                            TrainingItem(
+                                kind=TrainingItemKind.series, position=0, exercise_id=pool_ex.id
+                            )
+                        ],
+                    )
+                ],
+            )
+        ],
+    )
+    # Weeks in order: gym, pool-only (latest will be here), gym. The gym training's
+    # selectable weeks are "Gym uno" and "Gym dos"; the pool week is between them.
+    _week(create_week, "Gym uno", "gym", "accumulation")
+    _week(create_week, "Solo pool", "pool", "endurance")
+    _week(create_week, "Gym dos", "gym", "accumulation")
+    log_in_as(member)
+
+    # Log the pool session into "Solo pool" → that becomes the latest-used week,
+    # but it isn't selectable for the gym training.
+    page.goto(f"{app_url}/entrenamientos/{pool.id}/registrar")
+    page.get_by_role("button", name="Hecho").first.click()
+    page.get_by_label("Semana", exact=True).select_option(label="Solo pool")
+    page.get_by_role("button", name="Finalizar sesión").click()
+    expect(page.get_by_role("status").filter(has_text="Sesión registrada.")).to_be_visible()
+
+    # Registering the gym training recommends the next selectable week after the
+    # latest-used one → "Gym dos" (not "Gym uno", which is before it).
+    page.goto(f"{app_url}/entrenamientos/{gym.id}/registrar")
+    select = page.get_by_label("Semana", exact=True)
+    selected_label = select.evaluate("el => el.options[el.selectedIndex].label")
+    assert selected_label == "Gym dos"
