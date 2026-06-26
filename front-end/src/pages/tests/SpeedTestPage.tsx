@@ -1,3 +1,9 @@
+import { Pencil, Play } from 'lucide-react'
+import { Link } from 'react-router-dom'
+
+import { useAuth } from '@/auth/context'
+import SpeedTestLogList from '@/components/features/tests/SpeedTestLogList'
+
 // Scoring scale for the 25 m underwater fins sprint: the time (seconds) and its
 // rating. Lower time → better score. Starting scale (no admin editing yet).
 const SPEED_SCORES: { seconds: string; label: string }[] = [
@@ -11,6 +17,9 @@ const SPEED_SCORES: { seconds: string; label: string }[] = [
 ]
 
 function SpeedTestPage() {
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
+
   return (
     <section className="max-w-2xl">
       <h1 className="text-2xl font-semibold tracking-tight text-slate-100">Prueba de velocidad</h1>
@@ -42,6 +51,27 @@ function SpeedTestPage() {
           </tbody>
         </table>
       </div>
+
+      <div className="mt-6 flex flex-wrap gap-2">
+        <Link
+          to="/pruebas/velocidad/registrar"
+          className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+        >
+          <Play size={16} />
+          Empezar prueba
+        </Link>
+        {isAdmin && (
+          <Link
+            to="/pruebas/velocidad/editar-calentamiento"
+            className="inline-flex items-center gap-2 rounded-md border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+          >
+            <Pencil size={16} />
+            Editar calentamiento
+          </Link>
+        )}
+      </div>
+
+      <SpeedTestLogList />
     </section>
   )
 }

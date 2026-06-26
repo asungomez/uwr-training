@@ -32,6 +32,7 @@ pytest_plugins = [
     "seeding.week.fixtures",
     "seeding.bodyweight.fixtures",
     "seeding.strength_test.fixtures",
+    "seeding.speed_test.fixtures",
 ]
 
 REPO_ROOT = Path(__file__).resolve().parent.parent

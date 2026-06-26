@@ -43,6 +43,8 @@ class ErrorCode(enum.StrEnum):
     strength_test_log_not_found = "strength_test_log_not_found"
     no_bodyweight = "no_bodyweight"
     empty_strength_test = "empty_strength_test"
+    invalid_speed_test_log = "invalid_speed_test_log"
+    speed_test_log_not_found = "speed_test_log_not_found"
 
 
 def api_error(status_code: int, code: ErrorCode, message: str) -> HTTPException:

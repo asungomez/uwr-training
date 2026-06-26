@@ -19,6 +19,7 @@ from app.models import (
     CardioSessionLog,
     CardioTraining,
     SessionLog,
+    SpeedTestLog,
     StrengthTestLog,
     TrainingCategory,
     TrainingSession,
@@ -30,12 +31,13 @@ from app.models import (
 
 class WeekLogSummary(BaseModel):
     """A log (of the requesting athlete) that counts towards a requirement. `kind`
-    tells gym/pool ("training") from cardio ("cardio") and strength tests ("test"),
-    so the UI links to the right detail page. `training_id` is the TrainingSession or
-    CardioTraining id — null for a strength test, which has no training entity."""
+    tells gym/pool ("training") from cardio ("cardio"), strength tests ("test") and
+    speed tests ("speed-test"), so the UI links to the right detail page.
+    `training_id` is the TrainingSession or CardioTraining id — null for the tests,
+    which have no training entity."""
 
     log_id: uuid.UUID
-    kind: Literal["training", "cardio", "test"]
+    kind: Literal["training", "cardio", "test", "speed-test"]
     training_id: uuid.UUID | None
     training_title: str | None
     performed_at: datetime
@@ -84,6 +86,12 @@ async def logs_by_requirement(
         .where(StrengthTestLog.athlete_id == athlete_id, StrengthTestLog.week_id.in_(week_ids))
         .order_by(StrengthTestLog.performed_at.desc())
     )
+    # speed-test logs: always count as test/speed.
+    speed_rows = await session.scalars(
+        select(SpeedTestLog)
+        .where(SpeedTestLog.athlete_id == athlete_id, SpeedTestLog.week_id.in_(week_ids))
+        .order_by(SpeedTestLog.performed_at.desc())
+    )
 
     Row = tuple[uuid.UUID, TrainingCategory, TrainingSubtype, WeekLogSummary]
     rows: list[Row] = (
@@ -131,6 +139,21 @@ async def logs_by_requirement(
                 ),
             )
             for log in test_rows.all()
+        ]
+        + [
+            (
+                log.week_id,
+                TrainingCategory.test,
+                TrainingSubtype.speed,
+                WeekLogSummary(
+                    log_id=log.id,
+                    kind="speed-test",
+                    training_id=None,
+                    training_title="Prueba de velocidad",
+                    performed_at=log.performed_at,
+                ),
+            )
+            for log in speed_rows.all()
         ]
     )
 
@@ -219,7 +242,16 @@ async def latest_used_week(session: AsyncSession, athlete_id: uuid.UUID) -> Week
             .limit(1)
         )
     ).first()
-    candidates = [row for row in (training_row, cardio_row, test_row) if row is not None]
+    speed_row = (
+        await session.execute(
+            select(Week, SpeedTestLog.performed_at)
+            .join(SpeedTestLog, SpeedTestLog.week_id == Week.id)
+            .where(SpeedTestLog.athlete_id == athlete_id)
+            .order_by(SpeedTestLog.performed_at.desc())
+            .limit(1)
+        )
+    ).first()
+    candidates = [row for row in (training_row, cardio_row, test_row, speed_row) if row is not None]
     if not candidates:
         return None
     week: Week = max(candidates, key=lambda row: row[1])[0]

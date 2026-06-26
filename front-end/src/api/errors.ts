@@ -36,6 +36,8 @@ const messages: Record<string, string> = {
   strength_test_log_not_found: 'No se ha encontrado el registro.',
   no_bodyweight: 'Necesitas al menos un registro de peso corporal para hacer la prueba.',
   empty_strength_test: 'La prueba de fuerza todavía no tiene ejercicios.',
+  invalid_speed_test_log: 'No se ha podido registrar la prueba. Revisa el tiempo.',
+  speed_test_log_not_found: 'No se ha encontrado el registro.',
 }
 
 const FALLBACK = 'Ha ocurrido un error. Inténtalo de nuevo.'

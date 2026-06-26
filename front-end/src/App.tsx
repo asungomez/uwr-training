@@ -6,6 +6,9 @@ import AppLayout from '@/components/features/layout/AppLayout'
 import AcceptInvitationPage from '@/pages/accept-invitation/[token]/AcceptInvitationPage'
 import BodyweightPage from '@/pages/bodyweight/BodyweightPage'
 import EditStrengthTestPage from '@/pages/tests/edit/EditStrengthTestPage'
+import EditWarmupPage from '@/pages/tests/edit/EditWarmupPage'
+import SpeedTestLogDetailPage from '@/pages/tests/logs/[logId]/SpeedTestLogDetailPage'
+import RegisterSpeedTestPage from '@/pages/tests/register/RegisterSpeedTestPage'
 import StrengthTestLogDetailPage from '@/pages/tests/logs/[logId]/StrengthTestLogDetailPage'
 import RegisterStrengthTestPage from '@/pages/tests/register/RegisterStrengthTestPage'
 import SpeedTestPage from '@/pages/tests/SpeedTestPage'
@@ -122,6 +125,11 @@ function App() {
             <Route path="/pruebas/fuerza/editar" element={<EditStrengthTestPage />} />
           </Route>
           <Route path="/pruebas/velocidad" element={<SpeedTestPage />} />
+          <Route path="/pruebas/velocidad/registrar" element={<RegisterSpeedTestPage />} />
+          <Route path="/pruebas/velocidad/registros/:logId" element={<SpeedTestLogDetailPage />} />
+          <Route element={<AdminRoute />}>
+            <Route path="/pruebas/velocidad/editar-calentamiento" element={<EditWarmupPage />} />
+          </Route>
           <Route path="/usuarios" element={<AdminRoute />}>
             <Route index element={<UsersPage />} />
             <Route path=":id" element={<UserDetailPage />} />

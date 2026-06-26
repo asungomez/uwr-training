@@ -107,7 +107,9 @@ function WeekDetailPage() {
                               ? `/entrenamientos/cardio/sesion/${log.training_id}/registros/${log.log_id}`
                               : log.kind === 'test'
                                 ? `/pruebas/fuerza/registros/${log.log_id}`
-                                : `/entrenamientos/${log.training_id}/registros/${log.log_id}`
+                                : log.kind === 'speed-test'
+                                  ? `/pruebas/velocidad/registros/${log.log_id}`
+                                  : `/entrenamientos/${log.training_id}/registros/${log.log_id}`
                           return (
                             <li key={log.log_id}>
                               <Link

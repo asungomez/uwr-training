@@ -656,3 +656,42 @@ class StrengthTestLogEntry(Base):
 
     log: Mapped["StrengthTestLog"] = relationship(back_populates="entries")
     exercise: Mapped["Exercise"] = relationship()
+
+
+class SpeedTestWarmup(Base):
+    """Singleton pointer to THE speed-test warmup. The warmup is an ordinary pool
+    TrainingSession (so it reuses the whole block/item model and the training form);
+    this one-row table just records which session it is, and lets the trainings list
+    hide it from the normal pool listing."""
+
+    __tablename__ = "speed_test_warmup"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    training_session_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("training_sessions.id", ondelete="CASCADE"), unique=True
+    )
+
+    training_session: Mapped["TrainingSession"] = relationship()
+
+
+class SpeedTestLog(Base):
+    """One athlete taking the speed test once: the time (seconds, with decimals) for
+    the 25 m underwater fins sprint. Counts towards a week's test/speed requirement
+    like other logs."""
+
+    __tablename__ = "speed_test_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    athlete_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    # The calendar week this log counts towards (optional, editable). SET NULL so
+    # deleting a week doesn't lose the log, just its link.
+    week_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("weeks.id", ondelete="SET NULL"), default=None, index=True
+    )
+    seconds: Mapped[float] = mapped_column()
+    performed_at: Mapped[datetime] = mapped_column(_TZ, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(_TZ, server_default=func.now())
+
+    week: Mapped["Week | None"] = relationship()
