@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from datetime import datetime, timedelta, timezone
 
 from playwright.sync_api import Page, expect
 
@@ -10,6 +11,8 @@ from app.models import (
     Week,
     WeekRequirement,
 )
+
+STALE_WARNING = "Es preferible introducir un peso reciente"
 
 
 def _test_week(create_week: Callable[..., Week]) -> Week:
@@ -58,6 +61,35 @@ def test_register_shows_targets_from_bodyweight(
     expect(main.get_by_text("Sentadilla")).to_be_visible()
     # Target = 80 × 1.5 = 120.
     expect(main.get_by_text("Objetivo: 120 kg", exact=False)).to_be_visible()
+    # A fresh body weight → no stale warning.
+    expect(main.get_by_text(STALE_WARNING, exact=False)).to_have_count(0)
+
+
+def test_register_warns_when_bodyweight_is_stale(
+    page: Page,
+    app_url: str,
+    create_user: Callable[..., User],
+    create_exercise: Callable[..., Exercise],
+    create_bodyweight_log: Callable[..., BodyweightLog],
+    create_strength_test_item: Callable[..., StrengthTestItem],
+    log_in_as: Callable[[User], None],
+) -> None:
+    member = create_user(role="member", email="member@example.com")
+    squat = create_exercise(name="Sentadilla", type="gym")
+    create_strength_test_item(exercise_id=squat.id, weight_multiplier=1.0)
+    # The only body weight is 20 days old → a (non-blocking) staleness warning.
+    old = datetime.now(timezone.utc) - timedelta(days=20)
+    create_bodyweight_log(athlete_id=member.id, weight_kg=80, recorded_at=old)
+    log_in_as(member)
+
+    page.goto(f"{app_url}/pruebas/fuerza/registrar")
+    main = page.get_by_role("main")
+    expect(main.get_by_text(STALE_WARNING, exact=False)).to_be_visible()
+
+    # The warning doesn't block: the athlete can still complete the test.
+    page.get_by_label("Peso levantado en Sentadilla").fill("90")
+    page.get_by_role("button", name="Finalizar prueba").click()
+    expect(page.get_by_role("status").filter(has_text="Prueba registrada.")).to_be_visible()
 
 
 def test_log_strength_test_counts_toward_week(

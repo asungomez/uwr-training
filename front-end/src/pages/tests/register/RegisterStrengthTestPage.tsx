@@ -18,13 +18,23 @@ function RegisterStrengthTestPage() {
   const [weekId, setWeekId] = useState('')
   // Actual weight lifted, keyed by exercise id.
   const [actuals, setActuals] = useState<Record<string, string>>({})
+  // "Now" captured once on mount (reading the clock during render is impure).
+  const [now] = useState(() => Date.now())
 
   // First check there's a body weight (the targets are derived from it). The history
   // list is most-recent-first, so item 0 is the latest.
   const bodyweight = useQuery('/bodyweight-logs', {
     params: { query: { page: 1, page_size: 1 } },
   })
-  const hasBodyweight = (bodyweight.data?.items.length ?? 0) > 0
+  const latestBodyweight = bodyweight.data?.items[0]
+  const hasBodyweight = latestBodyweight != null
+
+  // The targets are only as good as the body weight they're based on; warn (but
+  // don't block) when the latest register is more than 15 days old.
+  const STALE_DAYS = 15
+  const bodyweightIsStale =
+    latestBodyweight != null &&
+    (now - new Date(latestBodyweight.recorded_at).getTime()) / 86_400_000 > STALE_DAYS
 
   // Only load the test form once we know a body weight exists (the endpoint 400s
   // otherwise). null skips the request.
@@ -111,6 +121,21 @@ function RegisterStrengthTestPage() {
             Peso corporal de referencia:{' '}
             <span className="text-slate-200">{form.data.bodyweight_kg} kg</span>
           </p>
+
+          {bodyweightIsStale && (
+            <div className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-200">
+              <p>
+                El peso se usa como medida para calcular los objetivos de la prueba. Es preferible
+                introducir un peso reciente.
+              </p>
+              <Link
+                to="/registro-peso"
+                className="mt-3 inline-flex font-medium text-amber-100 underline transition-colors hover:text-white"
+              >
+                Registrar peso
+              </Link>
+            </div>
+          )}
 
           {form.data.exercises.length === 0 ? (
             <p className="mt-6 text-sm text-slate-500">

@@ -100,6 +100,12 @@ def test_detail_computes_load_kg_from_latest_test(
     expect(main.get_by_text("50 kg", exact=False)).to_be_visible()
     expect(main.get_by_text("(62.5%)", exact=False)).to_be_visible()
 
+    # Hovering the computed load reveals a note explaining where it comes from.
+    note = main.get_by_role("tooltip").filter(has_text="resultado de tu última prueba")
+    expect(note).not_to_be_visible()
+    main.get_by_label("Calculada a partir del resultado de tu última prueba").hover()
+    expect(note).to_be_visible()
+
 
 def test_detail_shows_percentage_and_warning_without_test(
     page: Page,

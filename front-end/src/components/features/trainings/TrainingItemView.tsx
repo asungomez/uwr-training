@@ -1,4 +1,4 @@
-import { TriangleAlert } from 'lucide-react'
+import { Info, TriangleAlert } from 'lucide-react'
 
 import type { components } from '@/api/schema'
 import Tooltip from '@/components/molecules/Tooltip'
@@ -60,9 +60,12 @@ function TrainingItemView({ item, onSelectExercise, latestTestWeight }: Training
         <span className="ml-2 inline-flex items-center gap-1 text-slate-400">
           Carga:{' '}
           {loadKg != null ? (
-            <span className="text-slate-200">
-              {loadKg} kg <span className="text-slate-500">({item.load_percentage}%)</span>
-            </span>
+            <Tooltip label="Calculada a partir del resultado de tu última prueba">
+              <span className="inline-flex items-center gap-1 text-slate-200">
+                {loadKg} kg <span className="text-slate-500">({item.load_percentage}%)</span>
+                <Info size={14} className="text-slate-500" />
+              </span>
+            </Tooltip>
           ) : (
             <Tooltip label="Haz una prueba de fuerza para calcular una carga más precisa">
               <span className="inline-flex items-center gap-1 text-amber-300">
