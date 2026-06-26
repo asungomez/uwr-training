@@ -146,3 +146,36 @@ def test_completed_week_drops_from_register_but_stays_on_edit(
     page.wait_for_url("**/registros/**")
     week = page.get_by_label("Semana", exact=True)
     expect(week).to_contain_text("Semana llena")
+
+
+def test_register_preselects_latest_used_week(
+    page: Page,
+    app_url: str,
+    create_user: Callable[..., User],
+    create_exercise: Callable[..., Exercise],
+    create_training: Callable[..., TrainingSession],
+    create_week: Callable[..., Week],
+    log_in_as: Callable[[User], None],
+) -> None:
+    member = create_user(role="member", email="member@example.com")
+    training = _gym_accumulation_training(create_exercise, create_training)
+    _week(create_week, "Semana uno", "gym", "accumulation")  # count=2 → room for more
+    _week(create_week, "Semana dos", "gym", "accumulation")
+    log_in_as(member)
+
+    # Nothing logged yet → no week pre-selected.
+    page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
+    expect(page.get_by_label("Semana", exact=True)).to_have_value("")
+
+    # Log one linked to "Semana dos" → it becomes the latest-used week with room.
+    page.get_by_role("button", name="Hecho").first.click()
+    page.get_by_label("Semana", exact=True).select_option(label="Semana dos")
+    page.get_by_role("button", name="Finalizar sesión").click()
+    expect(page.get_by_role("status").filter(has_text="Sesión registrada.")).to_be_visible()
+
+    # Starting another → "Semana dos" is pre-selected as the recommendation.
+    page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
+    select = page.get_by_label("Semana", exact=True)
+    expect(select).not_to_have_value("")
+    selected_label = select.evaluate("el => el.options[el.selectedIndex].label")
+    assert selected_label == "Semana dos"

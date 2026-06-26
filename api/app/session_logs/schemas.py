@@ -64,10 +64,16 @@ class LogFormResponse(BaseModel):
     title: str | None
     exercises: list[LogFormExercise] = []
     weeks: list[LogFormWeek] = []
+    # The week to pre-select (one of `weeks`), or null to leave the select empty.
+    recommended_week_id: uuid.UUID | None = None
 
     @field_serializer("training_id")
     def serialize_training_id(self, value: uuid.UUID) -> str:
         return str(value)
+
+    @field_serializer("recommended_week_id")
+    def serialize_recommended_week_id(self, value: uuid.UUID | None) -> str | None:
+        return str(value) if value is not None else None
 
 
 # ---- log submission ----------------------------------------------------------

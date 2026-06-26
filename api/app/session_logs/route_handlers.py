@@ -165,6 +165,17 @@ async def _incomplete_weeks_recommending(
     return [week for week in weeks if done.get(week.id, 0) < required.get(week.id, 0)]
 
 
+async def _latest_used_week_id(session: AsyncSession, athlete_id: uuid.UUID) -> uuid.UUID | None:
+    """The week the athlete most recently linked any logged session to (of any type),
+    or None if they've never linked a log to a week."""
+    return await session.scalar(
+        select(SessionLog.week_id)
+        .where(SessionLog.athlete_id == athlete_id, SessionLog.week_id.is_not(None))
+        .order_by(SessionLog.performed_at.desc())
+        .limit(1)
+    )
+
+
 def _serialize_log(log: SessionLog) -> SessionLogResponse:
     """Build the log response from a fully-loaded SessionLog (entries with their
     planned/performed exercises and parameter values + parameters)."""
@@ -238,12 +249,21 @@ async def get_log_form(
     ]
     # Only offer weeks whose requirement for this type the athlete hasn't already
     # filled — a full week isn't worth picking.
-    weeks = [
-        LogFormWeek(id=week.id, name=week.name)
-        for week in await _incomplete_weeks_recommending(session, training, user.id)
-    ]
+    selectable = await _incomplete_weeks_recommending(session, training, user.id)
+    weeks = [LogFormWeek(id=week.id, name=week.name) for week in selectable]
+
+    # Pre-select the week the athlete is currently working on — the latest one they
+    # logged anything to — but only if it can still take this kind of training.
+    latest = await _latest_used_week_id(session, user.id)
+    selectable_ids = {week.id for week in selectable}
+    recommended_week_id = latest if latest in selectable_ids else None
+
     return LogFormResponse(
-        training_id=training.id, title=training.title, exercises=exercises, weeks=weeks
+        training_id=training.id,
+        title=training.title,
+        exercises=exercises,
+        weeks=weeks,
+        recommended_week_id=recommended_week_id,
     )
 
 

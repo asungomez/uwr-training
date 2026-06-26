@@ -69,6 +69,14 @@ function RegisterSessionPage() {
     }
   }
 
+  // Pre-select the recommended week once the form loads (resynced if it changes);
+  // tracked separately so a manual choice isn't clobbered on re-render.
+  const [syncedForm, setSyncedForm] = useState(form.data)
+  if (form.data !== syncedForm) {
+    setSyncedForm(form.data)
+    setWeekId(form.data?.recommended_week_id ?? '')
+  }
+
   function setEntry(itemId: string, state: SeriesEntryState) {
     setEntries((prev) => ({ ...prev, [itemId]: state }))
   }

@@ -1175,6 +1175,8 @@ export interface components {
              * @default []
              */
             weeks: components["schemas"]["LogFormWeek"][];
+            /** Recommended Week Id */
+            recommended_week_id?: string | null;
         };
         /**
          * LogFormWeek
