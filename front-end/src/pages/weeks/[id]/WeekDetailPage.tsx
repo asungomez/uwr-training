@@ -96,7 +96,11 @@ function WeekDetailPage() {
                         {req.logs.map((log) => (
                           <li key={log.log_id}>
                             <Link
-                              to={`/entrenamientos/${log.training_session_id}/registros/${log.log_id}`}
+                              to={
+                                log.kind === 'cardio'
+                                  ? `/entrenamientos/cardio/sesion/${log.training_id}/registros/${log.log_id}`
+                                  : `/entrenamientos/${log.training_id}/registros/${log.log_id}`
+                              }
                               className="flex items-center justify-between gap-3 text-sm text-slate-300 transition-colors hover:text-slate-100"
                             >
                               <span className="truncate">{log.training_title ?? 'Sin título'}</span>

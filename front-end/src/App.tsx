@@ -12,6 +12,8 @@ import ForgotPasswordPage from '@/pages/forgot-password/ForgotPasswordPage'
 import LoginPage from '@/pages/login/LoginPage'
 import CardioDetailPage from '@/pages/cardio/[id]/CardioDetailPage'
 import EditCardioPage from '@/pages/cardio/[id]/edit/EditCardioPage'
+import CardioLogDetailPage from '@/pages/cardio/[id]/logs/[logId]/CardioLogDetailPage'
+import RegisterCardioPage from '@/pages/cardio/[id]/register/RegisterCardioPage'
 import CardioCategoryPage from '@/pages/cardio/CardioCategoryPage'
 import CardioSubtypePage from '@/pages/cardio/CardioSubtypePage'
 import NewCardioPage from '@/pages/cardio/new/NewCardioPage'
@@ -79,6 +81,9 @@ function App() {
                 <Route path=":subtype/nuevo" element={<NewCardioPage />} />
                 <Route path="sesion/:id/editar" element={<EditCardioPage />} />
               </Route>
+              {/* Any authenticated user can log a cardio session and view their logs. */}
+              <Route path="sesion/:id/registrar" element={<RegisterCardioPage />} />
+              <Route path="sesion/:id/registros/:logId" element={<CardioLogDetailPage />} />
               <Route path="sesion/:id" element={<CardioDetailPage />} />
             </Route>
             {/* Any authenticated user can log a session they performed and view

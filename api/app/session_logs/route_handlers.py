@@ -23,7 +23,6 @@ from app.models import (
     TrainingSubBlock,
     User,
     Week,
-    WeekRequirement,
 )
 from app.pagination import Page, PaginationParams
 from app.session_logs.schemas import (
@@ -38,6 +37,12 @@ from app.session_logs.schemas import (
     SessionLogResponse,
     SessionLogSummaryResponse,
     UpdateSessionLogWeekRequest,
+)
+from app.week_progress import (
+    incomplete_weeks_recommending,
+    latest_used_week,
+    recommended_week_id,
+    weeks_recommending,
 )
 
 # Mounted under the trainings prefix so the log endpoints sit on a session.
@@ -107,90 +112,17 @@ async def _load_full_log(session: AsyncSession, log_id: uuid.UUID) -> SessionLog
 
 
 async def _weeks_recommending(session: AsyncSession, training: TrainingSession) -> list[Week]:
-    """Weeks whose requirements include this training's category+subtype, in order.
-    These are the weeks a log of this session can be assigned to."""
-    rows = await session.scalars(
-        select(Week)
-        .join(WeekRequirement, WeekRequirement.week_id == Week.id)
-        .where(
-            WeekRequirement.category == training.category,
-            WeekRequirement.subtype == training.subtype,
-        )
-        .order_by(Week.position)
-        .distinct()
-    )
-    return list(rows.all())
+    """Weeks whose requirements include this training's category+subtype, in order."""
+    return await weeks_recommending(session, training.category, training.subtype)
 
 
 async def _incomplete_weeks_recommending(
     session: AsyncSession, training: TrainingSession, athlete_id: uuid.UUID
 ) -> list[Week]:
-    """The recommending weeks whose requirement for this training's type the athlete
-    hasn't fulfilled yet — i.e. fewer matching logs linked than the week recommends.
-    These are the weeks worth offering in the log form's dropdown."""
-    weeks = await _weeks_recommending(session, training)
-    if not weeks:
-        return weeks
-
-    week_ids = [week.id for week in weeks]
-
-    # The recommended count per week for this exact type.
-    required: dict[uuid.UUID, int] = {}
-    for week_id, count in (
-        await session.execute(
-            select(WeekRequirement.week_id, WeekRequirement.count).where(
-                WeekRequirement.week_id.in_(week_ids),
-                WeekRequirement.category == training.category,
-                WeekRequirement.subtype == training.subtype,
-            )
-        )
-    ).all():
-        required[week_id] = count
-
-    # How many of the athlete's logs of this type are already linked to each week.
-    done: dict[uuid.UUID, int] = {}
-    for week_id, count in (
-        await session.execute(
-            select(SessionLog.week_id, func.count())
-            .join(TrainingSession, SessionLog.training_session_id == TrainingSession.id)
-            .where(
-                SessionLog.athlete_id == athlete_id,
-                SessionLog.week_id.in_(week_ids),
-                TrainingSession.category == training.category,
-                TrainingSession.subtype == training.subtype,
-            )
-            .group_by(SessionLog.week_id)
-        )
-    ).all():
-        done[week_id] = count
-
-    return [week for week in weeks if done.get(week.id, 0) < required.get(week.id, 0)]
-
-
-async def _latest_used_week(session: AsyncSession, athlete_id: uuid.UUID) -> Week | None:
-    """The week the athlete most recently linked any logged session to (of any type),
-    or None if they've never linked a log to a week."""
-    week: Week | None = await session.scalar(
-        select(Week)
-        .join(SessionLog, SessionLog.week_id == Week.id)
-        .where(SessionLog.athlete_id == athlete_id)
-        .order_by(SessionLog.performed_at.desc())
-        .limit(1)
+    """The recommending weeks not yet filled for this training's type by the athlete."""
+    return await incomplete_weeks_recommending(
+        session, training.category, training.subtype, athlete_id
     )
-    return week
-
-
-def _recommended_week_id(latest: Week | None, selectable: list[Week]) -> uuid.UUID | None:
-    """Which selectable week to pre-select, given the athlete's latest-used week:
-    that week if it's still selectable, else the next selectable one after it by
-    position (e.g. latest week 3, selectable 1,2,5,7 → 5), else nothing."""
-    if latest is None:
-        return None
-    if any(week.id == latest.id for week in selectable):
-        return latest.id
-    # `selectable` is ordered by position; take the first one past the latest week.
-    nxt = next((week for week in selectable if week.position > latest.position), None)
-    return nxt.id if nxt is not None else None
 
 
 def _serialize_log(log: SessionLog) -> SessionLogResponse:
@@ -276,15 +208,15 @@ async def get_log_form(
     # Pre-select around the week the athlete is currently working on (the latest one
     # they logged anything to): that week if it can still take this training, else
     # the next selectable week after it.
-    latest = await _latest_used_week(session, user.id)
-    recommended_week_id = _recommended_week_id(latest, selectable)
+    latest = await latest_used_week(session, user.id)
+    recommended = recommended_week_id(latest, selectable)
 
     return LogFormResponse(
         training_id=training.id,
         title=training.title,
         exercises=exercises,
         weeks=weeks,
-        recommended_week_id=recommended_week_id,
+        recommended_week_id=recommended,
     )
 
 

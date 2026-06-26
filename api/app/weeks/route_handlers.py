@@ -11,15 +11,12 @@ from app.db import get_session
 from app.errors import ErrorCode, api_error
 from app.models import (
     SUBTYPES_BY_CATEGORY,
-    SessionLog,
-    TrainingCategory,
-    TrainingSession,
-    TrainingSubtype,
     User,
     Week,
     WeekRequirement,
 )
 from app.pagination import Page
+from app.week_progress import LogsByRequirement, logs_by_requirement
 from app.weeks.schemas import (
     CreateWeekRequest,
     RequirementDetail,
@@ -29,7 +26,6 @@ from app.weeks.schemas import (
     UpdateWeekRequest,
     WeekDetailResponse,
     WeekListParams,
-    WeekLogSummary,
     WeekResponse,
 )
 
@@ -78,44 +74,7 @@ async def _load_with_requirements(session: AsyncSession, week_id: uuid.UUID) -> 
     return week
 
 
-# The athlete's logs grouped by (week, category, subtype) — what a requirement counts.
-type _LogsByRequirement = dict[
-    tuple[uuid.UUID, TrainingCategory, TrainingSubtype], list[WeekLogSummary]
-]
-
-
-async def _logs_by_requirement(
-    session: AsyncSession, week_ids: list[uuid.UUID], athlete_id: uuid.UUID
-) -> _LogsByRequirement:
-    """For the given weeks, the athlete's logs linked to each, keyed by the week +
-    the log's training type (category+subtype). Most recent first within each key."""
-    grouped: _LogsByRequirement = {}
-    if not week_ids:
-        return grouped
-    rows = await session.execute(
-        select(SessionLog, TrainingSession)
-        .join(TrainingSession, SessionLog.training_session_id == TrainingSession.id)
-        .where(
-            SessionLog.athlete_id == athlete_id,
-            SessionLog.week_id.in_(week_ids),
-        )
-        .order_by(SessionLog.performed_at.desc())
-    )
-    for log, training in rows.all():
-        assert log.week_id is not None
-        key = (log.week_id, training.category, training.subtype)
-        grouped.setdefault(key, []).append(
-            WeekLogSummary(
-                log_id=log.id,
-                training_session_id=training.id,
-                training_title=training.title,
-                performed_at=log.performed_at,
-            )
-        )
-    return grouped
-
-
-def _progress(req: WeekRequirement, grouped: _LogsByRequirement) -> RequirementProgress:
+def _progress(req: WeekRequirement, grouped: LogsByRequirement) -> RequirementProgress:
     logs = grouped.get((req.week_id, req.category, req.subtype), [])
     return RequirementProgress(
         id=req.id,
@@ -126,7 +85,7 @@ def _progress(req: WeekRequirement, grouped: _LogsByRequirement) -> RequirementP
     )
 
 
-def _requirement_detail(req: WeekRequirement, grouped: _LogsByRequirement) -> RequirementDetail:
+def _requirement_detail(req: WeekRequirement, grouped: LogsByRequirement) -> RequirementDetail:
     logs = grouped.get((req.week_id, req.category, req.subtype), [])
     return RequirementDetail(
         id=req.id,
@@ -138,7 +97,7 @@ def _requirement_detail(req: WeekRequirement, grouped: _LogsByRequirement) -> Re
     )
 
 
-def _week_response(week: Week, grouped: _LogsByRequirement) -> WeekResponse:
+def _week_response(week: Week, grouped: LogsByRequirement) -> WeekResponse:
     return WeekResponse(
         id=week.id,
         name=week.name,
@@ -150,7 +109,7 @@ def _week_response(week: Week, grouped: _LogsByRequirement) -> WeekResponse:
     )
 
 
-def _week_detail(week: Week, grouped: _LogsByRequirement) -> WeekDetailResponse:
+def _week_detail(week: Week, grouped: LogsByRequirement) -> WeekDetailResponse:
     return WeekDetailResponse(
         id=week.id,
         name=week.name,
@@ -187,7 +146,7 @@ async def list_weeks(
             .options(selectinload(Week.requirements))
         )
     )
-    grouped = await _logs_by_requirement(session, [week.id for week in weeks], user.id)
+    grouped = await logs_by_requirement(session, [week.id for week in weeks], user.id)
     return Page(
         items=[_week_response(week, grouped) for week in weeks],
         total_count=total or 0,
@@ -205,7 +164,7 @@ async def get_week(
     week = await _load_with_requirements(session, week_id)
     if week is None:
         raise api_error(status.HTTP_404_NOT_FOUND, ErrorCode.week_not_found, "Week not found")
-    grouped = await _logs_by_requirement(session, [week.id], user.id)
+    grouped = await logs_by_requirement(session, [week.id], user.id)
     return _week_detail(week, grouped)
 
 
@@ -231,7 +190,7 @@ async def create_week(
 
     reloaded = await _load_with_requirements(session, week.id)
     assert reloaded is not None
-    grouped = await _logs_by_requirement(session, [reloaded.id], user.id)
+    grouped = await logs_by_requirement(session, [reloaded.id], user.id)
     return _week_detail(reloaded, grouped)
 
 
@@ -259,7 +218,7 @@ async def update_week(
 
     reloaded = await _load_with_requirements(session, week_id)
     assert reloaded is not None
-    grouped = await _logs_by_requirement(session, [reloaded.id], user.id)
+    grouped = await logs_by_requirement(session, [reloaded.id], user.id)
     return _week_detail(reloaded, grouped)
 
 

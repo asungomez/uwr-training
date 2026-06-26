@@ -652,6 +652,92 @@ export interface paths {
         patch: operations["update_session_log_week_trainings__training_id__logs__log_id__week_patch"];
         trace?: never;
     };
+    "/cardio-trainings/{training_id}/log-form": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Cardio Log Form
+         * @description What the athlete needs to log this cardio session: the assignable weeks (those
+         *     recommending its type and not yet full) plus the recommended one to pre-select.
+         */
+        get: operations["get_cardio_log_form_cardio_trainings__training_id__log_form_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cardio-trainings/{training_id}/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Cardio Logs
+         * @description The current athlete's own logs for this cardio session, most recent first.
+         */
+        get: operations["list_cardio_logs_cardio_trainings__training_id__logs_get"];
+        put?: never;
+        /**
+         * Create Cardio Log
+         * @description Record that the current athlete did this cardio session — the activity done,
+         *     a note, and the optional week it counts towards.
+         */
+        post: operations["create_cardio_log_cardio_trainings__training_id__logs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cardio-trainings/{training_id}/logs/{log_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Cardio Log
+         * @description One of the current athlete's cardio logs for this session.
+         */
+        get: operations["get_cardio_log_cardio_trainings__training_id__logs__log_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cardio-trainings/{training_id}/logs/{log_id}/week": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Cardio Log Week
+         * @description Change (or clear) which calendar week this cardio log counts towards.
+         */
+        patch: operations["update_cardio_log_week_cardio_trainings__training_id__logs__log_id__week_patch"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -745,6 +831,71 @@ export interface components {
             intervals: components["schemas"]["IntervalResponse"][];
         };
         /**
+         * CardioLogFormResponse
+         * @description What the 'log cardio session' form needs: the title and the weeks this
+         *     session can be assigned to, plus the recommended one to pre-select.
+         */
+        CardioLogFormResponse: {
+            /** Cardio Training Id */
+            cardio_training_id: string | null;
+            /** Title */
+            title: string | null;
+            /**
+             * Weeks
+             * @default []
+             */
+            weeks: components["schemas"]["CardioLogFormWeek"][];
+            /** Recommended Week Id */
+            recommended_week_id?: string | null;
+        };
+        /**
+         * CardioLogFormWeek
+         * @description A calendar week the athlete can assign this cardio log to.
+         */
+        CardioLogFormWeek: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /** CardioLogResponse */
+        CardioLogResponse: {
+            /** Id */
+            id: string | null;
+            /** Cardio Training Id */
+            cardio_training_id: string | null;
+            /**
+             * Performed At
+             * Format: date-time
+             */
+            performed_at: string;
+            /** Exercise */
+            exercise: string | null;
+            /** Note */
+            note: string | null;
+            /** Week Id */
+            week_id: string | null;
+            /** Week Name */
+            week_name: string | null;
+        };
+        /**
+         * CardioLogSummaryResponse
+         * @description List view of a cardio log: the date, exercise, and note.
+         */
+        CardioLogSummaryResponse: {
+            /** Id */
+            id: string;
+            /**
+             * Performed At
+             * Format: date-time
+             */
+            performed_at: string;
+            /** Exercise */
+            exercise: string | null;
+            /** Note */
+            note: string | null;
+        };
+        /**
          * CardioSubtype
          * @enum {string}
          */
@@ -789,6 +940,15 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /** CreateCardioLogRequest */
+        CreateCardioLogRequest: {
+            /** Exercise */
+            exercise?: string | null;
+            /** Note */
+            note?: string | null;
+            /** Week Id */
+            week_id?: string | null;
         };
         /** CreateCardioTrainingRequest */
         CreateCardioTrainingRequest: {
@@ -1247,6 +1407,13 @@ export interface components {
          * @enum {string}
          */
         MesocyclePhase: "adaptation" | "accumulation" | "transmutation" | "realization";
+        /** Page[CardioLogSummaryResponse] */
+        Page_CardioLogSummaryResponse_: {
+            /** Items */
+            items: components["schemas"]["CardioLogSummaryResponse"][];
+            /** Total Count */
+            total_count: number;
+        };
         /** Page[CardioTrainingResponse] */
         Page_CardioTrainingResponse_: {
             /** Items */
@@ -1549,6 +1716,14 @@ export interface components {
          */
         TrainingSubtype: "adaptation" | "accumulation" | "transmutation" | "realization" | "endurance" | "alactic" | "aerobic" | "anaerobic";
         /**
+         * UpdateCardioLogWeekRequest
+         * @description Change (or clear) which calendar week a cardio log counts towards.
+         */
+        UpdateCardioLogWeekRequest: {
+            /** Week Id */
+            week_id?: string | null;
+        };
+        /**
          * UpdateCardioPositionRequest
          * @description Move a cardio training to a new 0-based position within its subtype; the
          *     others in that subtype shift to keep a contiguous order.
@@ -1718,13 +1893,20 @@ export interface components {
         };
         /**
          * WeekLogSummary
-         * @description A session log (of the requesting athlete) that counts towards a requirement.
+         * @description A log (of the requesting athlete) that counts towards a requirement. `kind`
+         *     tells gym/pool ("training") from cardio logs so the UI can link to the right
+         *     detail page; `training_id` is the TrainingSession or CardioTraining id.
          */
         WeekLogSummary: {
             /** Log Id */
             log_id: string;
-            /** Training Session Id */
-            training_session_id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "training" | "cardio";
+            /** Training Id */
+            training_id: string;
             /** Training Title */
             training_title: string | null;
             /**
@@ -3256,6 +3438,184 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SessionLogResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_cardio_log_form_cardio_trainings__training_id__log_form_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                training_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardioLogFormResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_cardio_logs_cardio_trainings__training_id__logs_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                training_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_CardioLogSummaryResponse_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_cardio_log_cardio_trainings__training_id__logs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                training_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCardioLogRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardioLogResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_cardio_log_cardio_trainings__training_id__logs__log_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                training_id: string;
+                log_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardioLogResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_cardio_log_week_cardio_trainings__training_id__logs__log_id__week_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                training_id: string;
+                log_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCardioLogWeekRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardioLogResponse"];
                 };
             };
             /** @description Validation Error */

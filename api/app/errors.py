@@ -35,6 +35,8 @@ class ErrorCode(enum.StrEnum):
     invalid_week = "invalid_week"
     invalid_session_log = "invalid_session_log"
     session_log_not_found = "session_log_not_found"
+    invalid_cardio_log = "invalid_cardio_log"
+    cardio_log_not_found = "cardio_log_not_found"
 
 
 def api_error(status_code: int, code: ErrorCode, message: str) -> HTTPException:

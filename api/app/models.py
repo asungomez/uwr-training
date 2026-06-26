@@ -535,3 +535,32 @@ class SessionLogParameterValue(Base):
 
     entry: Mapped["SessionLogEntry"] = relationship(back_populates="parameter_values")
     parameter: Mapped["ExerciseParameter"] = relationship()
+
+
+class CardioSessionLog(Base):
+    """A record of one athlete doing a cardio session. Unlike gym/pool logs there's
+    no per-block detail — just which cardio exercise they did (free text, e.g.
+    "running", "rowing") and a note, plus the optional calendar week it counts to."""
+
+    __tablename__ = "cardio_session_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    cardio_training_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("cardio_trainings.id", ondelete="CASCADE"), index=True
+    )
+    athlete_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    # The calendar week this log counts towards (optional, editable). SET NULL so
+    # deleting a week doesn't lose the log, just its link.
+    week_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("weeks.id", ondelete="SET NULL"), default=None, index=True
+    )
+    # Free text — the specific cardio activity done (running, rowing, bike, …).
+    exercise: Mapped[str | None] = mapped_column(default=None)
+    performed_at: Mapped[datetime] = mapped_column(_TZ, server_default=func.now())
+    note: Mapped[str | None] = mapped_column(default=None)
+    created_at: Mapped[datetime] = mapped_column(_TZ, server_default=func.now())
+
+    cardio_training: Mapped["CardioTraining"] = relationship()
+    week: Mapped["Week | None"] = relationship()

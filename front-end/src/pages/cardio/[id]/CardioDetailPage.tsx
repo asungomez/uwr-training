@@ -1,4 +1,4 @@
-import { ChevronRight, Copy, Pencil, Trash2 } from 'lucide-react'
+import { ChevronRight, Copy, Pencil, Play, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
@@ -7,6 +7,7 @@ import { errorMessage } from '@/api/errors'
 import { useAuth } from '@/auth/context'
 import CardioItemView from '@/components/features/cardio/CardioItemView'
 import { cardioSubtypeLabels, cardioSubtypeSlugs } from '@/components/features/cardio/cardioLabels'
+import CardioLogList from '@/components/features/cardio/CardioLogList'
 import ConfirmDialog from '@/components/molecules/ConfirmDialog'
 import { useToast } from '@/components/toast/context'
 
@@ -79,6 +80,16 @@ function CardioDetailPage() {
             {data.title ?? <span className="text-slate-500">{BLANK}</span>}
           </h1>
 
+          <div className="mt-4">
+            <Link
+              to={`/entrenamientos/cardio/sesion/${trainingId}/registrar`}
+              className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+            >
+              <Play size={16} />
+              Empezar
+            </Link>
+          </div>
+
           {data.items.length > 0 ? (
             <div className="mt-6 flex flex-col gap-3">
               {data.items.map((item) => (
@@ -118,6 +129,8 @@ function CardioDetailPage() {
               </button>
             </div>
           )}
+
+          <CardioLogList trainingId={trainingId} />
         </div>
       )}
 

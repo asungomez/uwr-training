@@ -5,6 +5,20 @@ from pydantic import BaseModel, field_serializer
 
 from app.models import MesocyclePhase, TrainingCategory, TrainingSubtype
 from app.pagination import PaginationParams
+from app.week_progress import WeekLogSummary
+
+__all__ = [
+    "CreateWeekRequest",
+    "RequirementDetail",
+    "RequirementInput",
+    "RequirementProgress",
+    "UpdateWeekPositionRequest",
+    "UpdateWeekRequest",
+    "WeekDetailResponse",
+    "WeekListParams",
+    "WeekLogSummary",
+    "WeekResponse",
+]
 
 
 class RequirementInput(BaseModel):
@@ -40,19 +54,6 @@ class WeekListParams(PaginationParams):
 
     search: str | None = None
     phase: MesocyclePhase | None = None
-
-
-class WeekLogSummary(BaseModel):
-    """A session log (of the requesting athlete) that counts towards a requirement."""
-
-    log_id: uuid.UUID
-    training_session_id: uuid.UUID
-    training_title: str | None
-    performed_at: datetime
-
-    @field_serializer("log_id", "training_session_id")
-    def serialize_ids(self, value: uuid.UUID) -> str:
-        return str(value)
 
 
 class RequirementProgress(BaseModel):
