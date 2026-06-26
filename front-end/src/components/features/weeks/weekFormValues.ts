@@ -17,7 +17,7 @@ export const weekFormSchema = z.object({
     z.object({
       id: z.string(),
       category: z
-        .enum(['', 'gym', 'pool', 'cardio'])
+        .enum(['', 'gym', 'pool', 'cardio', 'test'])
         .refine((value): value is Category => value !== '', {
           message: 'Elige una categoría',
         }),
@@ -65,6 +65,7 @@ export function formValuesToRequirements(values: WeekFormValues): RequirementInp
   return values.requirements.map((req) => ({
     category: req.category,
     subtype: req.subtype as Subtype,
-    count: Math.max(1, Number.parseInt(req.count, 10) || 1),
+    // A test is a single event — its count is always 1 (the API enforces this too).
+    count: req.category === 'test' ? 1 : Math.max(1, Number.parseInt(req.count, 10) || 1),
   }))
 }

@@ -9,6 +9,7 @@ const categoryStyles: Record<Category, string> = {
   gym: 'bg-amber-500/20 text-amber-200 ring-amber-500/40',
   pool: 'bg-sky-500/20 text-sky-200 ring-sky-500/40',
   cardio: 'bg-rose-500/20 text-rose-200 ring-rose-500/40',
+  test: 'bg-violet-500/20 text-violet-200 ring-violet-500/40',
 }
 
 export function CategoryBadge({ category }: { category: Category }) {

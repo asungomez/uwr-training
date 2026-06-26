@@ -16,9 +16,11 @@ export function requirementLabel(category: Category, subtype: Subtype): string {
   return `${categoryLabels[category]} · ${subtypeLabels[subtype]}`
 }
 
-/** Link to the subtype's training list for a requirement. Cardio is its own model
- *  with its own slugs/route; gym & pool share the standard one. */
-export function requirementLink(category: Category, subtype: Subtype): string {
+/** Link to the subtype's training list for a requirement, or null when there's no
+ *  destination. Cardio is its own model with its own slugs/route; gym & pool share
+ *  the standard one. "test" has no training list (it's a week-only event for now). */
+export function requirementLink(category: Category, subtype: Subtype): string | null {
+  if (category === 'test') return null
   if (category === 'cardio') {
     // Cardio subtypes are a subset of the shared subtypes; map via cardio slugs.
     const slug = cardioSubtypeSlugs[subtype as CardioSubtype] ?? subtypeSlugs[subtype]

@@ -15,12 +15,15 @@ const categoryDescriptions: Record<Category, string> = {
   gym: 'Trabajo de fuerza y potencia en seco: adaptación, acumulación, transmutación y realización.',
   pool: 'Entrenamiento en agua: resistencia, anaeróbico y aláctico para apnea y velocidad.',
   cardio: 'Acondicionamiento cardiovascular: trabajo aeróbico y anaeróbico.',
+  // "test" isn't a training category (no sessions); it only exists at week level.
+  test: 'Pruebas de evaluación.',
 }
 
 const categoryTint: Record<Category, string> = {
   gym: 'border-amber-500/30 bg-amber-500/10 hover:border-amber-500/50',
   pool: 'border-sky-500/30 bg-sky-500/10 hover:border-sky-500/50',
   cardio: 'border-rose-500/30 bg-rose-500/10 hover:border-rose-500/50',
+  test: 'border-violet-500/30 bg-violet-500/10 hover:border-violet-500/50',
 }
 
 function TrainingsLandingPage() {

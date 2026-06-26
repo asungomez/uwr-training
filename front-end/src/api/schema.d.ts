@@ -1732,7 +1732,7 @@ export interface components {
          * TrainingCategory
          * @enum {string}
          */
-        TrainingCategory: "gym" | "pool" | "cardio";
+        TrainingCategory: "gym" | "pool" | "cardio" | "test";
         /**
          * TrainingItemKind
          * @enum {string}
@@ -1789,7 +1789,7 @@ export interface components {
          * TrainingSubtype
          * @enum {string}
          */
-        TrainingSubtype: "adaptation" | "accumulation" | "transmutation" | "realization" | "endurance" | "alactic" | "aerobic" | "anaerobic";
+        TrainingSubtype: "adaptation" | "accumulation" | "transmutation" | "realization" | "endurance" | "alactic" | "aerobic" | "anaerobic" | "strength";
         /**
          * UpdateCardioLogWeekRequest
          * @description Change (or clear) which calendar week a cardio log counts towards.

@@ -23,6 +23,7 @@ const subtypeDescriptions: Record<Subtype, string> = {
   anaerobic: 'Esfuerzos intensos con deuda de oxígeno.',
   alactic: 'Esfuerzos máximos y muy breves, sin acumular lactato.',
   aerobic: 'Trabajo cardiovascular sostenido de baja-media intensidad.',
+  strength: 'Prueba de fuerza para evaluar el progreso.',
 }
 
 const subtypeTint = 'border-slate-600 bg-slate-800/60 hover:border-indigo-500/60 hover:bg-slate-800'

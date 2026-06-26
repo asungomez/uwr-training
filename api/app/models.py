@@ -25,6 +25,7 @@ class TrainingCategory(enum.StrEnum):
     gym = "gym"
     pool = "pool"
     cardio = "cardio"
+    test = "test"
 
 
 class TrainingSubtype(enum.StrEnum):
@@ -40,6 +41,8 @@ class TrainingSubtype(enum.StrEnum):
     aerobic = "aerobic"
     # shared by pool and cardio
     anaerobic = "anaerobic"
+    # test
+    strength = "strength"
 
 
 # Which subtypes are valid for each category (enforced in the API layer).
@@ -60,6 +63,7 @@ SUBTYPES_BY_CATEGORY: dict[TrainingCategory, tuple[TrainingSubtype, ...]] = {
         TrainingSubtype.anaerobic,
         TrainingSubtype.alactic,
     ),
+    TrainingCategory.test: (TrainingSubtype.strength,),
 }
 
 

@@ -10,12 +10,15 @@ export const exerciseTypeForCategory: Record<Category, ExerciseType | null> = {
   gym: 'gym',
   pool: 'pool',
   cardio: null,
+  // "test" is a week-level category (strength test); it has no training sessions.
+  test: null,
 }
 
 export const categoryLabels: Record<Category, string> = {
   gym: 'Gimnasio',
   pool: 'Piscina',
   cardio: 'Cardio',
+  test: 'Prueba',
 }
 
 // Spanish label for every subtype value (across all categories).
@@ -28,6 +31,7 @@ export const subtypeLabels: Record<Subtype, string> = {
   anaerobic: 'Anaeróbico',
   alactic: 'Aláctico',
   aerobic: 'Aeróbico',
+  strength: 'Fuerza',
 }
 
 // Which subtypes belong to each category, mirroring SUBTYPES_BY_CATEGORY on the API.
@@ -35,6 +39,7 @@ export const subtypesByCategory: Record<Category, Subtype[]> = {
   gym: ['adaptation', 'accumulation', 'transmutation', 'realization'],
   pool: ['endurance', 'anaerobic', 'alactic'],
   cardio: ['aerobic', 'anaerobic', 'alactic'],
+  test: ['strength'],
 }
 
 export const categoryOptions: { value: Category; label: string }[] = (
@@ -46,6 +51,7 @@ export const categorySlugs: Record<Category, string> = {
   gym: 'gimnasio',
   pool: 'piscina',
   cardio: 'cardio',
+  test: 'prueba',
 }
 
 const slugToCategory: Record<string, Category> = Object.fromEntries(
@@ -70,6 +76,7 @@ export const subtypeSlugs: Record<Subtype, string> = {
   anaerobic: 'anaerobico',
   alactic: 'alactico',
   aerobic: 'aerobico',
+  strength: 'fuerza',
 }
 
 /** Resolve a subtype URL slug to its value, scoped to the category (so a slug only

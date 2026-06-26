@@ -11,6 +11,7 @@ from app.db import get_session
 from app.errors import ErrorCode, api_error
 from app.models import (
     SUBTYPES_BY_CATEGORY,
+    TrainingCategory,
     User,
     Week,
     WeekRequirement,
@@ -34,8 +35,11 @@ router = APIRouter(prefix="/weeks", tags=["weeks"])
 
 def _build_requirements(requirements: list[RequirementInput]) -> list[WeekRequirement]:
     """Build ordered WeekRequirement rows from the submitted list. Rejects a
-    subtype that doesn't belong to its category, or a non-positive count."""
+    subtype that doesn't belong to its category, or a non-positive count. A week
+    may have at most one "test" requirement, and its count is always 1 (a test is
+    a single event, not a recurring session)."""
     rows: list[WeekRequirement] = []
+    test_count = 0
     for position, item in enumerate(requirements):
         if item.subtype not in SUBTYPES_BY_CATEGORY[item.category]:
             raise api_error(
@@ -43,7 +47,17 @@ def _build_requirements(requirements: list[RequirementInput]) -> list[WeekRequir
                 ErrorCode.invalid_week,
                 f"Subtype {item.subtype.value} is not valid for category {item.category.value}",
             )
-        if item.count < 1:
+        count = item.count
+        if item.category is TrainingCategory.test:
+            test_count += 1
+            if test_count > 1:
+                raise api_error(
+                    status.HTTP_400_BAD_REQUEST,
+                    ErrorCode.invalid_week,
+                    "A week can have at most one test",
+                )
+            count = 1  # a test is always a single event, ignore any submitted count
+        elif count < 1:
             raise api_error(
                 status.HTTP_400_BAD_REQUEST,
                 ErrorCode.invalid_week,
@@ -54,7 +68,7 @@ def _build_requirements(requirements: list[RequirementInput]) -> list[WeekRequir
                 position=position,
                 category=item.category,
                 subtype=item.subtype,
-                count=item.count,
+                count=count,
             )
         )
     return rows

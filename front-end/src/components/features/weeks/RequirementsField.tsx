@@ -41,6 +41,8 @@ function RequirementsField({ control, register, setValue }: RequirementsFieldPro
         {fields.map((field, index) => {
           const category = rows?.[index]?.category
           const subtypeOptions = category ? (subtypesByCategory[category] ?? []) : []
+          // A test is a single event — no "how many sessions" input (count is 1).
+          const isTest = category === 'test'
           return (
             <li
               key={field.id}
@@ -76,15 +78,17 @@ function RequirementsField({ control, register, setValue }: RequirementsFieldPro
                 />
               </label>
 
-              <label className="flex w-20 flex-col gap-1 text-xs font-medium text-slate-400">
-                Sesiones
-                <input
-                  {...register(`requirements.${index}.count`)}
-                  inputMode="numeric"
-                  aria-label="Sesiones"
-                  className={`${controlClass} w-full py-1.5 text-sm`}
-                />
-              </label>
+              {!isTest && (
+                <label className="flex w-20 flex-col gap-1 text-xs font-medium text-slate-400">
+                  Sesiones
+                  <input
+                    {...register(`requirements.${index}.count`)}
+                    inputMode="numeric"
+                    aria-label="Sesiones"
+                    className={`${controlClass} w-full py-1.5 text-sm`}
+                  />
+                </label>
+              )}
 
               <button
                 type="button"

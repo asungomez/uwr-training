@@ -141,6 +141,37 @@ def test_subtype_options_depend_on_category(
     expect(subtype.get_by_role("option", name="Resistencia")).to_have_count(0)
 
 
+def test_admin_adds_strength_test_without_sessions_count(
+    page: Page,
+    app_url: str,
+    create_user: Callable[..., User],
+    log_in_as: Callable[[User], None],
+) -> None:
+    admin = create_user(role="admin", email="admin@example.com")
+    log_in_as(admin)
+    page.goto(f"{app_url}/calendario/nueva")
+
+    page.get_by_label("Nombre").fill("Semana con prueba")
+    page.get_by_role("button", name="Añadir sesión").click()
+
+    # Choosing the "Prueba" category offers only "Fuerza" and hides the count input
+    # (a test is a single event, always 1).
+    page.get_by_label("Categoría").select_option(label="Prueba")
+    subtype = page.get_by_label("Subtipo")
+    expect(subtype.get_by_role("option", name="Fuerza")).to_be_attached()
+    expect(page.get_by_label("Sesiones")).to_have_count(0)
+    subtype.select_option(label="Fuerza")
+
+    page.get_by_role("button", name="Crear semana").click()
+    expect(page.get_by_role("status").filter(has_text="Semana creada.")).to_be_visible()
+
+    # The detail page lists the test as plain text (no training-list link) at 0/1.
+    main = page.get_by_role("main")
+    expect(main.get_by_text("Prueba · Fuerza")).to_be_visible()
+    expect(main.get_by_role("link", name="Prueba · Fuerza")).to_have_count(0)
+    expect(main.get_by_text("0/1", exact=True)).to_be_visible()
+
+
 def test_admin_edits_week(
     page: Page,
     app_url: str,

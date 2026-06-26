@@ -72,18 +72,24 @@ function WeekDetailPage() {
             <ul className="mt-3 flex flex-col gap-3">
               {data.requirements.map((req) => {
                 const complete = req.completed >= req.count
+                const link = requirementLink(req.category, req.subtype)
+                const label = requirementLabel(req.category, req.subtype)
                 return (
                   <li
                     key={req.id}
                     className="rounded-lg border border-slate-700 bg-slate-800/50 p-4"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <Link
-                        to={requirementLink(req.category, req.subtype)}
-                        className="font-medium text-indigo-400 transition-colors hover:text-indigo-300"
-                      >
-                        {requirementLabel(req.category, req.subtype)}
-                      </Link>
+                      {link ? (
+                        <Link
+                          to={link}
+                          className="font-medium text-indigo-400 transition-colors hover:text-indigo-300"
+                        >
+                          {label}
+                        </Link>
+                      ) : (
+                        <span className="font-medium text-slate-200">{label}</span>
+                      )}
                       <span
                         className={`text-sm font-medium ${complete ? 'text-emerald-300' : 'text-slate-300'}`}
                       >
