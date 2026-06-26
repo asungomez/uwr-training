@@ -72,29 +72,31 @@ function SessionLogDetailPage() {
           </h1>
           {data.note && <p className="mt-2 text-slate-300">{data.note}</p>}
 
-          {(form.data?.weeks.length ?? 0) > 0 ? (
-            <label className="mt-4 flex max-w-sm flex-col gap-1 text-sm font-medium text-slate-300">
-              Semana
-              <SelectControl
-                value={data.week_id ?? ''}
-                onChange={(event) => void changeWeek(event.target.value)}
-                disabled={savingWeek}
-                aria-label="Semana"
-                className={`${controlClass} mt-1 w-full text-sm`}
-                options={[
-                  { value: '', label: 'Sin semana' },
-                  ...(form.data?.weeks ?? []).map((week) => ({
-                    value: week.id,
-                    label: week.name,
-                  })),
-                ]}
-              />
-            </label>
-          ) : (
-            data.week_name && (
-              <p className="mt-4 text-sm text-slate-400">Semana: {data.week_name}</p>
+          {(() => {
+            // Selectable weeks = those still open for this type, plus the log's
+            // current week (which may now be full but must stay selectable here).
+            const options = (form.data?.weeks ?? []).map((week) => ({
+              value: week.id,
+              label: week.name,
+            }))
+            if (data.week_id && !options.some((o) => o.value === data.week_id)) {
+              options.unshift({ value: data.week_id, label: data.week_name ?? 'Semana' })
+            }
+            if (options.length === 0) return null
+            return (
+              <label className="mt-4 flex max-w-sm flex-col gap-1 text-sm font-medium text-slate-300">
+                Semana
+                <SelectControl
+                  value={data.week_id ?? ''}
+                  onChange={(event) => void changeWeek(event.target.value)}
+                  disabled={savingWeek}
+                  aria-label="Semana"
+                  className={`${controlClass} mt-1 w-full text-sm`}
+                  options={[{ value: '', label: 'Sin semana' }, ...options]}
+                />
+              </label>
             )
-          )}
+          })()}
 
           <ul className="mt-6 flex flex-col gap-3">
             {data.entries.map((entry) => {

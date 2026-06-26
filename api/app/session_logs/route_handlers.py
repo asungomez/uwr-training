@@ -120,6 +120,51 @@ async def _weeks_recommending(session: AsyncSession, training: TrainingSession) 
     return list(rows.all())
 
 
+async def _incomplete_weeks_recommending(
+    session: AsyncSession, training: TrainingSession, athlete_id: uuid.UUID
+) -> list[Week]:
+    """The recommending weeks whose requirement for this training's type the athlete
+    hasn't fulfilled yet — i.e. fewer matching logs linked than the week recommends.
+    These are the weeks worth offering in the log form's dropdown."""
+    weeks = await _weeks_recommending(session, training)
+    if not weeks:
+        return weeks
+
+    week_ids = [week.id for week in weeks]
+
+    # The recommended count per week for this exact type.
+    required: dict[uuid.UUID, int] = {}
+    for week_id, count in (
+        await session.execute(
+            select(WeekRequirement.week_id, WeekRequirement.count).where(
+                WeekRequirement.week_id.in_(week_ids),
+                WeekRequirement.category == training.category,
+                WeekRequirement.subtype == training.subtype,
+            )
+        )
+    ).all():
+        required[week_id] = count
+
+    # How many of the athlete's logs of this type are already linked to each week.
+    done: dict[uuid.UUID, int] = {}
+    for week_id, count in (
+        await session.execute(
+            select(SessionLog.week_id, func.count())
+            .join(TrainingSession, SessionLog.training_session_id == TrainingSession.id)
+            .where(
+                SessionLog.athlete_id == athlete_id,
+                SessionLog.week_id.in_(week_ids),
+                TrainingSession.category == training.category,
+                TrainingSession.subtype == training.subtype,
+            )
+            .group_by(SessionLog.week_id)
+        )
+    ).all():
+        done[week_id] = count
+
+    return [week for week in weeks if done.get(week.id, 0) < required.get(week.id, 0)]
+
+
 def _serialize_log(log: SessionLog) -> SessionLogResponse:
     """Build the log response from a fully-loaded SessionLog (entries with their
     planned/performed exercises and parameter values + parameters)."""
@@ -162,7 +207,7 @@ def _serialize_log(log: SessionLog) -> SessionLogResponse:
 @router.get("/{training_id}/log-form", response_model=LogFormResponse)
 async def get_log_form(
     training_id: uuid.UUID,
-    _user: Annotated[User, Depends(current_user)],
+    user: Annotated[User, Depends(current_user)],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> LogFormResponse:
     """The data an athlete needs to log a session: each exercise with its
@@ -191,9 +236,11 @@ async def get_log_form(
         )
         for exercise in _ordered_series_exercises(training)
     ]
+    # Only offer weeks whose requirement for this type the athlete hasn't already
+    # filled — a full week isn't worth picking.
     weeks = [
         LogFormWeek(id=week.id, name=week.name)
-        for week in await _weeks_recommending(session, training)
+        for week in await _incomplete_weeks_recommending(session, training, user.id)
     ]
     return LogFormResponse(
         training_id=training.id, title=training.title, exercises=exercises, weeks=weeks
