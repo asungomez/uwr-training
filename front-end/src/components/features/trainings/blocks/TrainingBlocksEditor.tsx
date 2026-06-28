@@ -18,6 +18,7 @@ import { useState } from 'react'
 
 import type { components } from '@/api/schema'
 
+import { cloneBlock } from './cloneDrafts'
 import SortableBlockCard from './SortableBlockCard'
 
 type ExerciseType = components['schemas']['ExerciseType']
@@ -118,6 +119,16 @@ function TrainingBlocksEditor({
     })
   }
 
+  function copyBlock(id: string) {
+    const index = blocks.findIndex((b) => b.id === id)
+    const original = blocks[index]
+    if (!original) return
+    const copy = cloneBlock(original)
+    const next = [...blocks]
+    next.splice(index + 1, 0, copy)
+    onChange(next)
+  }
+
   function toggleCollapsed(id: string) {
     setCollapsed((prev) => {
       const next = new Set(prev)
@@ -176,6 +187,7 @@ function TrainingBlocksEditor({
                 onToggleCollapsed={() => toggleCollapsed(block.id)}
                 onChange={updateBlock}
                 onRemove={() => removeBlock(block.id)}
+                onCopy={() => copyBlock(block.id)}
                 exerciseType={exerciseType}
               />
             ))}

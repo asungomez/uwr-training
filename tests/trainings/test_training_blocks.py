@@ -38,6 +38,36 @@ def test_admin_creates_training_with_blocks(
     expect(page.get_by_role("heading", name="Sesión con bloques")).to_be_visible()
 
 
+def test_admin_copies_block_with_its_sub_blocks(
+    page: Page,
+    app_url: str,
+    create_user: Callable[..., User],
+    log_in_as: Callable[[User], None],
+) -> None:
+    # Given one block with a named sub-block inside it.
+    admin = create_user(role="admin", email="admin@example.com")
+    log_in_as(admin)
+    _go_to_new_form(page, app_url)
+    page.get_by_role("button", name="Añadir bloque").click()
+    page.get_by_label("Nombre del bloque").fill("Calentamiento")
+    page.get_by_role("button", name="Añadir sub-bloque").click()
+    page.get_by_label("Nombre del sub-bloque").fill("Movilidad")
+
+    # When I copy the block, a second block appears — with its sub-block cloned too.
+    page.get_by_role("button", name="Copiar bloque").click()
+    block_names = page.get_by_label("Nombre del bloque")
+    expect(block_names).to_have_count(2)
+    expect(block_names.nth(0)).to_have_value("Calentamiento")
+    expect(block_names.nth(1)).to_have_value("Calentamiento")
+    expect(page.get_by_label("Nombre del sub-bloque")).to_have_count(2)
+
+    # And saving persists both blocks with their sub-blocks.
+    page.get_by_role("button", name="Crear entrenamiento").click()
+    expect(page.get_by_role("status").filter(has_text="Entrenamiento creado.")).to_be_visible()
+    expect(page.get_by_role("heading", name="Calentamiento")).to_have_count(2)
+    expect(page.get_by_role("heading", name="Movilidad")).to_have_count(2)
+
+
 def test_blocks_start_expanded_and_can_collapse_all(
     page: Page,
     app_url: str,

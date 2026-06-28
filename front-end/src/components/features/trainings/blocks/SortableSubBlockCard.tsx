@@ -15,10 +15,11 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Plus, Trash2 } from 'lucide-react'
+import { Copy, GripVertical, Plus, Trash2 } from 'lucide-react'
 
 import type { components } from '@/api/schema'
 
+import { cloneItem } from './cloneDrafts'
 import SortableExerciseItem from './SortableExerciseItem'
 import SortableNoteItem from './SortableNoteItem'
 import type { ItemDraft, SeriesDraft, SubBlockDraft } from './TrainingBlocksEditor'
@@ -29,6 +30,8 @@ interface SortableSubBlockCardProps {
   subBlock: SubBlockDraft
   onChange: (subBlock: SubBlockDraft) => void
   onRemove: () => void
+  /** Insert a copy of this whole sub-block right below it. */
+  onCopy: () => void
   exerciseType: ExerciseType | null
 }
 
@@ -56,6 +59,7 @@ function SortableSubBlockCard({
   subBlock,
   onChange,
   onRemove,
+  onCopy,
   exerciseType,
 }: SortableSubBlockCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -106,13 +110,8 @@ function SortableSubBlockCard({
     const index = subBlock.items.findIndex((item) => item.id === id)
     const original = subBlock.items[index]
     if (!original) return
-    // A fresh client id keeps list keys + DnD unique; everything else is copied.
-    const copy: ItemDraft =
-      original.kind === 'series'
-        ? { ...original, id: crypto.randomUUID() }
-        : { ...original, id: crypto.randomUUID() }
     const items = [...subBlock.items]
-    items.splice(index + 1, 0, copy)
+    items.splice(index + 1, 0, cloneItem(original))
     onChange({ ...subBlock, items })
   }
 
@@ -207,14 +206,24 @@ function SortableSubBlockCard({
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={onRemove}
-          aria-label="Eliminar sub-bloque"
-          className="mt-1 rounded p-1 text-slate-400 transition-colors hover:bg-red-500/15 hover:text-red-300 focus:ring-2 focus:ring-red-400 focus:outline-none"
-        >
-          <Trash2 size={16} />
-        </button>
+        <div className="mt-1 flex flex-col gap-1">
+          <button
+            type="button"
+            onClick={onCopy}
+            aria-label="Copiar sub-bloque"
+            className="rounded p-1 text-slate-400 transition-colors hover:bg-slate-700 hover:text-slate-200 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+          >
+            <Copy size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label="Eliminar sub-bloque"
+            className="rounded p-1 text-slate-400 transition-colors hover:bg-red-500/15 hover:text-red-300 focus:ring-2 focus:ring-red-400 focus:outline-none"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
       </div>
     </li>
   )

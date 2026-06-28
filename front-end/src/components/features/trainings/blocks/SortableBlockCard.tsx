@@ -15,10 +15,11 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { ChevronDown, ChevronRight, GripVertical, Plus, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronRight, Copy, GripVertical, Plus, Trash2 } from 'lucide-react'
 
 import type { components } from '@/api/schema'
 
+import { cloneSubBlock } from './cloneDrafts'
 import SortableSubBlockCard from './SortableSubBlockCard'
 import type { BlockDraft, SubBlockDraft } from './TrainingBlocksEditor'
 
@@ -30,6 +31,8 @@ interface SortableBlockCardProps {
   onToggleCollapsed: () => void
   onChange: (block: BlockDraft) => void
   onRemove: () => void
+  /** Insert a copy of this whole block right below it. */
+  onCopy: () => void
   exerciseType: ExerciseType | null
 }
 
@@ -43,6 +46,7 @@ function SortableBlockCard({
   onToggleCollapsed,
   onChange,
   onRemove,
+  onCopy,
   exerciseType,
 }: SortableBlockCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -85,6 +89,16 @@ function SortableBlockCard({
     onChange({ ...block, subBlocks: block.subBlocks.filter((s) => s.id !== id) })
   }
 
+  function copySubBlock(id: string) {
+    const index = block.subBlocks.findIndex((s) => s.id === id)
+    const original = block.subBlocks[index]
+    if (!original) return
+    const copy = cloneSubBlock(original)
+    const subBlocks = [...block.subBlocks]
+    subBlocks.splice(index + 1, 0, copy)
+    onChange({ ...block, subBlocks })
+  }
+
   return (
     <li
       ref={setNodeRef}
@@ -123,6 +137,15 @@ function SortableBlockCard({
 
         <button
           type="button"
+          onClick={onCopy}
+          aria-label="Copiar bloque"
+          className="rounded p-1 text-slate-400 transition-colors hover:bg-slate-700 hover:text-slate-200 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+        >
+          <Copy size={18} />
+        </button>
+
+        <button
+          type="button"
           onClick={onRemove}
           aria-label="Eliminar bloque"
           className="rounded p-1 text-slate-400 transition-colors hover:bg-red-500/15 hover:text-red-300 focus:ring-2 focus:ring-red-400 focus:outline-none"
@@ -153,6 +176,7 @@ function SortableBlockCard({
                     subBlock={subBlock}
                     onChange={updateSubBlock}
                     onRemove={() => removeSubBlock(subBlock.id)}
+                    onCopy={() => copySubBlock(subBlock.id)}
                     exerciseType={exerciseType}
                   />
                 ))}

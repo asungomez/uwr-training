@@ -52,6 +52,34 @@ def test_admin_creates_training_with_sub_blocks(
     expect(page.get_by_text("Repetir 2 veces")).to_be_visible()
 
 
+def test_admin_copies_sub_block(
+    page: Page,
+    app_url: str,
+    create_user: Callable[..., User],
+    log_in_as: Callable[[User], None],
+) -> None:
+    # Given a block with one named sub-block.
+    admin = create_user(role="admin", email="admin@example.com")
+    log_in_as(admin)
+    _go_to_new_form(page, app_url)
+    page.get_by_role("button", name="Añadir bloque").click()
+    page.get_by_label("Nombre del bloque").fill("Tren superior")
+    page.get_by_role("button", name="Añadir sub-bloque").click()
+    page.get_by_label("Nombre del sub-bloque").fill("Preparación")
+
+    # When I copy the sub-block, a second identical one appears.
+    page.get_by_role("button", name="Copiar sub-bloque").click()
+    names = page.get_by_label("Nombre del sub-bloque")
+    expect(names).to_have_count(2)
+    expect(names.nth(0)).to_have_value("Preparación")
+    expect(names.nth(1)).to_have_value("Preparación")
+
+    # And saving persists both.
+    page.get_by_role("button", name="Crear entrenamiento").click()
+    expect(page.get_by_role("status").filter(has_text="Entrenamiento creado.")).to_be_visible()
+    expect(page.get_by_role("heading", name="Preparación")).to_have_count(2)
+
+
 def test_empty_block_shows_no_sub_block_state(
     page: Page,
     app_url: str,
