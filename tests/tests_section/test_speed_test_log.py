@@ -106,11 +106,13 @@ def test_log_speed_test_counts_toward_week(
     page.get_by_role("button", name="Finalizar prueba").click()
     expect(page.get_by_role("status").filter(has_text="Prueba registrada.")).to_be_visible()
 
-    # It shows in the athlete's own log list.
+    # It shows in the athlete's own log list, which links to the full log.
     expect(page).to_have_url(f"{app_url}/pruebas/velocidad")
-    page.get_by_role("link", name="11.5 s", exact=False).click()
+    page.locator("a[href*='/pruebas/velocidad/registros/']").click()
     page.wait_for_url("**/pruebas/velocidad/registros/**")
-    expect(page.get_by_role("main").get_by_text("11.5 s", exact=False)).to_be_visible()
+    # "Tiempo: 11.5 s" is unique to the detail page (the scoring table also shows
+    # bare times, so assert on the labelled value).
+    expect(page.get_by_role("main").get_by_text("Tiempo:", exact=False)).to_contain_text("11.5 s")
 
     # The week counts the speed test as complete (1/1), linking back to the log.
     page.goto(f"{app_url}/calendario/{week.id}")
@@ -119,7 +121,7 @@ def test_log_speed_test_counts_toward_week(
     expect(log_link).to_be_visible()
     log_link.click()
     page.wait_for_url("**/pruebas/velocidad/registros/**")
-    expect(page.get_by_role("main").get_by_text("11.5 s", exact=False)).to_be_visible()
+    expect(page.get_by_role("main").get_by_text("Tiempo:", exact=False)).to_contain_text("11.5 s")
 
 
 def test_register_blocks_without_time(
