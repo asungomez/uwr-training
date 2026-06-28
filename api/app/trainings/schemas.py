@@ -19,7 +19,7 @@ class ItemInput(BaseModel):
     sets: int | None = None
     reps: int | None = None
     duration_seconds: int | None = None
-    distance_meters: int | None = None
+    distance_meters: float | None = None
     effort: str | None = None
     # Load as a % (out of 100, may be fractional) of the athlete's latest
     # strength-test result for this exercise.
@@ -99,7 +99,7 @@ class ItemResponse(BaseModel):
     sets: int | None = None
     reps: int | None = None
     duration_seconds: int | None = None
-    distance_meters: int | None = None
+    distance_meters: float | None = None
     effort: str | None = None
     # Target load as a % (out of 100, may be fractional) of the latest strength-test
     # result for this exercise. The absolute kg is computed per-athlete by the client.

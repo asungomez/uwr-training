@@ -161,6 +161,7 @@ function SortableExerciseItem({
                 value={item.distance}
                 onChange={(value) => onChange({ ...item, distance: value })}
                 placeholder="metros"
+                inputMode="decimal"
               />
               <SeriesField
                 label="Intensidad"

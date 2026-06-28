@@ -307,7 +307,8 @@ class TrainingItem(Base):
     sets: Mapped[int | None] = mapped_column(default=None)
     reps: Mapped[int | None] = mapped_column(default=None)
     duration_seconds: Mapped[int | None] = mapped_column(default=None)
-    distance_meters: Mapped[int | None] = mapped_column(default=None)
+    # Metres, may be fractional (e.g. 12.5).
+    distance_meters: Mapped[float | None] = mapped_column(default=None)
     effort: Mapped[str | None] = mapped_column(default=None)
     # Target load as a percentage (out of 100, may be fractional e.g. 55.6) of the
     # athlete's latest strength-test result for this exercise. Only meaningful for

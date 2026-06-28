@@ -42,7 +42,7 @@ function itemToBody(
       sets: parseOptionalInt(item.sets),
       reps: parseOptionalInt(item.reps),
       duration_seconds: parseTimeToSeconds(item.time),
-      distance_meters: parseOptionalInt(item.distance),
+      distance_meters: parseOptionalNumber(item.distance),
       effort: item.effort.trim() || null,
       load_percentage: parseOptionalNumber(item.load),
       text: item.notes.trim() || null,
