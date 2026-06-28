@@ -1,6 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Plus, Trash2 } from 'lucide-react'
+import { Copy, GripVertical, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 
 import { useQuery } from '@/api/client'
@@ -18,6 +18,8 @@ interface SortableExerciseItemProps {
   item: SeriesDraft
   onChange: (item: SeriesDraft) => void
   onRemove: () => void
+  /** Insert a copy of this item right below it. */
+  onCopy: () => void
   /** Restrict the search to this exercise type (null = no restriction). */
   exerciseType: ExerciseType | null
 }
@@ -52,6 +54,7 @@ function SortableExerciseItem({
   item,
   onChange,
   onRemove,
+  onCopy,
   exerciseType,
 }: SortableExerciseItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -191,14 +194,26 @@ function SortableExerciseItem({
         )}
       </div>
 
-      <button
-        type="button"
-        onClick={onRemove}
-        aria-label="Eliminar ejercicio"
-        className="mt-1 rounded p-1 text-slate-400 transition-colors hover:bg-red-500/15 hover:text-red-300 focus:ring-2 focus:ring-red-400 focus:outline-none"
-      >
-        <Trash2 size={14} />
-      </button>
+      <div className="mt-1 flex flex-col gap-1">
+        {item.exerciseId && (
+          <button
+            type="button"
+            onClick={onCopy}
+            aria-label="Copiar ejercicio"
+            className="rounded p-1 text-slate-400 transition-colors hover:bg-slate-700 hover:text-slate-200 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+          >
+            <Copy size={14} />
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label="Eliminar ejercicio"
+          className="rounded p-1 text-slate-400 transition-colors hover:bg-red-500/15 hover:text-red-300 focus:ring-2 focus:ring-red-400 focus:outline-none"
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
     </li>
   )
 }

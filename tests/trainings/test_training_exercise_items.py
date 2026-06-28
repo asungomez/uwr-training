@@ -70,6 +70,39 @@ def test_admin_adds_exercise_series_when_creating(
     expect(main.get_by_text("Distancia:")).to_have_count(0)
 
 
+def test_admin_copies_exercise_within_sub_block(
+    page: Page,
+    app_url: str,
+    create_user: Callable[..., User],
+    create_exercise: Callable[..., Exercise],
+    log_in_as: Callable[[User], None],
+) -> None:
+    # Given a sub-block with one filled-in exercise series.
+    admin = create_user(role="admin", email="admin@example.com")
+    create_exercise(name="Sentadilla", type="gym")
+    log_in_as(admin)
+    _go_to_new_form_with_sub_block(page, app_url)
+
+    page.get_by_role("button", name="Añadir ejercicio").click()
+    page.get_by_placeholder("Buscar ejercicio…").fill("Sent")
+    page.get_by_role("button", name="Sentadilla").click()
+    page.get_by_label("Series").fill("4")
+
+    # When I copy it, a second identical row appears (two "Series" inputs, both "4").
+    page.get_by_role("button", name="Copiar ejercicio").click()
+    series_inputs = page.get_by_label("Series", exact=True)
+    expect(series_inputs).to_have_count(2)
+    expect(series_inputs.nth(0)).to_have_value("4")
+    expect(series_inputs.nth(1)).to_have_value("4")
+
+    # And saving persists both copies.
+    page.get_by_role("button", name="Crear entrenamiento").click()
+    expect(page.get_by_role("status").filter(has_text="Entrenamiento creado.")).to_be_visible()
+    main = page.get_by_role("main")
+    expect(main.get_by_text("Sentadilla")).to_have_count(2)
+    expect(main.get_by_text("Series: 4")).to_have_count(2)
+
+
 def test_exercise_search_is_filtered_by_training_category(
     page: Page,
     app_url: str,

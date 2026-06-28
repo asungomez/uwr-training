@@ -102,6 +102,20 @@ function SortableSubBlockCard({
     onChange({ ...subBlock, items: subBlock.items.filter((item) => item.id !== id) })
   }
 
+  function copyItem(id: string) {
+    const index = subBlock.items.findIndex((item) => item.id === id)
+    const original = subBlock.items[index]
+    if (!original) return
+    // A fresh client id keeps list keys + DnD unique; everything else is copied.
+    const copy: ItemDraft =
+      original.kind === 'series'
+        ? { ...original, id: crypto.randomUUID() }
+        : { ...original, id: crypto.randomUUID() }
+    const items = [...subBlock.items]
+    items.splice(index + 1, 0, copy)
+    onChange({ ...subBlock, items })
+  }
+
   return (
     <li
       ref={setNodeRef}
@@ -156,6 +170,7 @@ function SortableSubBlockCard({
                         item={item}
                         onChange={updateItem}
                         onRemove={() => removeItem(item.id)}
+                        onCopy={() => copyItem(item.id)}
                         exerciseType={exerciseType}
                       />
                     ) : (
