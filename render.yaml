@@ -69,6 +69,11 @@ services:
       # MinIO). Hard-coded empty so prod never accidentally points at localhost.
       - key: S3_ENDPOINT_URL
         value: ""
+      # Endpoint for the API's own server-side S3 calls (multipart upload). Empty =
+      # reuse S3_ENDPOINT_URL — correct for real AWS. Only differs for the local
+      # MinIO dev stack. Pinned empty so prod never points at a container alias.
+      - key: S3_INTERNAL_ENDPOINT_URL
+        value: ""
 
 databases:
   - name: uwr-training-db
