@@ -1,4 +1,4 @@
-import { ChevronRight, Copy, Pencil, Play, Trash2 } from 'lucide-react'
+import { ChevronRight, Copy, FileText, Pencil, Play, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
@@ -8,6 +8,7 @@ import { useAuth } from '@/auth/context'
 import CardioItemView from '@/components/features/cardio/CardioItemView'
 import { cardioSubtypeLabels, cardioSubtypeSlugs } from '@/components/features/cardio/cardioLabels'
 import CardioLogList from '@/components/features/cardio/CardioLogList'
+import { openCardioPdf } from '@/components/features/cardio/cardioPdf'
 import ConfirmDialog from '@/components/molecules/ConfirmDialog'
 import { useToast } from '@/components/toast/context'
 
@@ -83,7 +84,7 @@ function CardioDetailPage() {
             {data.title ?? <span className="text-slate-500">{BLANK}</span>}
           </h1>
 
-          <div className="mt-4">
+          <div className="mt-4 flex flex-wrap gap-2">
             <Link
               to={`/entrenamientos/cardio/sesion/${trainingId}/registrar`}
               className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
@@ -91,6 +92,14 @@ function CardioDetailPage() {
               <Play size={16} />
               Empezar
             </Link>
+            <button
+              type="button"
+              onClick={() => openCardioPdf(data)}
+              className="inline-flex items-center gap-2 rounded-md border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+            >
+              <FileText size={16} />
+              PDF
+            </button>
           </div>
 
           {data.items.length > 0 ? (

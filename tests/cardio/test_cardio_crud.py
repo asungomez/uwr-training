@@ -193,3 +193,27 @@ def test_admin_deletes_cardio_training(
     expect(page).to_have_url(f"{app_url}/entrenamientos/cardio")
     page.goto(f"{app_url}/entrenamientos/cardio/aerobico")
     expect(page.get_by_role("button", name="A borrar")).not_to_be_visible()
+
+
+def test_pdf_button_opens_pdf(
+    page: Page,
+    app_url: str,
+    create_user: Callable[..., User],
+    create_cardio_training: Callable[..., CardioTraining],
+    log_in_as: Callable[[User], None],
+) -> None:
+    # Given a cardio training detail page (any user can export it).
+    member = create_user(role="member", email="member@example.com")
+    training = _example_training(create_cardio_training)
+    log_in_as(member)
+    page.goto(f"{app_url}/entrenamientos/cardio/sesion/{training.id}")
+
+    # When I click PDF, a new tab opens with the client-generated PDF embedded.
+    with page.context.expect_page() as new_page_info:
+        page.get_by_role("button", name="PDF").click()
+    pdf_page = new_page_info.value
+    pdf_page.wait_for_load_state()
+    src = pdf_page.evaluate(
+        "() => { const el = document.querySelector('iframe,embed'); return el ? el.src : '' }"
+    )
+    assert src.startswith("data:application/pdf"), src
