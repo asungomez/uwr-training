@@ -167,7 +167,9 @@ session cookie (`credentials: include`).
 Forms use [React Hook Form](https://react-hook-form.com/) with
 [Zod](https://zod.dev/) schemas (via `@hookform/resolvers`) for validation.
 Icons come from [lucide-react](https://lucide.dev/), and charts (e.g. the
-body-weight history graph) from [Recharts](https://recharts.org/).
+body-weight history graph) from [Recharts](https://recharts.org/). Print-ready PDFs
+(e.g. the training-session sheet) are generated client-side with
+[jsPDF](https://github.com/parallax/jsPDF).
 
 Routing uses [React Router](https://reactrouter.com/). Unauthenticated users see the
 login screen; authenticated users get the app shell

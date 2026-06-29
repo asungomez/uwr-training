@@ -1,4 +1,4 @@
-import { ChevronRight, Copy, Pencil, Play, Trash2 } from 'lucide-react'
+import { ChevronRight, Copy, FileText, Pencil, Play, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
@@ -8,6 +8,7 @@ import { useAuth } from '@/auth/context'
 import ExercisePanel from '@/components/features/trainings/ExercisePanel'
 import SessionLogList from '@/components/features/trainings/SessionLogList'
 import { CategoryBadge, SubtypeBadge } from '@/components/features/trainings/trainingBadges'
+import { openTrainingPdf } from '@/components/features/trainings/trainingPdf'
 import TrainingItemView from '@/components/features/trainings/TrainingItemView'
 import {
   categoryLabels,
@@ -139,7 +140,7 @@ function TrainingDetailPage() {
                 <SubtypeBadge subtype={data.subtype} />
               </div>
 
-              <div className="mt-4">
+              <div className="mt-4 flex flex-wrap gap-2">
                 <Link
                   to={`/entrenamientos/${trainingId}/registrar`}
                   className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
@@ -147,6 +148,14 @@ function TrainingDetailPage() {
                   <Play size={16} />
                   Empezar
                 </Link>
+                <button
+                  type="button"
+                  onClick={() => openTrainingPdf(data)}
+                  className="inline-flex items-center gap-2 rounded-md border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+                >
+                  <FileText size={16} />
+                  PDF
+                </button>
               </div>
 
               {data.blocks.length > 0 && (

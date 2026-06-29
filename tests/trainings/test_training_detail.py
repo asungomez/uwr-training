@@ -160,3 +160,27 @@ def test_detail_without_blocks_shows_no_block_section(
     page.goto(f"{app_url}/entrenamientos/{training.id}")
     expect(page.get_by_role("heading", name="Vacía")).to_be_visible()
     expect(page.get_by_text("Aquí irá el bloque de entrenamiento.")).to_have_count(0)
+
+
+def test_pdf_button_opens_pdf(
+    page: Page,
+    app_url: str,
+    create_user: Callable[..., User],
+    create_training: Callable[..., TrainingSession],
+    log_in_as: Callable[[User], None],
+) -> None:
+    # Given a training detail page (any user can export it).
+    member = create_user(role="member", email="member@example.com")
+    training = create_training(title="Para imprimir", category="gym", subtype="accumulation")
+    log_in_as(member)
+    page.goto(f"{app_url}/entrenamientos/{training.id}")
+
+    # When I click PDF, a new tab opens with the client-generated PDF embedded.
+    with page.context.expect_page() as new_page_info:
+        page.get_by_role("button", name="PDF").click()
+    pdf_page = new_page_info.value
+    pdf_page.wait_for_load_state()
+    src = pdf_page.evaluate(
+        "() => { const el = document.querySelector('iframe,embed'); return el ? el.src : '' }"
+    )
+    assert src.startswith("data:application/pdf"), src
