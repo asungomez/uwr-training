@@ -17,6 +17,10 @@ import EditExercisePage from '@/pages/exercises/[id]/edit/EditExercisePage'
 import ExerciseDetailPage from '@/pages/exercises/[id]/ExerciseDetailPage'
 import ExercisesPage from '@/pages/exercises/ExercisesPage'
 import NewExercisePage from '@/pages/exercises/new/NewExercisePage'
+import EditMaterialPage from '@/pages/materials/[id]/edit/EditMaterialPage'
+import MaterialDetailPage from '@/pages/materials/[id]/MaterialDetailPage'
+import MaterialsPage from '@/pages/materials/MaterialsPage'
+import NewMaterialPage from '@/pages/materials/new/NewMaterialPage'
 import ForgotPasswordPage from '@/pages/forgot-password/ForgotPasswordPage'
 import LoginPage from '@/pages/login/LoginPage'
 import CardioDetailPage from '@/pages/cardio/[id]/CardioDetailPage'
@@ -116,6 +120,14 @@ function App() {
               <Route path=":id/editar" element={<EditWeekPage />} />
             </Route>
             <Route path=":id" element={<WeekDetailPage />} />
+          </Route>
+          <Route path="/materiales">
+            <Route index element={<MaterialsPage />} />
+            <Route element={<AdminRoute />}>
+              <Route path="nuevo" element={<NewMaterialPage />} />
+              <Route path=":id/editar" element={<EditMaterialPage />} />
+            </Route>
+            <Route path=":id" element={<MaterialDetailPage />} />
           </Route>
           <Route path="/registro-peso" element={<BodyweightPage />} />
           <Route path="/pruebas/fuerza" element={<StrengthTestPage />} />

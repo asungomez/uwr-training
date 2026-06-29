@@ -7,6 +7,7 @@ from app.cardio import router as cardio_router
 from app.cardio_logs import router as cardio_logs_router
 from app.exercises import router as exercises_router
 from app.health import router as health_router
+from app.materials import router as materials_router
 from app.session_logs import router as session_logs_router
 from app.settings import settings
 from app.speed_test_logs import router as speed_test_logs_router
@@ -38,3 +39,4 @@ app.include_router(strength_tests_router)
 app.include_router(strength_test_logs_router)
 app.include_router(speed_test_warmup_router)
 app.include_router(speed_test_logs_router)
+app.include_router(materials_router)

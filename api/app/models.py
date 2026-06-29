@@ -696,3 +696,23 @@ class SpeedTestLog(Base):
     created_at: Mapped[datetime] = mapped_column(_TZ, server_default=func.now())
 
     week: Mapped["Week | None"] = relationship()
+
+
+class MaterialCategory(enum.StrEnum):
+    document = "document"
+    video = "video"
+
+
+class Material(Base):
+    """An admin-uploaded support material — a document (PDF/Word/Excel/…) to download
+    or a recorded video session to play. The file lives in S3; we store its object
+    key and build a public URL at serialization time."""
+
+    __tablename__ = "materials"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    title: Mapped[str]
+    category: Mapped[MaterialCategory]
+    # S3 object key for the uploaded file; URL built at serialization time.
+    file_key: Mapped[str]
+    created_at: Mapped[datetime] = mapped_column(_TZ, server_default=func.now())

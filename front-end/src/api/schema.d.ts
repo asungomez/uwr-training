@@ -1027,6 +1027,81 @@ export interface paths {
         patch: operations["update_speed_test_log_week_speed_test_logs__log_id__week_patch"];
         trace?: never;
     };
+    "/materials/media-uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Material Upload
+         * @description Mint a presigned POST so the admin's browser uploads a material file straight
+         *     to S3. Returns the object key to store on save.
+         */
+        post: operations["create_material_upload_materials_media_uploads_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/materials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Materials
+         * @description All materials, filterable by category and title search, most recent first.
+         *     Visible to any authenticated user.
+         */
+        get: operations["list_materials_materials_get"];
+        put?: never;
+        /**
+         * Create Material
+         * @description Create a material (admin only). The file must already be uploaded to S3 via
+         *     the presigned-upload endpoint; `file_key` is the key returned there.
+         */
+        post: operations["create_material_materials_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/materials/{material_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Material
+         * @description A single material by id. Visible to any authenticated user.
+         */
+        get: operations["get_material_materials__material_id__get"];
+        /**
+         * Update Material
+         * @description Update a material (admin only).
+         */
+        put: operations["update_material_materials__material_id__put"];
+        post?: never;
+        /**
+         * Delete Material
+         * @description Delete a material (admin only).
+         */
+        delete: operations["delete_material_materials__material_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1302,6 +1377,14 @@ export interface components {
              * Format: email
              */
             email: string;
+        };
+        /** CreateMaterialRequest */
+        CreateMaterialRequest: {
+            /** Title */
+            title: string;
+            category: components["schemas"]["MaterialCategory"];
+            /** File Key */
+            file_key: string;
         };
         /** CreateSessionLogRequest */
         CreateSessionLogRequest: {
@@ -1732,10 +1815,57 @@ export interface components {
             password: string;
         };
         /**
+         * MaterialCategory
+         * @enum {string}
+         */
+        MaterialCategory: "document" | "video";
+        /** MaterialResponse */
+        MaterialResponse: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            category: components["schemas"]["MaterialCategory"];
+            /** File Key */
+            file_key: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** File Url */
+            readonly file_url: string | null;
+        };
+        /**
+         * MaterialUploadRequest
+         * @description Ask for a presigned upload. `kind` picks the constraints (a document or a
+         *     recorded video) and the S3 folder.
+         */
+        MaterialUploadRequest: {
+            kind: components["schemas"]["MediaKind"];
+            /** Content Type */
+            content_type: string;
+        };
+        /**
+         * MaterialUploadResponse
+         * @description A presigned POST the client uses to upload one file directly to S3, plus the
+         *     object key to store on the material once the upload succeeds.
+         */
+        MaterialUploadResponse: {
+            /** Key */
+            key: string;
+            /** Url */
+            url: string;
+            /** Fields */
+            fields: {
+                [key: string]: string;
+            };
+        };
+        /**
          * MediaKind
          * @enum {string}
          */
-        MediaKind: "thumbnail" | "video";
+        MediaKind: "thumbnail" | "video" | "material_document" | "material_video";
         /** MediaUploadRequest */
         MediaUploadRequest: {
             kind: components["schemas"]["MediaKind"];
@@ -1801,6 +1931,13 @@ export interface components {
         Page_ExerciseResponse_: {
             /** Items */
             items: components["schemas"]["ExerciseResponse"][];
+            /** Total Count */
+            total_count: number;
+        };
+        /** Page[MaterialResponse] */
+        Page_MaterialResponse_: {
+            /** Items */
+            items: components["schemas"]["MaterialResponse"][];
             /** Total Count */
             total_count: number;
         };
@@ -2337,6 +2474,14 @@ export interface components {
              * @default []
              */
             parameters: components["schemas"]["ParameterInput"][];
+        };
+        /** UpdateMaterialRequest */
+        UpdateMaterialRequest: {
+            /** Title */
+            title: string;
+            category: components["schemas"]["MaterialCategory"];
+            /** File Key */
+            file_key: string;
         };
         /**
          * UpdatePositionRequest
@@ -4823,6 +4968,213 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SpeedTestLogResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_material_upload_materials_media_uploads_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MaterialUploadRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MaterialUploadResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_materials_materials_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+                category?: components["schemas"]["MaterialCategory"] | null;
+                search?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_MaterialResponse_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_material_materials_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateMaterialRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MaterialResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_material_materials__material_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                material_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MaterialResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_material_materials__material_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                material_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateMaterialRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MaterialResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_material_materials__material_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                material_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

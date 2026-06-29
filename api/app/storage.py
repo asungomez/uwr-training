@@ -22,16 +22,33 @@ if TYPE_CHECKING:
 class MediaKind(enum.StrEnum):
     thumbnail = "thumbnail"
     video = "video"
+    # Support materials (admin-uploaded). Documents cover PDFs/office files; videos
+    # are recorded sessions (laxer/larger than exercise demo clips).
+    material_document = "material_document"
+    material_video = "material_video"
 
 
 # Allowed content types and max upload size per media kind. Enforced both in the
 # presigned POST conditions (server-side) and client-side before requesting one.
 _THUMBNAIL_TYPES = {"image/jpeg", "image/png", "image/webp"}
 _VIDEO_TYPES = {"video/mp4", "video/webm", "video/quicktime"}
+_DOCUMENT_TYPES = {
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",  # .docx
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",  # .xlsx
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",  # .pptx
+    "text/plain",
+    "text/csv",
+}
 
 MEDIA_CONSTRAINTS: dict[MediaKind, tuple[set[str], int]] = {
     MediaKind.thumbnail: (_THUMBNAIL_TYPES, 5 * 1024 * 1024),  # 5 MB
     MediaKind.video: (_VIDEO_TYPES, 200 * 1024 * 1024),  # 200 MB
+    MediaKind.material_document: (_DOCUMENT_TYPES, 50 * 1024 * 1024),  # 50 MB
+    MediaKind.material_video: (_VIDEO_TYPES, 500 * 1024 * 1024),  # 500 MB
 }
 
 # File extension by content type, so stored keys keep a sensible suffix.
@@ -42,6 +59,23 @@ _EXTENSIONS = {
     "video/mp4": "mp4",
     "video/webm": "webm",
     "video/quicktime": "mov",
+    "application/pdf": "pdf",
+    "application/msword": "doc",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+    "application/vnd.ms-excel": "xls",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+    "application/vnd.ms-powerpoint": "ppt",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
+    "text/plain": "txt",
+    "text/csv": "csv",
+}
+
+# Which top-level folder each media kind's objects live under.
+_KEY_PREFIX = {
+    MediaKind.thumbnail: "exercises/thumbnail",
+    MediaKind.video: "exercises/video",
+    MediaKind.material_document: "materials/document",
+    MediaKind.material_video: "materials/video",
 }
 
 
@@ -69,7 +103,7 @@ def _client() -> "S3Client":
 def _new_key(kind: MediaKind, content_type: str) -> str:
     """An unguessable object key under the kind's folder, with a file extension."""
     ext = _EXTENSIONS.get(content_type, "bin")
-    return f"exercises/{kind.value}/{uuid.uuid4().hex}.{ext}"
+    return f"{_KEY_PREFIX[kind]}/{uuid.uuid4().hex}.{ext}"
 
 
 class PresignedUpload(NamedTuple):

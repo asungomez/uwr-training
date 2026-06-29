@@ -254,3 +254,31 @@ def test_select_multiple_trainings_exports_combined_pdf(
         "() => { const el = document.querySelector('iframe,embed'); return el ? el.src : '' }"
     )
     assert src.startswith("data:application/pdf"), src
+
+
+def test_select_all_and_deselect_all(
+    page: Page,
+    app_url: str,
+    create_user: Callable[..., User],
+    create_training: Callable[..., TrainingSession],
+    log_in_as: Callable[[User], None],
+) -> None:
+    # Given three trainings in the same subtype list.
+    member = create_user(role="member", email="member@example.com")
+    for title in ("Una", "Dos", "Tres"):
+        create_training(title=title, category="gym", subtype="accumulation")
+    log_in_as(member)
+    page.goto(f"{app_url}/entrenamientos/gimnasio/acumulacion")
+
+    # "Seleccionar todo" ticks every row → "PDF (3)" and the toggle flips.
+    page.get_by_role("button", name="Seleccionar todo").click()
+    checkboxes = page.get_by_role("checkbox")
+    expect(checkboxes.nth(0)).to_be_checked()
+    expect(checkboxes.nth(1)).to_be_checked()
+    expect(checkboxes.nth(2)).to_be_checked()
+    expect(page.get_by_role("button", name=re.compile(r"PDF \(3\)"))).to_be_visible()
+
+    # "Deseleccionar todo" clears them → the PDF button disappears.
+    page.get_by_role("button", name="Deseleccionar todo").click()
+    expect(checkboxes.nth(0)).not_to_be_checked()
+    expect(page.get_by_role("button", name=re.compile(r"PDF \("))).to_have_count(0)

@@ -120,8 +120,9 @@ docker/
   one-off `minio-setup` that creates the public-read media bucket), `checker`, and
   one-off `admin` services. Source is bind-mounted for live reload; named volumes
   keep Linux-native `node_modules` and the pre-commit cache separate from the host.
-  [MinIO](https://min.io/) is an S3-compatible store for exercise media (thumbnails
-  + videos): the API mints presigned upload URLs so the browser uploads straight to
+  [MinIO](https://min.io/) is an S3-compatible store for media — exercise thumbnails
+  + videos, and support materials (admin-uploaded documents and recorded videos under
+  "Materiales"): the API mints presigned upload URLs so the browser uploads straight to
   it (console at `localhost:9001`, S3 API at `localhost:9000`). In production this is
   a real S3 bucket, configured via the `S3_*` env vars.
 

@@ -1,4 +1,4 @@
-import { CalendarDays, Dumbbell, Gauge, ListChecks, Scale, Users } from 'lucide-react'
+import { BookOpen, CalendarDays, Dumbbell, Gauge, ListChecks, Scale, Users } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 
 import { useAuth } from '@/auth/context'
@@ -55,6 +55,10 @@ function Sidebar({ onNavigate }: SidebarProps) {
       <NavLink to="/registro-peso" className={linkClass} onClick={onNavigate}>
         <Scale size={18} />
         Registro de peso
+      </NavLink>
+      <NavLink to="/materiales" className={linkClass} onClick={onNavigate}>
+        <BookOpen size={18} />
+        Materiales
       </NavLink>
 
       {/* Pruebas: a non-navigating header with its tests beneath. */}

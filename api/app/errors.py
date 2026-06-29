@@ -45,6 +45,8 @@ class ErrorCode(enum.StrEnum):
     empty_strength_test = "empty_strength_test"
     invalid_speed_test_log = "invalid_speed_test_log"
     speed_test_log_not_found = "speed_test_log_not_found"
+    material_not_found = "material_not_found"
+    invalid_material = "invalid_material"
 
 
 def api_error(status_code: int, code: ErrorCode, message: str) -> HTTPException:
