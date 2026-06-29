@@ -17,6 +17,7 @@ from app.settings import settings
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
+    from mypy_boto3_s3.type_defs import CompletedPartTypeDef
 
 
 class MediaKind(enum.StrEnum):
@@ -79,9 +80,8 @@ _KEY_PREFIX = {
 }
 
 
-@lru_cache
-def _client() -> "S3Client":
-    """A boto3 S3 client. Cached; signs URLs locally (no network on presign).
+def _make_client(endpoint_url: str) -> "S3Client":
+    """A boto3 S3 client against the given endpoint.
 
     With no custom endpoint (real AWS), pin the regional endpoint explicitly. The
     default global endpoint (s3.amazonaws.com) 307-redirects to the bucket's region
@@ -89,15 +89,30 @@ def _client() -> "S3Client":
     upload to it fails as a (misleading) "CORS" error. Addressing the region
     directly avoids the redirect entirely.
     """
-    endpoint_url = settings.s3_endpoint_url or f"https://s3.{settings.s3_region}.amazonaws.com"
+    resolved = endpoint_url or f"https://s3.{settings.s3_region}.amazonaws.com"
     return boto3.client(
         "s3",
         region_name=settings.s3_region,
         aws_access_key_id=settings.s3_access_key_id,
         aws_secret_access_key=settings.s3_secret_access_key,
-        endpoint_url=endpoint_url,
+        endpoint_url=resolved,
         config=Config(signature_version="s3v4"),
     )
+
+
+@lru_cache
+def _client() -> "S3Client":
+    """Client for SIGNING presigned URLs — uses the browser-reachable endpoint, so
+    the URLs it produces are usable by the client. Signs locally (no network)."""
+    return _make_client(settings.s3_endpoint_url)
+
+
+@lru_cache
+def _internal_client() -> "S3Client":
+    """Client for the API's OWN server-side S3 calls (multipart create/complete/etc.),
+    which actually reach S3 — uses the container-reachable internal endpoint, falling
+    back to the signing endpoint (correct for real AWS, where both match)."""
+    return _make_client(settings.s3_internal_endpoint_url or settings.s3_endpoint_url)
 
 
 def _new_key(kind: MediaKind, content_type: str) -> str:
@@ -138,3 +153,69 @@ def public_url(key: str | None) -> str | None:
         return None
     base = settings.s3_public_base_url.rstrip("/")
     return f"{base}/{key}"
+
+
+# --- Multipart uploads --------------------------------------------------------
+# Large files (e.g. hour-long session videos) upload in parts: the browser PUTs
+# each part to its own presigned URL and only advances the progress bar once S3
+# has acknowledged that part — so the bar reflects bytes actually stored, not just
+# flushed to a socket. The server completes the upload by reading the parts S3
+# recorded (via list_parts), so the browser never needs each part's ETag (which
+# would otherwise require exposing ETag through the bucket's CORS config).
+
+# Each part must be ≥5 MB (S3 minimum, except the last); 10 MB keeps the part
+# count reasonable even for large videos.
+MULTIPART_PART_SIZE = 10 * 1024 * 1024
+
+
+class MultipartUpload(NamedTuple):
+    key: str
+    upload_id: str
+
+
+def create_multipart_upload(kind: MediaKind, content_type: str) -> MultipartUpload:
+    """Start a multipart upload, returning the object key and the S3 upload id."""
+    key = _new_key(kind, content_type)
+    created = _internal_client().create_multipart_upload(
+        Bucket=settings.s3_bucket,
+        Key=key,
+        ContentType=content_type,
+    )
+    return MultipartUpload(key=key, upload_id=created["UploadId"])
+
+
+def presign_part(key: str, upload_id: str, part_number: int) -> str:
+    """A presigned PUT URL for one part (1-based). Valid 2h for slow connections."""
+    url: str = _client().generate_presigned_url(
+        "upload_part",
+        Params={
+            "Bucket": settings.s3_bucket,
+            "Key": key,
+            "UploadId": upload_id,
+            "PartNumber": part_number,
+        },
+        ExpiresIn=2 * 60 * 60,  # 2 hours
+    )
+    return url
+
+
+def complete_multipart_upload(key: str, upload_id: str) -> None:
+    """Finalize the upload using the parts S3 has recorded for this upload id."""
+    client = _internal_client()
+    listed = client.list_parts(Bucket=settings.s3_bucket, Key=key, UploadId=upload_id)
+    parts: list[CompletedPartTypeDef] = [
+        {"ETag": part["ETag"], "PartNumber": part["PartNumber"]} for part in listed.get("Parts", [])
+    ]
+    client.complete_multipart_upload(
+        Bucket=settings.s3_bucket,
+        Key=key,
+        UploadId=upload_id,
+        MultipartUpload={"Parts": parts},
+    )
+
+
+def abort_multipart_upload(key: str, upload_id: str) -> None:
+    """Discard an in-progress multipart upload (on cancel or failure)."""
+    _internal_client().abort_multipart_upload(
+        Bucket=settings.s3_bucket, Key=key, UploadId=upload_id
+    )

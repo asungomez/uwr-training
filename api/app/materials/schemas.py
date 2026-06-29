@@ -8,21 +8,39 @@ from app.pagination import PaginationParams
 from app.storage import MediaKind, public_url
 
 
-class MaterialUploadRequest(BaseModel):
-    """Ask for a presigned upload. `kind` picks the constraints (a document or a
+class StartUploadRequest(BaseModel):
+    """Begin a multipart upload. `kind` picks the constraints (a document or a
     recorded video) and the S3 folder."""
 
     kind: MediaKind
     content_type: str
 
 
-class MaterialUploadResponse(BaseModel):
-    """A presigned POST the client uses to upload one file directly to S3, plus the
-    object key to store on the material once the upload succeeds."""
+class StartUploadResponse(BaseModel):
+    """The S3 object key + multipart upload id, and the part size the client should
+    slice the file into. The client uploads each part to its own presigned URL
+    (`/materials/uploads/part`), then calls `/materials/uploads/complete`."""
 
     key: str
+    upload_id: str
+    part_size: int
+
+
+class PartUrlRequest(BaseModel):
+    key: str
+    upload_id: str
+    part_number: int
+
+
+class PartUrlResponse(BaseModel):
     url: str
-    fields: dict[str, str]
+
+
+class FinishUploadRequest(BaseModel):
+    """Complete or abort an in-progress multipart upload."""
+
+    key: str
+    upload_id: str
 
 
 class CreateMaterialRequest(BaseModel):

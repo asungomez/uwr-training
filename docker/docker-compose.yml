@@ -52,13 +52,15 @@ services:
       DATABASE_URL: postgresql+asyncpg://uwr:uwr@db:5432/uwr
       # Local dev is plain HTTP, so don't mark the session cookie Secure.
       COOKIE_SECURE: "false"
-      # S3 media via MinIO. The API only SIGNS upload URLs (no network call), and
-      # the signed URL is handed to the browser — so it must point at the
-      # host-reachable endpoint (localhost), not the compose service name.
+      # S3 media via MinIO. Presigned upload URLs are SIGNED against the
+      # host-reachable endpoint (localhost) because the browser uses them; but the
+      # API's own server-side calls (multipart create/complete) must reach MinIO over
+      # the compose network, hence the separate internal endpoint.
       S3_BUCKET: uwr-media
       S3_ACCESS_KEY_ID: minioadmin
       S3_SECRET_ACCESS_KEY: minioadmin
       S3_ENDPOINT_URL: http://localhost:9000
+      S3_INTERNAL_ENDPOINT_URL: http://minio:9000
       S3_PUBLIC_BASE_URL: http://localhost:9000/uwr-media
     depends_on:
       db:

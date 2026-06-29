@@ -337,7 +337,8 @@ for local Docker dev**.
 | `S3_BUCKET`         | api        | `uwr-media`                                       | Bucket for exercise media (thumbnails + videos).                        |
 | `S3_REGION`         | api        | `us-east-1`                                        | Bucket region.                                                          |
 | `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | api | `minioadmin` / `minioadmin`         | Credentials for signing uploads. In prod, an IAM user with `s3:PutObject`. |
-| `S3_ENDPOINT_URL`   | api        | `http://localhost:9000` (MinIO)                   | S3 endpoint the API **signs** against — must be reachable by the **browser**. Empty = real AWS S3. |
+| `S3_ENDPOINT_URL`   | api        | `http://localhost:9000` (MinIO)                   | S3 endpoint the API **signs** presigned URLs against — must be reachable by the **browser**. Empty = real AWS S3. |
+| `S3_INTERNAL_ENDPOINT_URL`| api  | `http://minio:9000`                               | Endpoint for the API's **own** server-side S3 calls (multipart create/complete). In the dev stack MinIO is `minio:9000` over the compose network. Empty = falls back to `S3_ENDPOINT_URL` (correct for real AWS, where both match). |
 | `S3_PUBLIC_BASE_URL`| api        | `http://localhost:9000/uwr-media`                 | Base URL for public read URLs returned to clients (`<base>/<key>`).     |
 
 The api's settings are centralized and typed in

@@ -33,9 +33,14 @@ class Settings(BaseSettings):
     s3_region: str = "us-east-1"
     s3_access_key_id: str = "minioadmin"
     s3_secret_access_key: str = "minioadmin"
-    # Endpoint the API SIGNS against. Must be reachable by the BROWSER, since the
-    # presigned upload URL is handed to the client. Empty = real AWS S3.
+    # Endpoint the API SIGNS presigned URLs against. Must be reachable by the
+    # BROWSER, since those URLs are handed to the client. Empty = real AWS S3.
     s3_endpoint_url: str = "http://localhost:9000"
+    # Endpoint for the API's OWN server-side S3 calls (e.g. starting/completing a
+    # multipart upload). In the dev stack MinIO is reached at `minio:9000` over the
+    # container network, which the browser can't use — hence a separate value.
+    # Empty = fall back to s3_endpoint_url (correct for real AWS, where both match).
+    s3_internal_endpoint_url: str = "http://minio:9000"
     # Base URL for building public read URLs returned to clients. Empty = derive
     # from endpoint/bucket. For AWS public buckets, the virtual-hosted URL.
     s3_public_base_url: str = "http://localhost:9000/uwr-media"

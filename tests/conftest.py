@@ -150,6 +150,8 @@ def _api(
         .with_env("S3_ACCESS_KEY_ID", S3_KEY)
         .with_env("S3_SECRET_ACCESS_KEY", S3_SECRET)
         .with_env("S3_ENDPOINT_URL", minio_endpoint)
+        # Server-side S3 calls (multipart) reach MinIO over the container network.
+        .with_env("S3_INTERNAL_ENDPOINT_URL", "http://minio:9000")
         .with_env("S3_PUBLIC_BASE_URL", f"{minio_endpoint}/{S3_BUCKET}")
         .with_exposed_ports(8000)
         .with_network(_network)

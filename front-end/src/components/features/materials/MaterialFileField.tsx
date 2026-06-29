@@ -49,28 +49,59 @@ function MaterialFileField({
       return
     }
 
-    // 1) Ask the API for a presigned upload (kind depends on the category).
-    const { data, error: presignError } = await api.POST('/materials/media-uploads', {
+    // 1) Start a multipart upload.
+    const { data: start, error: startError } = await api.POST('/materials/uploads/start', {
       body: { kind: uploadKind[category], content_type: file.type },
     })
-    if (presignError || !data) {
-      setError(errorMessage(presignError))
+    if (startError || !start) {
+      setError(errorMessage(startError))
       return
     }
 
-    // 2) Upload straight to S3 (XHR for progress events). Show the name + bar now.
     onFileNameChange(file.name)
     setProgress(0)
+
+    // 2) Upload the file in parts. Progress reflects bytes S3 has accepted: a part's
+    //    bytes only count once its PUT resolves (S3 acknowledged it). Within the part
+    //    currently in flight we add its live byte progress for a smooth bar.
+    const partSize = start.part_size
+    const partCount = Math.max(1, Math.ceil(file.size / partSize))
+    let completedBytes = 0
     try {
-      await uploadToS3(data.url, data.fields, file, (pct) => setProgress(pct))
+      for (let partNumber = 1; partNumber <= partCount; partNumber++) {
+        const begin = (partNumber - 1) * partSize
+        const blob = file.slice(begin, Math.min(begin + partSize, file.size))
+
+        const { data: part, error: partError } = await api.POST('/materials/uploads/part', {
+          body: { key: start.key, upload_id: start.upload_id, part_number: partNumber },
+        })
+        if (partError || !part) throw new Error('part url')
+
+        await putPart(part.url, blob, (sentInPart) => {
+          const pct = Math.round(((completedBytes + sentInPart) / file.size) * 100)
+          setProgress(Math.min(99, pct)) // 100% is reserved for after `complete`
+        })
+        completedBytes += blob.size
+      }
+
+      // 3) Finalize: S3 stitches the parts into one object.
+      const { error: completeError } = await api.POST('/materials/uploads/complete', {
+        body: { key: start.key, upload_id: start.upload_id },
+      })
+      if (completeError) throw new Error('complete')
     } catch {
       setError('No se ha podido subir el archivo. Inténtalo de nuevo.')
       setProgress(null)
       onFileNameChange(null)
+      // Best-effort cleanup of the half-done multipart upload.
+      void api.POST('/materials/uploads/abort', {
+        body: { key: start.key, upload_id: start.upload_id },
+      })
       return
     }
+
     setProgress(null)
-    onChange(data.key)
+    onChange(start.key)
   }
 
   function handleRemove() {
@@ -141,30 +172,21 @@ function MaterialFileField({
   )
 }
 
-/** POST a file to S3 using the presigned fields, reporting upload progress. */
-function uploadToS3(
-  url: string,
-  fields: Record<string, string>,
-  file: File,
-  onProgress: (pct: number) => void,
-): Promise<void> {
+/** PUT one part to its presigned S3 URL. `onProgress` reports bytes sent for this
+ *  part; the promise resolves only once S3 has acknowledged it (the `load` event). */
+function putPart(url: string, blob: Blob, onProgress: (sentBytes: number) => void): Promise<void> {
   return new Promise((resolve, reject) => {
-    const form = new FormData()
-    // S3 requires the policy fields before the file part.
-    Object.entries(fields).forEach(([key, val]) => form.append(key, val))
-    form.append('file', file)
-
     const xhr = new XMLHttpRequest()
-    xhr.open('POST', url)
+    xhr.open('PUT', url)
     xhr.upload.addEventListener('progress', (event) => {
-      if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100))
+      if (event.lengthComputable) onProgress(event.loaded)
     })
     xhr.addEventListener('load', () => {
       if (xhr.status >= 200 && xhr.status < 300) resolve()
       else reject(new Error(`Upload failed: ${xhr.status}`))
     })
     xhr.addEventListener('error', () => reject(new Error('Upload failed')))
-    xhr.send(form)
+    xhr.send(blob)
   })
 }
 

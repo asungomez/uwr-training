@@ -1027,7 +1027,7 @@ export interface paths {
         patch: operations["update_speed_test_log_week_speed_test_logs__log_id__week_patch"];
         trace?: never;
     };
-    "/materials/media-uploads": {
+    "/materials/uploads/start": {
         parameters: {
             query?: never;
             header?: never;
@@ -1037,11 +1037,72 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Create Material Upload
-         * @description Mint a presigned POST so the admin's browser uploads a material file straight
-         *     to S3. Returns the object key to store on save.
+         * Start Upload
+         * @description Begin a multipart upload for a material file. The browser then PUTs each part
+         *     to its own presigned URL and finishes with /uploads/complete. Multipart lets the
+         *     progress bar track bytes S3 actually accepts (not just flushed to a socket).
          */
-        post: operations["create_material_upload_materials_media_uploads_post"];
+        post: operations["start_upload_materials_uploads_start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/materials/uploads/part": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Part Url
+         * @description A presigned PUT URL for one part of an in-progress multipart upload.
+         */
+        post: operations["upload_part_url_materials_uploads_part_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/materials/uploads/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Complete Upload
+         * @description Finalize a multipart upload into a single object (reads the parts S3 recorded).
+         */
+        post: operations["complete_upload_materials_uploads_complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/materials/uploads/abort": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Abort Upload
+         * @description Discard an in-progress multipart upload (on cancel or failure).
+         */
+        post: operations["abort_upload_materials_uploads_abort_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1532,6 +1593,16 @@ export interface components {
          * @enum {string}
          */
         ExerciseType: "gym" | "pool";
+        /**
+         * FinishUploadRequest
+         * @description Complete or abort an in-progress multipart upload.
+         */
+        FinishUploadRequest: {
+            /** Key */
+            key: string;
+            /** Upload Id */
+            upload_id: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1837,31 +1908,6 @@ export interface components {
             readonly file_url: string | null;
         };
         /**
-         * MaterialUploadRequest
-         * @description Ask for a presigned upload. `kind` picks the constraints (a document or a
-         *     recorded video) and the S3 folder.
-         */
-        MaterialUploadRequest: {
-            kind: components["schemas"]["MediaKind"];
-            /** Content Type */
-            content_type: string;
-        };
-        /**
-         * MaterialUploadResponse
-         * @description A presigned POST the client uses to upload one file directly to S3, plus the
-         *     object key to store on the material once the upload succeeds.
-         */
-        MaterialUploadResponse: {
-            /** Key */
-            key: string;
-            /** Url */
-            url: string;
-            /** Fields */
-            fields: {
-                [key: string]: string;
-            };
-        };
-        /**
          * MediaKind
          * @enum {string}
          */
@@ -2001,6 +2047,20 @@ export interface components {
             parameter_id: string;
             /** Value */
             value: string;
+        };
+        /** PartUrlRequest */
+        PartUrlRequest: {
+            /** Key */
+            key: string;
+            /** Upload Id */
+            upload_id: string;
+            /** Part Number */
+            part_number: number;
+        };
+        /** PartUrlResponse */
+        PartUrlResponse: {
+            /** Url */
+            url: string;
         };
         /** RelatedExerciseInput */
         RelatedExerciseInput: {
@@ -2195,6 +2255,30 @@ export interface components {
             performed_at: string;
             /** Seconds */
             seconds: number;
+        };
+        /**
+         * StartUploadRequest
+         * @description Begin a multipart upload. `kind` picks the constraints (a document or a
+         *     recorded video) and the S3 folder.
+         */
+        StartUploadRequest: {
+            kind: components["schemas"]["MediaKind"];
+            /** Content Type */
+            content_type: string;
+        };
+        /**
+         * StartUploadResponse
+         * @description The S3 object key + multipart upload id, and the part size the client should
+         *     slice the file into. The client uploads each part to its own presigned URL
+         *     (`/materials/uploads/part`), then calls `/materials/uploads/complete`.
+         */
+        StartUploadResponse: {
+            /** Key */
+            key: string;
+            /** Upload Id */
+            upload_id: string;
+            /** Part Size */
+            part_size: number;
         };
         /**
          * StrengthTestItemInput
@@ -4980,7 +5064,7 @@ export interface operations {
             };
         };
     };
-    create_material_upload_materials_media_uploads_post: {
+    start_upload_materials_uploads_start_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -4991,7 +5075,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["MaterialUploadRequest"];
+                "application/json": components["schemas"]["StartUploadRequest"];
             };
         };
         responses: {
@@ -5001,8 +5085,109 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MaterialUploadResponse"];
+                    "application/json": components["schemas"]["StartUploadResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_part_url_materials_uploads_part_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PartUrlRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PartUrlResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    complete_upload_materials_uploads_complete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FinishUploadRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    abort_upload_materials_uploads_abort_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FinishUploadRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

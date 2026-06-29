@@ -10,15 +10,26 @@ from app.db import get_session
 from app.errors import ErrorCode, api_error
 from app.materials.schemas import (
     CreateMaterialRequest,
+    FinishUploadRequest,
     MaterialListParams,
     MaterialResponse,
-    MaterialUploadRequest,
-    MaterialUploadResponse,
+    PartUrlRequest,
+    PartUrlResponse,
+    StartUploadRequest,
+    StartUploadResponse,
     UpdateMaterialRequest,
 )
 from app.models import Material, User
 from app.pagination import Page
-from app.storage import MEDIA_CONSTRAINTS, MediaKind, create_presigned_upload
+from app.storage import (
+    MEDIA_CONSTRAINTS,
+    MULTIPART_PART_SIZE,
+    MediaKind,
+    abort_multipart_upload,
+    complete_multipart_upload,
+    create_multipart_upload,
+    presign_part,
+)
 
 router = APIRouter(prefix="/materials", tags=["materials"])
 
@@ -40,13 +51,14 @@ def _validate(title: str, file_key: str) -> str:
     return trimmed
 
 
-@router.post("/media-uploads", response_model=MaterialUploadResponse)
-async def create_material_upload(
-    body: MaterialUploadRequest,
+@router.post("/uploads/start", response_model=StartUploadResponse)
+async def start_upload(
+    body: StartUploadRequest,
     _admin: Annotated[User, Depends(require_admin)],
-) -> MaterialUploadResponse:
-    """Mint a presigned POST so the admin's browser uploads a material file straight
-    to S3. Returns the object key to store on save."""
+) -> StartUploadResponse:
+    """Begin a multipart upload for a material file. The browser then PUTs each part
+    to its own presigned URL and finishes with /uploads/complete. Multipart lets the
+    progress bar track bytes S3 actually accepts (not just flushed to a socket)."""
     if body.kind not in _MATERIAL_KINDS:
         raise api_error(
             status.HTTP_400_BAD_REQUEST, ErrorCode.invalid_material, "Invalid material kind"
@@ -58,8 +70,37 @@ async def create_material_upload(
             ErrorCode.invalid_media_type,
             f"Unsupported content type for {body.kind.value}",
         )
-    upload = create_presigned_upload(body.kind, body.content_type)
-    return MaterialUploadResponse(key=upload.key, url=upload.url, fields=upload.fields)
+    upload = create_multipart_upload(body.kind, body.content_type)
+    return StartUploadResponse(
+        key=upload.key, upload_id=upload.upload_id, part_size=MULTIPART_PART_SIZE
+    )
+
+
+@router.post("/uploads/part", response_model=PartUrlResponse)
+async def upload_part_url(
+    body: PartUrlRequest,
+    _admin: Annotated[User, Depends(require_admin)],
+) -> PartUrlResponse:
+    """A presigned PUT URL for one part of an in-progress multipart upload."""
+    return PartUrlResponse(url=presign_part(body.key, body.upload_id, body.part_number))
+
+
+@router.post("/uploads/complete", status_code=status.HTTP_204_NO_CONTENT)
+async def complete_upload(
+    body: FinishUploadRequest,
+    _admin: Annotated[User, Depends(require_admin)],
+) -> None:
+    """Finalize a multipart upload into a single object (reads the parts S3 recorded)."""
+    complete_multipart_upload(body.key, body.upload_id)
+
+
+@router.post("/uploads/abort", status_code=status.HTTP_204_NO_CONTENT)
+async def abort_upload(
+    body: FinishUploadRequest,
+    _admin: Annotated[User, Depends(require_admin)],
+) -> None:
+    """Discard an in-progress multipart upload (on cancel or failure)."""
+    abort_multipart_upload(body.key, body.upload_id)
 
 
 @router.get("", response_model=Page[MaterialResponse])
