@@ -52,7 +52,10 @@ function RegisterSpeedTestPage() {
 
   return (
     <section className="max-w-2xl">
-      <nav className="flex items-center gap-1 text-sm text-slate-400" aria-label="Migas de pan">
+      <nav
+        className="flex flex-wrap items-center gap-1 text-sm break-words text-slate-400"
+        aria-label="Migas de pan"
+      >
         <Link to="/pruebas/velocidad" className="transition-colors hover:text-slate-200">
           Prueba de velocidad
         </Link>

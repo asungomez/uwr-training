@@ -40,7 +40,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="fixed right-4 bottom-4 z-50 flex w-full max-w-sm flex-col gap-2">
+      {/* Pin to both side insets so the box never extends past the viewport (a
+          fixed element overflowing the edge scrolls the whole page sideways on
+          mobile); max-w-sm + ml-auto keep it a right-aligned card on wider screens. */}
+      <div className="fixed right-4 bottom-4 left-4 z-50 ml-auto flex max-w-sm flex-col gap-2">
         {toasts.map((toast) => {
           const { styles, Icon } = variantConfig[toast.variant]
           return (

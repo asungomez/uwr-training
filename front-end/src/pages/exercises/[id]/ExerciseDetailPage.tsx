@@ -46,7 +46,10 @@ function ExerciseDetailPage() {
 
   return (
     <section>
-      <nav className="flex items-center gap-1 text-sm text-slate-400" aria-label="Migas de pan">
+      <nav
+        className="flex flex-wrap items-center gap-1 text-sm break-words text-slate-400"
+        aria-label="Migas de pan"
+      >
         <Link to="/ejercicios" className="transition-colors hover:text-slate-200">
           Ejercicios
         </Link>
