@@ -1,7 +1,7 @@
 import type { components } from '@/api/schema'
 
 import { prescriptionFields } from './prescription'
-import { createSessionPdf, INK, MUTED } from './sessionPdf'
+import { createSessionPdf, INK, MUTED, type SessionPdf } from './sessionPdf'
 import { categoryLabels, subtypeLabels } from './trainingLabels'
 
 type TrainingDetail = components['schemas']['TrainingSessionDetailResponse']
@@ -17,11 +17,9 @@ function itemLine(item: ItemResponse): string {
   return extras ? `${name} — ${extras}` : name
 }
 
-/** Generate a print-ready landscape-A5 PDF of a gym/pool training session and open
- *  it in a new tab. Vector text, two columns per page (see sessionPdf). */
-export function openTrainingPdf(training: TrainingDetail): void {
-  const pdf = createSessionPdf()
-
+/** Render one training into the given PDF (no page handling — the caller decides
+ *  page breaks between sessions). */
+function renderTraining(pdf: SessionPdf, training: TrainingDetail): void {
   // Header: title + category/subtype, flowing inside the first column.
   pdf.write(training.title ?? 'Sin título', { size: 16, style: 'bold', lineH: 7 })
   pdf.write(`${categoryLabels[training.category]} · ${subtypeLabels[training.subtype]}`, {
@@ -59,6 +57,22 @@ export function openTrainingPdf(training: TrainingDetail): void {
     }
     pdf.space(2)
   }
+}
 
+/** Generate a print-ready landscape-A5 PDF of a gym/pool training session and open
+ *  it in a new tab. Vector text, two columns per page (see sessionPdf). */
+export function openTrainingPdf(training: TrainingDetail): void {
+  const pdf = createSessionPdf()
+  renderTraining(pdf, training)
   pdf.open(`${training.title ?? 'entrenamiento'}.pdf`)
+}
+
+/** Generate one PDF holding several trainings, each starting on a new page. */
+export function openTrainingsPdf(trainings: TrainingDetail[]): void {
+  const pdf = createSessionPdf()
+  trainings.forEach((training, index) => {
+    if (index > 0) pdf.pageBreak()
+    renderTraining(pdf, training)
+  })
+  pdf.open('entrenamientos.pdf')
 }

@@ -36,6 +36,9 @@ export interface SessionPdf {
   rule(): void
   /** Ensure `mm` fit before the bottom margin, else flow to the next column. */
   ensure(mm: number): void
+  /** Start a fresh page in the left column (used between sessions in a multi-session
+   *  export). No-op if nothing has been written yet. */
+  pageBreak(): void
   /** Open the finished PDF in a new tab (the viewer offers print/save). */
   open(filename: string): void
 }
@@ -48,6 +51,8 @@ export function createSessionPdf(): SessionPdf {
   // the top of the page.
   let colX = MARGIN
   let y = MARGIN
+  // Whether anything has been drawn yet (so pageBreak() doesn't add a blank lead page).
+  let started = false
 
   function nextColumn(): void {
     if (colX === MARGIN) {
@@ -64,6 +69,7 @@ export function createSessionPdf(): SessionPdf {
   }
 
   function write(text: string, opts: WriteOpts): void {
+    started = true
     const { indent = 0, size, style = 'normal', color = INK, lineH } = opts
     doc.setFont('helvetica', style)
     doc.setFontSize(size)
@@ -85,9 +91,16 @@ export function createSessionPdf(): SessionPdf {
     doc.line(colX, y, colX + COL_W, y)
   }
 
+  function pageBreak(): void {
+    if (!started) return
+    doc.addPage()
+    colX = MARGIN
+    y = MARGIN
+  }
+
   function open(filename: string): void {
     doc.output('dataurlnewwindow', { filename })
   }
 
-  return { write, space, rule, ensure, open }
+  return { write, space, rule, ensure, pageBreak, open }
 }

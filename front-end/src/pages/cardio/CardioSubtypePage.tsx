@@ -13,7 +13,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { ChevronRight, Plus } from 'lucide-react'
+import { ChevronRight, FileText, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 
@@ -26,6 +26,7 @@ import {
   cardioSubtypeLabels,
   cardioSubtypeSlugs,
 } from '@/components/features/cardio/cardioLabels'
+import { openCardiosPdf } from '@/components/features/cardio/cardioPdf'
 import SortableCardioRow from '@/components/features/cardio/SortableCardioRow'
 import Pagination from '@/components/molecules/Pagination'
 import SearchInput from '@/components/molecules/SearchInput'
@@ -84,6 +85,47 @@ function CardioSubtypePage() {
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
+
+  // Rows ticked for a combined PDF export (by training id), and whether one is being
+  // generated (it fetches each selected training's detail first).
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [generating, setGenerating] = useState(false)
+
+  function toggleSelected(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  // Whether every loaded row is ticked — drives the select-all / deselect-all toggle.
+  const allSelected = ordered.length > 0 && ordered.every((t) => selected.has(t.id))
+
+  function toggleSelectAll() {
+    setSelected(allSelected ? new Set() : new Set(ordered.map((t) => t.id)))
+  }
+
+  async function generatePdf() {
+    const ids = ordered.filter((t) => selected.has(t.id)).map((t) => t.id)
+    if (ids.length === 0) return
+    setGenerating(true)
+    const details = await Promise.all(
+      ids.map((id) =>
+        api
+          .GET('/cardio-trainings/{training_id}', { params: { path: { training_id: id } } })
+          .then((res) => res.data),
+      ),
+    )
+    setGenerating(false)
+    const ok = details.filter((d): d is NonNullable<typeof d> => d != null)
+    if (ok.length === 0) {
+      toast.error('No se han podido cargar los entrenamientos.')
+      return
+    }
+    openCardiosPdf(ok)
+  }
 
   // Unknown subtype → cardio category landing.
   if (!subtype) return <Navigate to="/entrenamientos/cardio" replace />
@@ -148,6 +190,26 @@ function CardioSubtypePage() {
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <SearchInput value={search} onChange={setSearch} placeholder="Buscar por título…" />
+        {ordered.length > 0 && (
+          <button
+            type="button"
+            onClick={toggleSelectAll}
+            className="inline-flex items-center rounded-md border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+          >
+            {allSelected ? 'Deseleccionar todo' : 'Seleccionar todo'}
+          </button>
+        )}
+        {selected.size > 0 && (
+          <button
+            type="button"
+            onClick={() => void generatePdf()}
+            disabled={generating}
+            className="inline-flex items-center gap-2 rounded-md border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800 focus:ring-2 focus:ring-indigo-400 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <FileText size={16} />
+            {generating ? 'Generando…' : `PDF (${selected.size})`}
+          </button>
+        )}
       </div>
 
       {isLoading && <p className="mt-4 text-slate-400">Cargando…</p>}
@@ -179,6 +241,8 @@ function CardioSubtypePage() {
                     training={training}
                     draggable={canReorder}
                     onOpen={() => void navigate(`/entrenamientos/cardio/sesion/${training.id}`)}
+                    selected={selected.has(training.id)}
+                    onToggleSelected={() => toggleSelected(training.id)}
                   />
                 ))}
               </ul>

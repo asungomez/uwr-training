@@ -221,3 +221,36 @@ def test_member_does_not_see_create_button(
     # Then there's no create button.
     page.goto(f"{app_url}/entrenamientos/gimnasio/acumulacion")
     expect(page.get_by_role("link", name="Nuevo entrenamiento")).not_to_be_visible()
+
+
+def test_select_multiple_trainings_exports_combined_pdf(
+    page: Page,
+    app_url: str,
+    create_user: Callable[..., User],
+    create_training: Callable[..., TrainingSession],
+    log_in_as: Callable[[User], None],
+) -> None:
+    # Given two trainings in the same subtype list.
+    member = create_user(role="member", email="member@example.com")
+    create_training(title="Primera", category="gym", subtype="accumulation")
+    create_training(title="Segunda", category="gym", subtype="accumulation")
+    log_in_as(member)
+    page.goto(f"{app_url}/entrenamientos/gimnasio/acumulacion")
+
+    # The PDF action only appears once at least one row is selected.
+    expect(page.get_by_role("button", name=re.compile(r"PDF"))).to_have_count(0)
+    checkboxes = page.get_by_role("checkbox")
+    checkboxes.nth(0).check()
+    checkboxes.nth(1).check()
+
+    # When I generate, a new tab opens with the combined client-generated PDF.
+    pdf_button = page.get_by_role("button", name=re.compile(r"PDF \(2\)"))
+    expect(pdf_button).to_be_visible()
+    with page.context.expect_page() as new_page_info:
+        pdf_button.click()
+    pdf_page = new_page_info.value
+    pdf_page.wait_for_load_state()
+    src = pdf_page.evaluate(
+        "() => { const el = document.querySelector('iframe,embed'); return el ? el.src : '' }"
+    )
+    assert src.startswith("data:application/pdf"), src

@@ -1,6 +1,11 @@
 import type { components } from '@/api/schema'
 
-import { createSessionPdf, INK, MUTED } from '@/components/features/trainings/sessionPdf'
+import {
+  createSessionPdf,
+  INK,
+  MUTED,
+  type SessionPdf,
+} from '@/components/features/trainings/sessionPdf'
 
 import { cardioSubtypeLabels } from './cardioLabels'
 import { formatDuration } from './cardioFormat'
@@ -15,11 +20,9 @@ function intervalLine(interval: IntervalResponse): string {
   return interval.intensity_pct != null ? `${duration} · ${interval.intensity_pct}%` : duration
 }
 
-/** Generate a print-ready landscape-A5 PDF of a cardio training and open it in a
- *  new tab. Vector text, two columns per page (see sessionPdf). */
-export function openCardioPdf(training: CardioDetail): void {
-  const pdf = createSessionPdf()
-
+/** Render one cardio training into the given PDF (no page handling — the caller
+ *  decides page breaks between sessions). */
+function renderCardio(pdf: SessionPdf, training: CardioDetail): void {
   // Header: title + subtype, flowing inside the first column.
   pdf.write(training.title ?? 'Sin título', { size: 16, style: 'bold', lineH: 7 })
   pdf.write(`Cardio · ${cardioSubtypeLabels[training.subtype]}`, {
@@ -64,6 +67,22 @@ export function openCardioPdf(training: CardioDetail): void {
 
     pdf.space(2)
   }
+}
 
+/** Generate a print-ready landscape-A5 PDF of a cardio training and open it in a
+ *  new tab. Vector text, two columns per page (see sessionPdf). */
+export function openCardioPdf(training: CardioDetail): void {
+  const pdf = createSessionPdf()
+  renderCardio(pdf, training)
   pdf.open(`${training.title ?? 'cardio'}.pdf`)
+}
+
+/** Generate one PDF holding several cardio trainings, each starting on a new page. */
+export function openCardiosPdf(trainings: CardioDetail[]): void {
+  const pdf = createSessionPdf()
+  trainings.forEach((training, index) => {
+    if (index > 0) pdf.pageBreak()
+    renderCardio(pdf, training)
+  })
+  pdf.open('entrenamientos-cardio.pdf')
 }
