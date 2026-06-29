@@ -58,17 +58,18 @@ function MaterialFileField({
       return
     }
 
-    // 2) Upload straight to S3 (XHR for progress events).
+    // 2) Upload straight to S3 (XHR for progress events). Show the name + bar now.
+    onFileNameChange(file.name)
     setProgress(0)
     try {
       await uploadToS3(data.url, data.fields, file, (pct) => setProgress(pct))
     } catch {
       setError('No se ha podido subir el archivo. Inténtalo de nuevo.')
       setProgress(null)
+      onFileNameChange(null)
       return
     }
     setProgress(null)
-    onFileNameChange(file.name)
     onChange(data.key)
   }
 
@@ -84,26 +85,33 @@ function MaterialFileField({
     <div className="flex flex-col gap-1">
       <span className={labelClass}>Archivo</span>
 
-      {value ? (
+      {uploading ? (
+        // In-progress upload: a real progress bar (matters for big videos).
+        <div className="rounded-md border border-slate-600 bg-slate-900 px-4 py-3">
+          <div className="flex items-center gap-2 text-sm text-slate-200">
+            <Loader2 size={16} className="shrink-0 animate-spin text-slate-400" />
+            <span className="min-w-0 flex-1 truncate">{fileName ?? 'Subiendo…'}</span>
+            <span className="shrink-0 tabular-nums text-slate-400">{progress}%</span>
+          </div>
+          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-700">
+            <div
+              className="h-full rounded-full bg-indigo-500 transition-[width] duration-150"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
+      ) : value ? (
         <div className="flex items-center gap-2 rounded-md border border-slate-600 bg-slate-900 px-4 py-3 text-sm text-slate-200">
-          {uploading ? (
-            <Loader2 size={16} className="animate-spin text-slate-400" />
-          ) : (
-            <FileCheck2 size={16} className="text-emerald-400" />
-          )}
-          <span className="min-w-0 flex-1 truncate">
-            {uploading ? `Subiendo… ${progress}%` : (fileName ?? 'Archivo subido')}
-          </span>
-          {!uploading && (
-            <button
-              type="button"
-              onClick={handleRemove}
-              aria-label="Quitar archivo"
-              className="rounded-full p-1 text-slate-400 transition-colors hover:bg-red-600 hover:text-white"
-            >
-              <X size={16} />
-            </button>
-          )}
+          <FileCheck2 size={16} className="text-emerald-400" />
+          <span className="min-w-0 flex-1 truncate">{fileName ?? 'Archivo subido'}</span>
+          <button
+            type="button"
+            onClick={handleRemove}
+            aria-label="Quitar archivo"
+            className="rounded-full p-1 text-slate-400 transition-colors hover:bg-red-600 hover:text-white"
+          >
+            <X size={16} />
+          </button>
         </div>
       ) : (
         <button

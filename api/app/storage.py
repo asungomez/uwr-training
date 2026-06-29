@@ -115,7 +115,8 @@ class PresignedUpload(NamedTuple):
 def create_presigned_upload(kind: MediaKind, content_type: str) -> PresignedUpload:
     """Presigned POST for a direct browser→S3 upload. Returns the object key plus
     the {url, fields} the client posts the file with. Enforces content-type and a
-    size ceiling via POST conditions."""
+    size ceiling via POST conditions. The URL stays valid for 2h so large uploads
+    (e.g. a 1h session video on a slow connection) don't expire mid-transfer."""
     _allowed_types, max_size = MEDIA_CONSTRAINTS[kind]
     key = _new_key(kind, content_type)
     presigned = _client().generate_presigned_post(
@@ -126,7 +127,7 @@ def create_presigned_upload(kind: MediaKind, content_type: str) -> PresignedUplo
             {"Content-Type": content_type},
             ["content-length-range", 1, max_size],
         ],
-        ExpiresIn=300,
+        ExpiresIn=2 * 60 * 60,  # 2 hours
     )
     return PresignedUpload(key=key, url=presigned["url"], fields=presigned["fields"])
 
