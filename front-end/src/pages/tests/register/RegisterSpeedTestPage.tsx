@@ -1,4 +1,4 @@
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, FileText } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
@@ -9,6 +9,7 @@ import FormError from '@/components/atoms/form/FormError'
 import SelectControl from '@/components/atoms/form/SelectControl'
 import SubmitButton from '@/components/atoms/form/SubmitButton'
 import WarmupView from '@/components/features/tests/WarmupView'
+import { openTrainingPdf } from '@/components/features/trainings/trainingPdf'
 import { useToast } from '@/components/toast/context'
 
 function RegisterSpeedTestPage() {
@@ -27,6 +28,8 @@ function RegisterSpeedTestPage() {
     setSyncedForm(form.data)
     setWeekId(form.data?.recommended_week_id ?? '')
   }
+
+  const warmup = form.data?.warmup
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
@@ -73,7 +76,17 @@ function RegisterSpeedTestPage() {
       {form.data && (
         <>
           <div className="mt-6">
-            <h2 className="text-lg font-semibold text-slate-100">Calentamiento</h2>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-lg font-semibold text-slate-100">Calentamiento</h2>
+              <button
+                type="button"
+                onClick={() => warmup && openTrainingPdf(warmup)}
+                className="inline-flex items-center gap-2 rounded-md border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+              >
+                <FileText size={16} />
+                PDF
+              </button>
+            </div>
             <div className="mt-3">
               <WarmupView warmup={form.data.warmup} />
             </div>
