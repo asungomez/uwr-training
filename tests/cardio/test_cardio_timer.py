@@ -103,7 +103,9 @@ def test_timer_sound_starts_muted_and_toggles(
 
 def _spy_on_speech(page: Page) -> None:
     """Record every speechSynthesis.speak() into window.__spoken and suppress the
-    actual (silent in headless) playback, so tests can assert what would be read."""
+    actual (silent in headless) playback, so tests can assert what would be read.
+    Also stub <audio>.play() to immediately fire 'ended': each cue speaks only after
+    its beep finishes, and a real headless beep may never emit 'ended'."""
     page.add_init_script(
         """
         window.__spoken = [];
@@ -111,6 +113,10 @@ def _spy_on_speech(page: Page) -> None:
         if (synth) {
           synth.speak = (u) => { window.__spoken.push(u.text); };
         }
+        HTMLMediaElement.prototype.play = function () {
+          setTimeout(() => this.dispatchEvent(new Event('ended')), 0);
+          return Promise.resolve();
+        };
         """
     )
 
@@ -163,17 +169,24 @@ def test_timer_reads_segments_aloud_when_unmuted(
     page.get_by_role("button", name="Iniciar crono").click()
 
     # Unmuting reads the current segment straight away; the workout then runs to the
-    # end on its own. Once it's finished, every cue has been spoken: the opening
-    # segment, the block-done announcement (spelled-out block numbers), the second
-    # block's segment, and the finish.
+    # end on its own. Wait through the block-done screen (its ~3s auto-advance ring
+    # makes the full run exceed the default 5s expect timeout) before asserting the
+    # finish. Once it's finished, every cue has been spoken: the opening segment, the
+    # block-done announcement (spelled-out block numbers), the second block's segment,
+    # and the finish.
     page.get_by_role("button", name="Activar sonido").click()
-    expect(page.get_by_text("Entrenamiento finalizado")).to_be_visible()
+    expect(page.get_by_text("Bloque 1/2 completado")).to_be_visible()
+    expect(page.get_by_text("Entrenamiento finalizado")).to_be_visible(timeout=10000)
 
-    spoken: list[str] = page.evaluate("window.__spoken")
-    assert "Sesenta por ciento, un segundo" in spoken
-    assert "Bloque uno de dos completado" in spoken
-    assert "Ochenta por ciento, un segundo" in spoken
-    assert "Entrenamiento finalizado" in spoken
+    # Each cue speaks only after its beep finishes (async), so the finish utterance
+    # can land just after the screen does — poll until every expected phrase is in.
+    for phrase in (
+        "Sesenta por ciento, un segundo",
+        "Bloque uno de dos completado",
+        "Ochenta por ciento, un segundo",
+        "Entrenamiento finalizado",
+    ):
+        page.wait_for_function("(p) => window.__spoken.includes(p)", arg=phrase, timeout=5000)
 
 
 def test_timer_button_hidden_without_timed_blocks(

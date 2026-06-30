@@ -115,10 +115,13 @@ def test_clicking_a_log_opens_its_read_only_detail(
     log_in_as(admin)
 
     page.goto(f"{app_url}/usuarios/{member.id}/entrenamientos")
-    # Open the gym log (its note proves the detail loaded, not just the title).
-    page.get_by_role("link").filter(has_text="Gimnasio").click()
+    # Wait for the list, then open the gym log via its row link. Scoped to the log
+    # list so it doesn't match the "Gimnasio" link in the sidebar nav.
+    gym_row = page.get_by_role("link").filter(has_text="Fuerza A")
+    expect(gym_row).to_be_visible()
+    gym_row.click()
+    # Its note proves the detail loaded, not just the title.
     expect(page).to_have_url(re.compile(r"/registros/sesion/"))
-    expect(page.get_by_text("Fuerza A", exact=False)).to_be_visible()
     expect(page.get_by_text("Sesión de fuerza", exact=False)).to_be_visible()
 
 
