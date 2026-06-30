@@ -1,4 +1,4 @@
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, Timer } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
@@ -9,6 +9,7 @@ import FormError from '@/components/atoms/form/FormError'
 import SelectControl from '@/components/atoms/form/SelectControl'
 import SubmitButton from '@/components/atoms/form/SubmitButton'
 import CardioItemView from '@/components/features/cardio/CardioItemView'
+import CardioTimer from '@/components/features/cardio/CardioTimer'
 import { useToast } from '@/components/toast/context'
 
 function RegisterCardioPage() {
@@ -21,6 +22,7 @@ function RegisterCardioPage() {
   const [exercise, setExercise] = useState('')
   const [note, setNote] = useState('')
   const [weekId, setWeekId] = useState('')
+  const [timerOpen, setTimerOpen] = useState(false)
 
   // The assignable weeks (those recommending this cardio type, not yet full) and
   // the recommended one to pre-select.
@@ -95,6 +97,19 @@ function RegisterCardioPage() {
           <h1 className="text-2xl font-semibold tracking-tight text-slate-100">Registrar sesión</h1>
           <p className="mt-1 text-slate-400">{form.data.title ?? 'Sin título'}</p>
 
+          {/* Live timer to follow the session on the machine. Only when there are
+              timed blocks. */}
+          {training.data?.items.some((item) => item.kind === 'block') && (
+            <button
+              type="button"
+              onClick={() => setTimerOpen(true)}
+              className="mt-4 inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+            >
+              <Timer size={16} />
+              Iniciar crono
+            </button>
+          )}
+
           {/* The session itself, read-only, so the athlete can follow it while logging. */}
           {training.data && training.data.items.length > 0 && (
             <div className="mt-6 flex flex-col gap-3">
@@ -153,6 +168,10 @@ function RegisterCardioPage() {
             </SubmitButton>
           </form>
         </div>
+      )}
+
+      {timerOpen && training.data && (
+        <CardioTimer training={training.data} onClose={() => setTimerOpen(false)} />
       )}
     </section>
   )
