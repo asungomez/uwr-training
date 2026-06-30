@@ -22,6 +22,7 @@ from app.models import (
     TrainingSession,
     TrainingSubBlock,
     User,
+    UserRole,
     Week,
 )
 from app.pagination import Page, PaginationParams
@@ -367,9 +368,11 @@ async def get_session_log(
     user: Annotated[User, Depends(current_user)],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> SessionLogResponse:
-    """One of the current athlete's logs for this session, with full detail."""
+    """Full detail of a session log. The athlete can read their own; an admin can
+    read any athlete's (to review training from the user-detail page)."""
     log = await _load_full_log(session, log_id)
-    if log is None or log.training_session_id != training_id or log.athlete_id != user.id:
+    owns_or_admin = log is not None and (log.athlete_id == user.id or user.role == UserRole.admin)
+    if log is None or log.training_session_id != training_id or not owns_or_admin:
         raise api_error(
             status.HTTP_404_NOT_FOUND, ErrorCode.session_log_not_found, "Session log not found"
         )

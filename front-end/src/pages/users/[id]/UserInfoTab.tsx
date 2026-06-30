@@ -1,13 +1,12 @@
-import { ChevronRight } from 'lucide-react'
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 
 import { api, useMutate, useQuery } from '@/api/client'
 import { errorMessage } from '@/api/errors'
-import { useToast } from '@/components/toast/context'
-import { RoleBadge, StatusBadge } from '@/components/features/users/userBadges'
 import RegeneratedInvitationModal from '@/components/features/users/RegeneratedInvitationModal'
 import ResetCodeModal from '@/components/features/users/ResetCodeModal'
+import { RoleBadge, StatusBadge } from '@/components/features/users/userBadges'
+import { useToast } from '@/components/toast/context'
 
 function formatDate(value: string): string {
   return new Date(value).toLocaleString('es-ES', {
@@ -27,7 +26,9 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
-function UserDetailPage() {
+/** The "Información" tab: the user's account details plus admin actions
+ *  (activate/deactivate, reset code, regenerate invitation). */
+function UserInfoTab() {
   const { id } = useParams<{ id: string }>()
   const entryId = id ?? ''
   const { data, isLoading, error } = useQuery('/auth/users/{entry_id}', {
@@ -97,18 +98,7 @@ function UserDetailPage() {
   }
 
   return (
-    <section>
-      <nav
-        className="flex flex-wrap items-center gap-1 text-sm break-words text-slate-400"
-        aria-label="Migas de pan"
-      >
-        <Link to="/usuarios" className="transition-colors hover:text-slate-200">
-          Usuarios
-        </Link>
-        <ChevronRight size={14} />
-        <span className="text-slate-200">{data?.email ?? '…'}</span>
-      </nav>
-
+    <>
       {isLoading && <p className="mt-4 text-slate-400">Cargando…</p>}
       {error && <p className="mt-4 text-red-400">No se ha encontrado el usuario.</p>}
 
@@ -180,8 +170,8 @@ function UserDetailPage() {
         onClose={() => setRegeneratedToken(null)}
       />
       <ResetCodeModal code={resetCode} onClose={() => setResetCode(null)} />
-    </section>
+    </>
   )
 }
 
-export default UserDetailPage
+export default UserInfoTab

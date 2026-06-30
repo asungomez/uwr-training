@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.auth.dependencies import current_user, require_admin
 from app.auth.schemas import (
@@ -17,6 +18,9 @@ from app.auth.schemas import (
     LoginRequest,
     ResetCodeResponse,
     ResetPasswordRequest,
+    TrainingLogCategory,
+    TrainingLogListParams,
+    TrainingLogSummaryResponse,
     UpdateUserRequest,
     UserDetailResponse,
     UserListParams,
@@ -29,7 +33,15 @@ from app.auth.utils import (
 )
 from app.db import get_session
 from app.errors import ErrorCode, api_error
-from app.models import Invitation, User, UserRole
+from app.models import (
+    CardioSessionLog,
+    Invitation,
+    SessionLog,
+    TrainingCategory,
+    TrainingSession,
+    User,
+    UserRole,
+)
 from app.pagination import Page, paginate
 from app.security import (
     INVITATION_MAX_AGE,
@@ -199,6 +211,79 @@ async def get_user_detail(
         )
 
     raise api_error(status.HTTP_404_NOT_FOUND, ErrorCode.user_not_found, "User not found")
+
+
+@router.get("/users/{user_id}/training-logs", response_model=Page[TrainingLogSummaryResponse])
+async def list_user_training_logs(
+    user_id: uuid.UUID,
+    _admin: Annotated[User, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    params: Annotated[TrainingLogListParams, Query()],
+) -> Page[TrainingLogSummaryResponse]:
+    """An athlete's training logs across gym, pool and cardio, most recent first.
+    Gym and pool are both SessionLogs (told apart by their session's category);
+    cardio is its own model. They're merged into one timeline and the optional
+    `category` filter narrows it to one kind."""
+    user = await session.get(User, user_id)
+    if user is None:
+        raise api_error(status.HTTP_404_NOT_FOUND, ErrorCode.user_not_found, "User not found")
+
+    summaries: list[TrainingLogSummaryResponse] = []
+
+    # Gym/pool session logs — skipped entirely when the filter asks only for cardio.
+    if params.category != TrainingLogCategory.cardio:
+        session_filters = [SessionLog.athlete_id == user_id]
+        if params.category == TrainingLogCategory.gym:
+            session_filters.append(TrainingSession.category == TrainingCategory.gym)
+        elif params.category == TrainingLogCategory.pool:
+            session_filters.append(TrainingSession.category == TrainingCategory.pool)
+        rows = await session.scalars(
+            select(SessionLog)
+            .join(SessionLog.training_session)
+            .where(*session_filters)
+            .options(selectinload(SessionLog.training_session))
+        )
+        for log in rows.all():
+            training = log.training_session
+            # gym|pool only — `test` sessions aren't logged this way, but guard anyway.
+            if training.category not in (TrainingCategory.gym, TrainingCategory.pool):
+                continue
+            summaries.append(
+                TrainingLogSummaryResponse(
+                    id=log.id,
+                    category=TrainingLogCategory(training.category.value),
+                    training_id=training.id,
+                    training_title=training.title,
+                    performed_at=log.performed_at,
+                    note=log.note,
+                )
+            )
+
+    # Cardio logs — skipped when the filter asks only for gym or pool.
+    if params.category in (None, TrainingLogCategory.cardio):
+        cardio_rows = await session.scalars(
+            select(CardioSessionLog)
+            .where(CardioSessionLog.athlete_id == user_id)
+            .options(selectinload(CardioSessionLog.cardio_training))
+        )
+        for cardio_log in cardio_rows.all():
+            cardio_training = cardio_log.cardio_training
+            summaries.append(
+                TrainingLogSummaryResponse(
+                    id=cardio_log.id,
+                    category=TrainingLogCategory.cardio,
+                    training_id=cardio_training.id,
+                    training_title=cardio_training.title,
+                    performed_at=cardio_log.performed_at,
+                    activity=cardio_log.exercise,
+                    note=cardio_log.note,
+                )
+            )
+
+    # Merge the two sources into one timeline (most recent first), then page in
+    # Python since the order spans tables and can't be a single SQL window.
+    summaries.sort(key=lambda item: item.performed_at, reverse=True)
+    return paginate(summaries, params)
 
 
 @router.patch("/users/{user_id}", response_model=UserDetailResponse)

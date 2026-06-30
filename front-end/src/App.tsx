@@ -38,7 +38,11 @@ import NewTrainingPage from '@/pages/trainings/new/NewTrainingPage'
 import TrainingsLandingPage from '@/pages/trainings/TrainingsLandingPage'
 import TrainingsPage from '@/pages/trainings/TrainingsPage'
 import TrainingSubtypePage from '@/pages/trainings/TrainingSubtypePage'
-import UserDetailPage from '@/pages/users/[id]/UserDetailPage'
+import AdminCardioLogPage from '@/pages/users/[id]/registros/AdminCardioLogPage'
+import AdminSessionLogPage from '@/pages/users/[id]/registros/AdminSessionLogPage'
+import UserDetailLayout from '@/pages/users/[id]/UserDetailLayout'
+import UserInfoTab from '@/pages/users/[id]/UserInfoTab'
+import UserTrainingsTab from '@/pages/users/[id]/UserTrainingsTab'
 import UsersPage from '@/pages/users/UsersPage'
 import EditWeekPage from '@/pages/weeks/[id]/edit/EditWeekPage'
 import WeekDetailPage from '@/pages/weeks/[id]/WeekDetailPage'
@@ -144,7 +148,22 @@ function App() {
           </Route>
           <Route path="/usuarios" element={<AdminRoute />}>
             <Route index element={<UsersPage />} />
-            <Route path=":id" element={<UserDetailPage />} />
+            {/* The user detail is tabbed: a layout with breadcrumb + tabs, each tab
+                a nested route so the URL reflects the active tab. */}
+            <Route path=":id" element={<UserDetailLayout />}>
+              <Route index element={<UserInfoTab />} />
+              <Route path="entrenamientos" element={<UserTrainingsTab />} />
+            </Route>
+            {/* Read-only log detail an admin opens from a user's training list.
+                Full pages (outside the tab shell). */}
+            <Route
+              path=":id/registros/sesion/:trainingId/:logId"
+              element={<AdminSessionLogPage />}
+            />
+            <Route
+              path=":id/registros/cardio/:trainingId/:logId"
+              element={<AdminCardioLogPage />}
+            />
           </Route>
           <Route path="*" element={<Navigate to="/entrenamientos" replace />} />
         </Route>

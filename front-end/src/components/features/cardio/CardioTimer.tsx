@@ -139,14 +139,22 @@ function CardioTimer({ training, onClose }: CardioTimerProps) {
   const [muted, setMuted] = useState(true)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
-  const beep = useCallback(() => {
-    if (muted) return
+  // Play the beep, resolving once it has finished (or right away if it can't play).
+  // Returning a promise lets the voice wait for the beep instead of talking over it.
+  const beep = useCallback((): Promise<void> => {
     const audio = audioRef.current
-    if (!audio) return
+    if (muted || !audio) return Promise.resolve()
     // Rewind so rapid back-to-back segments each beep.
     audio.currentTime = 0
-    void audio.play().catch(() => {
-      // Autoplay can be blocked until the first user gesture; harmless to ignore.
+    return new Promise((resolve) => {
+      const finish = () => {
+        audio.removeEventListener('ended', finish)
+        resolve()
+      }
+      audio.addEventListener('ended', finish)
+      // Autoplay can be blocked until the first user gesture; resolve so the voice
+      // still follows.
+      void audio.play().catch(finish)
     })
   }, [muted])
 
@@ -169,6 +177,17 @@ function CardioTimer({ training, onClose }: CardioTimerProps) {
       utter(text)
     },
     [muted, utter],
+  )
+
+  // A transition cue: beep first, then speak once the beep finishes — overlapping
+  // the two makes the voice hard to make out on a phone speaker.
+  const cue = useCallback(
+    (text: string | null) => {
+      void beep().then(() => {
+        if (text) speak(text)
+      })
+    },
+    [beep, speak],
   )
 
   // The spoken phrase for a segment's effort/rest, e.g. "Ochenta por ciento, tres
@@ -231,23 +250,19 @@ function CardioTimer({ training, onClose }: CardioTimerProps) {
         setRemaining(0)
         // A short buzz to flag the transition when the phone's on a machine.
         navigator.vibrate?.(400)
-        beep()
         // The block-done screen announces itself; the very end announces the finish.
-        if (hasMore) speak(speakBlockDone(current.blockIndex + 1, blocks.length))
-        else speak(SPEAK_FINISHED)
+        cue(hasMore ? speakBlockDone(current.blockIndex + 1, blocks.length) : SPEAK_FINISHED)
       } else {
         const next = segments[index + 1]
         if (!next) return
         navigator.vibrate?.(150)
-        beep()
-        const phrase = segmentSpeech(index + 1)
-        if (phrase) speak(phrase)
+        cue(segmentSpeech(index + 1))
         setIndex(index + 1)
         setRemaining(next.duration)
       }
     }, 1000)
     return () => clearInterval(id)
-  }, [status, index, remaining, segments, blocks, beep, speak, segmentSpeech])
+  }, [status, index, remaining, segments, blocks, cue, segmentSpeech])
 
   // While the block-done screen is up, fill a ring over BLOCK_DONE_MS, then move on
   // to the next block on its own — no tap. Animating `blockDoneProgress` 0→1 drives

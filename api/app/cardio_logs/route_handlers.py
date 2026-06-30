@@ -23,6 +23,7 @@ from app.models import (
     TrainingCategory,
     TrainingSubtype,
     User,
+    UserRole,
 )
 from app.pagination import Page, PaginationParams
 from app.week_progress import (
@@ -168,9 +169,11 @@ async def get_cardio_log(
     user: Annotated[User, Depends(current_user)],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> CardioLogResponse:
-    """One of the current athlete's cardio logs for this session."""
+    """A cardio log's detail. The athlete can read their own; an admin can read any
+    athlete's (to review training from the user-detail page)."""
     log = await _load_log(session, log_id)
-    if log is None or log.cardio_training_id != training_id or log.athlete_id != user.id:
+    owns_or_admin = log is not None and (log.athlete_id == user.id or user.role == UserRole.admin)
+    if log is None or log.cardio_training_id != training_id or not owns_or_admin:
         raise api_error(
             status.HTTP_404_NOT_FOUND, ErrorCode.cardio_log_not_found, "Cardio log not found"
         )

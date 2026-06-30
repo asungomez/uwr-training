@@ -148,6 +148,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/users/{user_id}/training-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List User Training Logs
+         * @description An athlete's training logs across gym, pool and cardio, most recent first.
+         *     Gym and pool are both SessionLogs (told apart by their session's category);
+         *     cardio is its own model. They're merged into one timeline and the optional
+         *     `category` filter narrows it to one kind.
+         */
+        get: operations["list_user_training_logs_auth_users__user_id__training_logs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/users/{user_id}": {
         parameters: {
             query?: never;
@@ -620,7 +643,8 @@ export interface paths {
         };
         /**
          * Get Session Log
-         * @description One of the current athlete's logs for this session, with full detail.
+         * @description Full detail of a session log. The athlete can read their own; an admin can
+         *     read any athlete's (to review training from the user-detail page).
          */
         get: operations["get_session_log_trainings__training_id__logs__log_id__get"];
         put?: never;
@@ -707,7 +731,8 @@ export interface paths {
         };
         /**
          * Get Cardio Log
-         * @description One of the current athlete's cardio logs for this session.
+         * @description A cardio log's detail. The athlete can read their own; an admin can read any
+         *     athlete's (to review training from the user-detail page).
          */
         get: operations["get_cardio_log_cardio_trainings__training_id__logs__log_id__get"];
         put?: never;
@@ -2008,6 +2033,13 @@ export interface components {
             /** Total Count */
             total_count: number;
         };
+        /** Page[TrainingLogSummaryResponse] */
+        Page_TrainingLogSummaryResponse_: {
+            /** Items */
+            items: components["schemas"]["TrainingLogSummaryResponse"][];
+            /** Total Count */
+            total_count: number;
+        };
         /** Page[TrainingSessionResponse] */
         Page_TrainingSessionResponse_: {
             /** Items */
@@ -2458,6 +2490,37 @@ export interface components {
          * @enum {string}
          */
         TrainingItemKind: "series" | "note";
+        /**
+         * TrainingLogCategory
+         * @description The kind of training a log belongs to, in the admin's per-user log view.
+         *     Gym and pool are both `SessionLog`s told apart by their session's category;
+         *     cardio is a separate model.
+         * @enum {string}
+         */
+        TrainingLogCategory: "gym" | "pool" | "cardio";
+        /**
+         * TrainingLogSummaryResponse
+         * @description A row in the admin's per-user training-log history — one logged session of any
+         *     kind, with just enough to show and link to it.
+         */
+        TrainingLogSummaryResponse: {
+            /** Id */
+            id: string;
+            category: components["schemas"]["TrainingLogCategory"];
+            /** Training Id */
+            training_id: string;
+            /** Training Title */
+            training_title: string | null;
+            /**
+             * Performed At
+             * Format: date-time
+             */
+            performed_at: string;
+            /** Activity */
+            activity?: string | null;
+            /** Note */
+            note?: string | null;
+        };
         /**
          * TrainingSessionDetailResponse
          * @description Detail view: the session plus its ordered blocks.
@@ -2986,6 +3049,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_user_training_logs_auth_users__user_id__training_logs_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+                category?: components["schemas"]["TrainingLogCategory"] | null;
+            };
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_TrainingLogSummaryResponse_"];
                 };
             };
             /** @description Validation Error */

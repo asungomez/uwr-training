@@ -82,6 +82,42 @@ class UpdateUserRequest(BaseModel):
     status: DirectoryStatus | None = None
 
 
+class TrainingLogCategory(enum.StrEnum):
+    """The kind of training a log belongs to, in the admin's per-user log view.
+    Gym and pool are both `SessionLog`s told apart by their session's category;
+    cardio is a separate model."""
+
+    gym = "gym"
+    pool = "pool"
+    cardio = "cardio"
+
+
+class TrainingLogListParams(PaginationParams):
+    """Query params for an athlete's merged training-log history: pagination plus an
+    optional category filter."""
+
+    category: TrainingLogCategory | None = None
+
+
+class TrainingLogSummaryResponse(BaseModel):
+    """A row in the admin's per-user training-log history — one logged session of any
+    kind, with just enough to show and link to it."""
+
+    id: uuid.UUID
+    category: TrainingLogCategory
+    # The session/plan this log is for, so the row can deep-link to its detail.
+    training_id: uuid.UUID
+    training_title: str | None
+    performed_at: datetime
+    # Cardio's free-text activity ("running"); null for gym/pool.
+    activity: str | None = None
+    note: str | None = None
+
+    @field_serializer("id", "training_id")
+    def serialize_uuid(self, value: uuid.UUID) -> str:
+        return str(value)
+
+
 class CreateInvitationRequest(BaseModel):
     email: EmailStr
 
