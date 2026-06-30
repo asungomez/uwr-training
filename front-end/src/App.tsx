@@ -38,10 +38,13 @@ import NewTrainingPage from '@/pages/trainings/new/NewTrainingPage'
 import TrainingsLandingPage from '@/pages/trainings/TrainingsLandingPage'
 import TrainingsPage from '@/pages/trainings/TrainingsPage'
 import TrainingSubtypePage from '@/pages/trainings/TrainingSubtypePage'
+import AdminSpeedTestLogPage from '@/pages/users/[id]/pruebas/AdminSpeedTestLogPage'
+import AdminStrengthTestLogPage from '@/pages/users/[id]/pruebas/AdminStrengthTestLogPage'
 import AdminCardioLogPage from '@/pages/users/[id]/registros/AdminCardioLogPage'
 import AdminSessionLogPage from '@/pages/users/[id]/registros/AdminSessionLogPage'
 import UserDetailLayout from '@/pages/users/[id]/UserDetailLayout'
 import UserInfoTab from '@/pages/users/[id]/UserInfoTab'
+import UserTestsTab from '@/pages/users/[id]/UserTestsTab'
 import UserTrainingsTab from '@/pages/users/[id]/UserTrainingsTab'
 import UsersPage from '@/pages/users/UsersPage'
 import EditWeekPage from '@/pages/weeks/[id]/edit/EditWeekPage'
@@ -153,8 +156,9 @@ function App() {
             <Route path=":id" element={<UserDetailLayout />}>
               <Route index element={<UserInfoTab />} />
               <Route path="entrenamientos" element={<UserTrainingsTab />} />
+              <Route path="pruebas" element={<UserTestsTab />} />
             </Route>
-            {/* Read-only log detail an admin opens from a user's training list.
+            {/* Read-only log detail an admin opens from a user's training/test list.
                 Full pages (outside the tab shell). */}
             <Route
               path=":id/registros/sesion/:trainingId/:logId"
@@ -164,6 +168,8 @@ function App() {
               path=":id/registros/cardio/:trainingId/:logId"
               element={<AdminCardioLogPage />}
             />
+            <Route path=":id/pruebas/fuerza/:logId" element={<AdminStrengthTestLogPage />} />
+            <Route path=":id/pruebas/velocidad/:logId" element={<AdminSpeedTestLogPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/entrenamientos" replace />} />
         </Route>

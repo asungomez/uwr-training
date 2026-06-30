@@ -171,6 +171,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/users/{user_id}/test-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List User Test Logs
+         * @description An athlete's strength and speed test logs, merged into one timeline, most
+         *     recent first. The optional `type` filter narrows it to one kind.
+         */
+        get: operations["list_user_test_logs_auth_users__user_id__test_logs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/users/{user_id}": {
         parameters: {
             query?: never;
@@ -910,7 +931,8 @@ export interface paths {
         };
         /**
          * Get Strength Test Log
-         * @description One of the current athlete's strength-test logs.
+         * @description A strength-test log's detail. The athlete can read their own; an admin can
+         *     read any athlete's (to review tests from the user-detail page).
          */
         get: operations["get_strength_test_log_strength_test_logs__log_id__get"];
         put?: never;
@@ -1021,7 +1043,8 @@ export interface paths {
         };
         /**
          * Get Speed Test Log
-         * @description One of the current athlete's speed-test logs.
+         * @description A speed-test log's detail. The athlete can read their own; an admin can read
+         *     any athlete's (to review tests from the user-detail page).
          */
         get: operations["get_speed_test_log_speed_test_logs__log_id__get"];
         put?: never;
@@ -2033,6 +2056,13 @@ export interface components {
             /** Total Count */
             total_count: number;
         };
+        /** Page[TestLogSummaryResponse] */
+        Page_TestLogSummaryResponse_: {
+            /** Items */
+            items: components["schemas"]["TestLogSummaryResponse"][];
+            /** Total Count */
+            total_count: number;
+        };
         /** Page[TrainingLogSummaryResponse] */
         Page_TrainingLogSummaryResponse_: {
             /** Items */
@@ -2480,6 +2510,30 @@ export interface components {
              */
             items: components["schemas"]["ItemResponse"][];
         };
+        /**
+         * TestLogSummaryResponse
+         * @description A row in the admin's per-user test-log history — one strength or speed test,
+         *     with a short result summary and enough to link to its detail.
+         */
+        TestLogSummaryResponse: {
+            /** Id */
+            id: string;
+            type: components["schemas"]["TestLogType"];
+            /**
+             * Performed At
+             * Format: date-time
+             */
+            performed_at: string;
+            /** Summary */
+            summary: string;
+        };
+        /**
+         * TestLogType
+         * @description The kind of test a log belongs to, in the admin's per-user test view. Each is
+         *     its own model (strength has per-exercise entries; speed is a single time).
+         * @enum {string}
+         */
+        TestLogType: "strength" | "speed";
         /**
          * TrainingCategory
          * @enum {string}
@@ -3086,6 +3140,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Page_TrainingLogSummaryResponse_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_user_test_logs_auth_users__user_id__test_logs_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+                type?: components["schemas"]["TestLogType"] | null;
+            };
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_TestLogSummaryResponse_"];
                 };
             };
             /** @description Validation Error */

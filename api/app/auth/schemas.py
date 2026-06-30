@@ -118,6 +118,36 @@ class TrainingLogSummaryResponse(BaseModel):
         return str(value)
 
 
+class TestLogType(enum.StrEnum):
+    """The kind of test a log belongs to, in the admin's per-user test view. Each is
+    its own model (strength has per-exercise entries; speed is a single time)."""
+
+    strength = "strength"
+    speed = "speed"
+
+
+class TestLogListParams(PaginationParams):
+    """Query params for an athlete's merged test-log history: pagination plus an
+    optional type filter."""
+
+    type: TestLogType | None = None
+
+
+class TestLogSummaryResponse(BaseModel):
+    """A row in the admin's per-user test-log history — one strength or speed test,
+    with a short result summary and enough to link to its detail."""
+
+    id: uuid.UUID
+    type: TestLogType
+    performed_at: datetime
+    # A one-line result: "75 kg de referencia" for strength, "11.5 s" for speed.
+    summary: str
+
+    @field_serializer("id")
+    def serialize_uuid(self, value: uuid.UUID) -> str:
+        return str(value)
+
+
 class CreateInvitationRequest(BaseModel):
     email: EmailStr
 

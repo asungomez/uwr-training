@@ -20,12 +20,15 @@ function UserDetailLayout() {
 
   const base = `/usuarios/${entryId}`
   const trainingsTab = `${base}/entrenamientos`
+  const testsTab = `${base}/pruebas`
   const tabs: TabItem[] = [
     { to: base, label: 'Información' },
     { to: trainingsTab, label: 'Entrenamientos' },
+    { to: testsTab, label: 'Pruebas' },
   ]
-  // The Entrenamientos tab owns its subtree; everything else is the index (Info).
-  const active = location.pathname.startsWith(trainingsTab) ? trainingsTab : base
+  // Each non-index tab owns its subtree; everything else is the index (Info).
+  const active =
+    tabs.find((tab) => tab.to !== base && location.pathname.startsWith(tab.to))?.to ?? base
 
   return (
     <section>

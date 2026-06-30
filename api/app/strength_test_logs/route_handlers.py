@@ -18,6 +18,7 @@ from app.models import (
     TrainingCategory,
     TrainingSubtype,
     User,
+    UserRole,
 )
 from app.pagination import Page, PaginationParams
 from app.strength_test_logs.schemas import (
@@ -254,9 +255,11 @@ async def get_strength_test_log(
     user: Annotated[User, Depends(current_user)],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> StrengthTestLogResponse:
-    """One of the current athlete's strength-test logs."""
+    """A strength-test log's detail. The athlete can read their own; an admin can
+    read any athlete's (to review tests from the user-detail page)."""
     log = await _load_log(session, log_id)
-    if log is None or log.athlete_id != user.id:
+    owns_or_admin = log is not None and (log.athlete_id == user.id or user.role == UserRole.admin)
+    if log is None or not owns_or_admin:
         raise api_error(
             status.HTTP_404_NOT_FOUND,
             ErrorCode.strength_test_log_not_found,

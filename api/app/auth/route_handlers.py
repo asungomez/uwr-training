@@ -18,6 +18,9 @@ from app.auth.schemas import (
     LoginRequest,
     ResetCodeResponse,
     ResetPasswordRequest,
+    TestLogListParams,
+    TestLogSummaryResponse,
+    TestLogType,
     TrainingLogCategory,
     TrainingLogListParams,
     TrainingLogSummaryResponse,
@@ -37,6 +40,8 @@ from app.models import (
     CardioSessionLog,
     Invitation,
     SessionLog,
+    SpeedTestLog,
+    StrengthTestLog,
     TrainingCategory,
     TrainingSession,
     User,
@@ -282,6 +287,55 @@ async def list_user_training_logs(
 
     # Merge the two sources into one timeline (most recent first), then page in
     # Python since the order spans tables and can't be a single SQL window.
+    summaries.sort(key=lambda item: item.performed_at, reverse=True)
+    return paginate(summaries, params)
+
+
+@router.get("/users/{user_id}/test-logs", response_model=Page[TestLogSummaryResponse])
+async def list_user_test_logs(
+    user_id: uuid.UUID,
+    _admin: Annotated[User, Depends(require_admin)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    params: Annotated[TestLogListParams, Query()],
+) -> Page[TestLogSummaryResponse]:
+    """An athlete's strength and speed test logs, merged into one timeline, most
+    recent first. The optional `type` filter narrows it to one kind."""
+    user = await session.get(User, user_id)
+    if user is None:
+        raise api_error(status.HTTP_404_NOT_FOUND, ErrorCode.user_not_found, "User not found")
+
+    summaries: list[TestLogSummaryResponse] = []
+
+    if params.type in (None, TestLogType.strength):
+        strength_rows = await session.scalars(
+            select(StrengthTestLog).where(StrengthTestLog.athlete_id == user_id)
+        )
+        for log in strength_rows.all():
+            summaries.append(
+                TestLogSummaryResponse(
+                    id=log.id,
+                    type=TestLogType.strength,
+                    performed_at=log.performed_at,
+                    summary=f"{log.bodyweight_kg:g} kg de referencia",
+                )
+            )
+
+    if params.type in (None, TestLogType.speed):
+        speed_rows = await session.scalars(
+            select(SpeedTestLog).where(SpeedTestLog.athlete_id == user_id)
+        )
+        for speed_log in speed_rows.all():
+            summaries.append(
+                TestLogSummaryResponse(
+                    id=speed_log.id,
+                    type=TestLogType.speed,
+                    performed_at=speed_log.performed_at,
+                    summary=f"{speed_log.seconds:g} s",
+                )
+            )
+
+    # Merge into one timeline (most recent first); page in Python since the order
+    # spans two tables.
     summaries.sort(key=lambda item: item.performed_at, reverse=True)
     return paginate(summaries, params)
 
