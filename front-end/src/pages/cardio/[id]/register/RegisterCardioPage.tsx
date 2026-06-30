@@ -8,6 +8,7 @@ import { controlClass } from '@/components/atoms/form/fieldStyles'
 import FormError from '@/components/atoms/form/FormError'
 import SelectControl from '@/components/atoms/form/SelectControl'
 import SubmitButton from '@/components/atoms/form/SubmitButton'
+import CardioItemView from '@/components/features/cardio/CardioItemView'
 import { useToast } from '@/components/toast/context'
 
 function RegisterCardioPage() {
@@ -24,6 +25,11 @@ function RegisterCardioPage() {
   // The assignable weeks (those recommending this cardio type, not yet full) and
   // the recommended one to pre-select.
   const form = useQuery('/cardio-trainings/{training_id}/log-form', {
+    params: { path: { training_id: trainingId } },
+  })
+  // The session itself (its blocks/intervals), shown read-only so the athlete can
+  // follow it while logging — consistent with the gym/pool register flow.
+  const training = useQuery('/cardio-trainings/{training_id}', {
     params: { path: { training_id: trainingId } },
   })
 
@@ -89,10 +95,19 @@ function RegisterCardioPage() {
           <h1 className="text-2xl font-semibold tracking-tight text-slate-100">Registrar sesión</h1>
           <p className="mt-1 text-slate-400">{form.data.title ?? 'Sin título'}</p>
 
+          {/* The session itself, read-only, so the athlete can follow it while logging. */}
+          {training.data && training.data.items.length > 0 && (
+            <div className="mt-6 flex flex-col gap-3">
+              {training.data.items.map((item) => (
+                <CardioItemView key={item.id} item={item} />
+              ))}
+            </div>
+          )}
+
           <form
             onSubmit={(event) => void handleSubmit(event)}
             noValidate
-            className="mt-6 flex flex-col gap-4"
+            className="mt-6 flex flex-col gap-4 border-t border-slate-800 pt-6"
           >
             <label className="flex flex-col gap-1 text-sm font-medium text-slate-300">
               Actividad (opcional)
