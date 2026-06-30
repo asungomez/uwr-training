@@ -1,6 +1,7 @@
-import { Pause, Play, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { Pause, Play, Volume2, VolumeX, X } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
+import beepSound from '@/assets/beep.mp3'
 import type { components } from '@/api/schema'
 
 import { formatDuration } from './cardioFormat'
@@ -90,6 +91,22 @@ function CardioTimer({ training, onClose }: CardioTimerProps) {
   const [remaining, setRemaining] = useState(() => segments[0]?.duration ?? 0)
   const [status, setStatus] = useState<Status>(() => (segments.length > 0 ? 'running' : 'finished'))
 
+  // Sound starts muted: the timer is often opened well before the workout, and
+  // an unexpected beep is jarring. The athlete unmutes once they're set up.
+  const [muted, setMuted] = useState(true)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  const beep = useCallback(() => {
+    if (muted) return
+    const audio = audioRef.current
+    if (!audio) return
+    // Rewind so rapid back-to-back segments each beep.
+    audio.currentTime = 0
+    void audio.play().catch(() => {
+      // Autoplay can be blocked until the first user gesture; harmless to ignore.
+    })
+  }, [muted])
+
   // Esc closes; lock background scroll while the overlay is up.
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -117,22 +134,25 @@ function CardioTimer({ training, onClose }: CardioTimerProps) {
         setRemaining(remaining - 1)
         return
       }
-      // Countdown just hit zero: transition.
+      // Countdown just hit zero: transition. A beep (when unmuted) cues the swap
+      // for athletes who aren't looking at the screen.
       if (current.lastOfBlock) {
         setStatus(index < segments.length - 1 ? 'block-done' : 'finished')
         setRemaining(0)
         // A short buzz to flag the transition when the phone's on a machine.
         navigator.vibrate?.(400)
+        beep()
       } else {
         const next = segments[index + 1]
         if (!next) return
         navigator.vibrate?.(150)
+        beep()
         setIndex(index + 1)
         setRemaining(next.duration)
       }
     }, 1000)
     return () => clearInterval(id)
-  }, [status, index, remaining, segments])
+  }, [status, index, remaining, segments, beep])
 
   function continueToNextBlock() {
     const next = segments[index + 1]
@@ -150,6 +170,7 @@ function CardioTimer({ training, onClose }: CardioTimerProps) {
     <div className="fixed inset-0 z-50 flex flex-col bg-slate-900 text-slate-100">
       <div className="flex shrink-0 items-center justify-between border-b border-slate-700 px-4 py-3">
         <h2 className="text-sm font-medium text-slate-400">Cronómetro</h2>
+        <audio ref={audioRef} src={beepSound} preload="auto" />
         <button
           type="button"
           onClick={onClose}
@@ -237,14 +258,26 @@ function CardioTimer({ training, onClose }: CardioTimerProps) {
               )}
             </ul>
 
-            <button
-              type="button"
-              onClick={() => setStatus(status === 'running' ? 'paused' : 'running')}
-              className="inline-flex items-center gap-2 rounded-md border border-slate-600 px-6 py-3 text-base font-medium text-slate-200 transition-colors hover:bg-slate-800 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
-            >
-              {status === 'running' ? <Pause size={18} /> : <Play size={18} />}
-              {status === 'running' ? 'Pausar' : 'Reanudar'}
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setStatus(status === 'running' ? 'paused' : 'running')}
+                className="inline-flex items-center gap-2 rounded-md border border-slate-600 px-6 py-3 text-base font-medium text-slate-200 transition-colors hover:bg-slate-800 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+              >
+                {status === 'running' ? <Pause size={18} /> : <Play size={18} />}
+                {status === 'running' ? 'Pausar' : 'Reanudar'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setMuted((m) => !m)}
+                aria-label={muted ? 'Activar sonido' : 'Silenciar'}
+                aria-pressed={!muted}
+                className="inline-flex items-center gap-2 rounded-md border border-slate-600 px-6 py-3 text-base font-medium text-slate-200 transition-colors hover:bg-slate-800 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+              >
+                {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                {muted ? 'Sonido' : 'Silenciar'}
+              </button>
+            </div>
           </>
         )}
       </div>
