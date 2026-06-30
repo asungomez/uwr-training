@@ -161,6 +161,12 @@ class Exercise(Base):
         cascade="all, delete-orphan",
         order_by="ExerciseParameter.created_at",
     )
+    # Gym materials/equipment needed, as ordered association rows. The link rows
+    # cascade on exercise delete; the shared GymMaterial rows themselves don't.
+    gym_materials: Mapped[list["ExerciseGymMaterial"]] = relationship(
+        cascade="all, delete-orphan",
+        order_by="ExerciseGymMaterial.position",
+    )
 
 
 class ExerciseParameter(Base):
@@ -205,6 +211,41 @@ class ExerciseRelation(Base):
         back_populates="related", foreign_keys=[exercise_id]
     )
     related_exercise: Mapped["Exercise"] = relationship(foreign_keys=[related_exercise_id])
+
+
+class GymMaterial(Base):
+    """A piece of gym equipment/material an exercise needs (e.g. "mancuernas",
+    "banda elástica"). Shared across exercises via an n:n link; unique by name so
+    the same material is reused, not duplicated."""
+
+    __tablename__ = "gym_materials"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(_TZ, server_default=func.now())
+
+
+class ExerciseGymMaterial(Base):
+    """Association row linking an exercise to a gym material, with the position the
+    material appears at in the exercise's list. Deleting the exercise removes the
+    link; deleting a material removes the link too — but materials are only deleted
+    explicitly, never cascaded from an exercise."""
+
+    __tablename__ = "exercise_gym_materials"
+    __table_args__ = (
+        UniqueConstraint("exercise_id", "gym_material_id", name="uq_exercise_gym_material"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    exercise_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("exercises.id", ondelete="CASCADE"), index=True
+    )
+    gym_material_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("gym_materials.id", ondelete="CASCADE"), index=True
+    )
+    position: Mapped[int] = mapped_column(default=0)
+
+    gym_material: Mapped["GymMaterial"] = relationship()
 
 
 class TrainingSession(Base):

@@ -37,6 +37,7 @@ function EditExercisePage() {
           name: param.name,
           description: param.description || null,
         })),
+        gym_materials: values.gymMaterials.map((material) => ({ name: material.name })),
       },
     })
     if (putError) {
@@ -97,6 +98,7 @@ function EditExercisePage() {
                   name: param.name,
                   description: param.description ?? '',
                 })),
+                gymMaterials: data.gym_materials.map((material) => ({ name: material.name })),
               }}
               initialThumbnailUrl={data.thumbnail_url}
               initialVideoUrl={data.video_url}

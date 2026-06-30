@@ -412,6 +412,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/gym-materials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Gym Materials
+         * @description Gym materials, filterable by name — for the exercise form's autocomplete.
+         */
+        get: operations["list_gym_materials_gym_materials_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/trainings": {
         parameters: {
             query?: never;
@@ -1478,6 +1498,11 @@ export interface components {
              * @default []
              */
             parameters: components["schemas"]["ParameterInput"][];
+            /**
+             * Gym Materials
+             * @default []
+             */
+            gym_materials: components["schemas"]["GymMaterialInput"][];
         };
         /** CreateInvitationRequest */
         CreateInvitationRequest: {
@@ -1631,6 +1656,11 @@ export interface components {
              * @default []
              */
             parameters: components["schemas"]["ParameterResponse"][];
+            /**
+             * Gym Materials
+             * @default []
+             */
+            gym_materials: components["schemas"]["GymMaterialResponse"][];
             /** Thumbnail Url */
             readonly thumbnail_url: string | null;
             /** Video Url */
@@ -1650,6 +1680,25 @@ export interface components {
             key: string;
             /** Upload Id */
             upload_id: string;
+        };
+        /**
+         * GymMaterialInput
+         * @description A material on the exercise form — just its name. The server finds an existing
+         *     material by name (case-insensitive) or creates one, then links it.
+         */
+        GymMaterialInput: {
+            /** Name */
+            name: string;
+        };
+        /**
+         * GymMaterialResponse
+         * @description A gym material as shown on an exercise (and in the autocomplete suggestions).
+         */
+        GymMaterialResponse: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -2025,6 +2074,13 @@ export interface components {
         Page_ExerciseResponse_: {
             /** Items */
             items: components["schemas"]["ExerciseResponse"][];
+            /** Total Count */
+            total_count: number;
+        };
+        /** Page[GymMaterialResponse] */
+        Page_GymMaterialResponse_: {
+            /** Items */
+            items: components["schemas"]["GymMaterialResponse"][];
             /** Total Count */
             total_count: number;
         };
@@ -2675,6 +2731,11 @@ export interface components {
              * @default []
              */
             parameters: components["schemas"]["ParameterInput"][];
+            /**
+             * Gym Materials
+             * @default []
+             */
+            gym_materials: components["schemas"]["GymMaterialInput"][];
         };
         /** UpdateMaterialRequest */
         UpdateMaterialRequest: {
@@ -3655,6 +3716,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Page_ExerciseLogEntry_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_gym_materials_gym_materials_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+                search?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_GymMaterialResponse_"];
                 };
             };
             /** @description Validation Error */

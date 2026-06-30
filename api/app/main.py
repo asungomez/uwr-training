@@ -5,6 +5,7 @@ from app.auth import router as auth_router
 from app.bodyweight_logs import router as bodyweight_logs_router
 from app.cardio import router as cardio_router
 from app.cardio_logs import router as cardio_logs_router
+from app.exercises import gym_materials_router
 from app.exercises import router as exercises_router
 from app.health import router as health_router
 from app.materials import router as materials_router
@@ -29,6 +30,7 @@ app.add_middleware(
 app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(exercises_router)
+app.include_router(gym_materials_router)
 app.include_router(trainings_router)
 app.include_router(cardio_router)
 app.include_router(weeks_router)

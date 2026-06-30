@@ -47,6 +47,7 @@ class ErrorCode(enum.StrEnum):
     speed_test_log_not_found = "speed_test_log_not_found"
     material_not_found = "material_not_found"
     invalid_material = "invalid_material"
+    invalid_gym_material = "invalid_gym_material"
 
 
 def api_error(status_code: int, code: ErrorCode, message: str) -> HTTPException:

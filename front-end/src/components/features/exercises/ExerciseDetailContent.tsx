@@ -55,6 +55,22 @@ export function ExerciseMediaSection({ exercise }: { exercise: ExerciseResponse 
 export function ExerciseMetaSection({ exercise, onSelectExercise }: SectionProps) {
   return (
     <div className="flex flex-col gap-8">
+      {exercise.gym_materials.length > 0 && (
+        <div>
+          <h3 className="text-lg font-semibold text-slate-100">Materiales</h3>
+          <ul className="mt-3 flex flex-wrap gap-2">
+            {exercise.gym_materials.map((material) => (
+              <li
+                key={material.id}
+                className="inline-flex rounded-full border border-slate-600 bg-slate-800 px-3 py-1 text-sm text-slate-100"
+              >
+                {material.name}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {exercise.parameters.length > 0 && (
         <div>
           <h3 className="text-lg font-semibold text-slate-100">Parámetros</h3>

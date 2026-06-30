@@ -15,6 +15,9 @@ from app.exercises.schemas import (
     ExerciseLogEntry,
     ExerciseLogParameterValue,
     ExerciseResponse,
+    GymMaterialInput,
+    GymMaterialListParams,
+    GymMaterialResponse,
     MediaUploadRequest,
     MediaUploadResponse,
     ParameterInput,
@@ -25,8 +28,10 @@ from app.exercises.schemas import (
 )
 from app.models import (
     Exercise,
+    ExerciseGymMaterial,
     ExerciseParameter,
     ExerciseRelation,
+    GymMaterial,
     SessionLog,
     SessionLogAction,
     SessionLogEntry,
@@ -37,6 +42,34 @@ from app.pagination import Page, PaginationParams
 from app.storage import MEDIA_CONSTRAINTS, create_presigned_upload, public_url
 
 router = APIRouter(prefix="/exercises", tags=["exercises"])
+
+# Gym materials are managed inline through the exercise form, but get their own
+# read endpoint for the autocomplete suggestions.
+gym_materials_router = APIRouter(prefix="/gym-materials", tags=["gym-materials"])
+
+
+@gym_materials_router.get("", response_model=Page[GymMaterialResponse])
+async def list_gym_materials(
+    _user: Annotated[User, Depends(current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    params: Annotated[GymMaterialListParams, Query()],
+) -> Page[GymMaterialResponse]:
+    """Gym materials, filterable by name — for the exercise form's autocomplete."""
+    filters: list[ColumnElement[bool]] = []
+    if params.search:
+        filters.append(GymMaterial.name.ilike(f"%{params.search.strip()}%"))
+    total = await session.scalar(select(func.count()).select_from(GymMaterial).where(*filters))
+    rows = await session.scalars(
+        select(GymMaterial)
+        .where(*filters)
+        .order_by(GymMaterial.name)
+        .offset(params.offset)
+        .limit(params.page_size)
+    )
+    return Page(
+        items=[GymMaterialResponse.model_validate(row) for row in rows.all()],
+        total_count=total or 0,
+    )
 
 
 def _serialize(exercise: Exercise) -> ExerciseResponse:
@@ -60,17 +93,22 @@ def _serialize(exercise: Exercise) -> ExerciseResponse:
             for relation in exercise.related
         ],
         parameters=[ParameterResponse.model_validate(param) for param in exercise.parameters],
+        gym_materials=[
+            GymMaterialResponse.model_validate(link.gym_material) for link in exercise.gym_materials
+        ],
     )
 
 
 async def _load_exercise(session: AsyncSession, exercise_id: uuid.UUID) -> Exercise | None:
-    """Fetch an exercise with its relations (and each relation's target) loaded."""
+    """Fetch an exercise with its relations (and each relation's target), parameters,
+    and gym-material links (with each material) loaded."""
     exercise: Exercise | None = await session.scalar(
         select(Exercise)
         .where(Exercise.id == exercise_id)
         .options(
             selectinload(Exercise.related).selectinload(ExerciseRelation.related_exercise),
             selectinload(Exercise.parameters),
+            selectinload(Exercise.gym_materials).selectinload(ExerciseGymMaterial.gym_material),
         )
     )
     return exercise
@@ -138,6 +176,41 @@ def _build_parameters(parameters: list[ParameterInput]) -> list[ExerciseParamete
     return rows
 
 
+async def _build_gym_materials(
+    session: AsyncSession, materials: list[GymMaterialInput]
+) -> list[ExerciseGymMaterial]:
+    """Build the exercise→material links, finding each material by name
+    (case-insensitive) or creating it. Rejects blank and duplicate names within the
+    same exercise. Materials are shared, so the same name across exercises reuses one row."""
+    links: list[ExerciseGymMaterial] = []
+    seen: set[str] = set()
+    for position, item in enumerate(materials):
+        name = item.name.strip()
+        if not name:
+            raise api_error(
+                status.HTTP_400_BAD_REQUEST,
+                ErrorCode.invalid_gym_material,
+                "Material name is required",
+            )
+        if name.casefold() in seen:
+            raise api_error(
+                status.HTTP_400_BAD_REQUEST,
+                ErrorCode.invalid_gym_material,
+                "Duplicate material",
+            )
+        seen.add(name.casefold())
+        # Find an existing material by case-insensitive name, else create it.
+        material = await session.scalar(
+            select(GymMaterial).where(func.lower(GymMaterial.name) == name.lower())
+        )
+        if material is None:
+            material = GymMaterial(name=name)
+            session.add(material)
+            await session.flush()  # assign its id before linking
+        links.append(ExerciseGymMaterial(gym_material_id=material.id, position=position))
+    return links
+
+
 @router.post("/media-uploads", response_model=MediaUploadResponse)
 async def create_media_upload(
     body: MediaUploadRequest,
@@ -176,6 +249,7 @@ async def list_exercises(
         .options(
             selectinload(Exercise.related).selectinload(ExerciseRelation.related_exercise),
             selectinload(Exercise.parameters),
+            selectinload(Exercise.gym_materials).selectinload(ExerciseGymMaterial.gym_material),
         )
         .order_by(Exercise.name)
         .offset(params.offset)
@@ -296,6 +370,7 @@ async def create_exercise(
     )
     exercise.related = await _build_relations(session, exercise.id, body.related_exercises)
     exercise.parameters = _build_parameters(body.parameters)
+    exercise.gym_materials = await _build_gym_materials(session, body.gym_materials)
     session.add(exercise)
     await session.commit()
 
@@ -345,11 +420,14 @@ async def update_exercise(
     new_parameters = _build_parameters(body.parameters)
     exercise.related.clear()
     exercise.parameters.clear()
+    exercise.gym_materials.clear()
     # Flush the removals before inserting, so re-using a name/target doesn't race the
-    # orphan delete and trip a unique constraint.
+    # orphan delete and trip a unique constraint. Build the material links after this
+    # flush too, so re-linking the same material doesn't race the link's orphan delete.
     await session.flush()
     exercise.related = new_relations
     exercise.parameters = new_parameters
+    exercise.gym_materials = await _build_gym_materials(session, body.gym_materials)
     await session.commit()
 
     reloaded = await _load_exercise(session, exercise_id)

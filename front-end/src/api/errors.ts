@@ -19,6 +19,7 @@ const messages: Record<string, string> = {
   invalid_training_subtype: 'El subtipo no es válido para esa categoría.',
   invalid_related_exercise: 'Alguno de los ejercicios alternativos no es válido.',
   invalid_parameter: 'Algún parámetro no es válido (nombre vacío o repetido).',
+  invalid_gym_material: 'Algún material no es válido (nombre vacío o repetido).',
   invalid_block: 'Algún bloque no es válido (nombre vacío).',
   invalid_item: 'Algún ejercicio no es válido (falta seleccionarlo).',
   training_not_found: 'No se ha encontrado el entrenamiento.',

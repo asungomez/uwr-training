@@ -6,6 +6,7 @@ import FormError from '@/components/atoms/form/FormError'
 import MarkdownField from '@/components/atoms/form/MarkdownField'
 import MediaUploadField from '@/components/atoms/form/MediaUploadField'
 import ExerciseParametersField from '@/components/features/exercises/ExerciseParametersField'
+import GymMaterialsField from '@/components/features/exercises/GymMaterialsField'
 import RelatedExercisesField from '@/components/features/exercises/RelatedExercisesField'
 import SelectField from '@/components/atoms/form/SelectField'
 import SubmitButton from '@/components/atoms/form/SubmitButton'
@@ -30,6 +31,7 @@ const schema = z.object({
       description: z.string().trim(),
     }),
   ),
+  gymMaterials: z.array(z.object({ name: z.string().trim().min(1) })),
 })
 
 export type ExerciseFormValues = z.infer<typeof schema>
@@ -70,6 +72,7 @@ function ExerciseForm({
       videoKey: null,
       relatedExercises: [],
       parameters: [],
+      gymMaterials: [],
       ...defaultValues,
     },
   })
@@ -147,6 +150,7 @@ function ExerciseForm({
             excludeExerciseId={excludeExerciseId}
           />
           <ExerciseParametersField control={control} register={register} errors={errors} />
+          <GymMaterialsField control={control} />
         </div>
       </div>
 
