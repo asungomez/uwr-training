@@ -15,6 +15,10 @@ import { useToast } from '@/components/toast/context'
 import SeriesLogCard, { type SeriesEntryState } from './SeriesLogCard'
 
 type ItemResponse = components['schemas']['ItemResponse']
+interface NamedItem {
+  id: string
+  name: string
+}
 
 function RegisterSessionPage() {
   const { id } = useParams<{ id: string }>()
@@ -87,27 +91,33 @@ function RegisterSessionPage() {
     .flatMap((sub) => sub.items)
     .filter((item) => item.kind === 'series' && item.exercise_id)
 
-  // The materials to bring: the union across every series item's currently-performed
-  // exercise (the prescribed one, or the alternative the athlete switched to — so the
-  // list updates live with each swap). Deduped by id, kept in first-seen order.
-  const materials = (() => {
+  // The union of materials/facilities to bring: across every series item's
+  // currently-performed exercise (the prescribed one, or the alternative the athlete
+  // switched to — so the lists update live with each swap). Deduped by id, kept in
+  // first-seen order. `pick` selects which list (gym_materials / gym_facilities).
+  function neededAcrossExercises(
+    pick: (source: { gym_materials: NamedItem[]; gym_facilities: NamedItem[] }) => NamedItem[],
+  ): NamedItem[] {
     const byId = new Map<string, string>()
     for (const item of seriesItems) {
       const plannedId = item.exercise_id ?? ''
       const formExercise = formByExerciseId.get(plannedId)
       if (!formExercise) continue
       const performedId = entries[item.id]?.performedExerciseId ?? plannedId
-      const source =
+      const performed =
         performedId === plannedId
-          ? formExercise.gym_materials
-          : (formExercise.alternatives.find((alt) => alt.exercise_id === performedId)
-              ?.gym_materials ?? [])
-      for (const material of source) {
-        if (!byId.has(material.id)) byId.set(material.id, material.name)
+          ? formExercise
+          : formExercise.alternatives.find((alt) => alt.exercise_id === performedId)
+      if (!performed) continue
+      for (const entry of pick(performed)) {
+        if (!byId.has(entry.id)) byId.set(entry.id, entry.name)
       }
     }
-    return [...byId.entries()].map(([materialId, name]) => ({ id: materialId, name }))
-  })()
+    return [...byId.entries()].map(([itemId, name]) => ({ id: itemId, name }))
+  }
+
+  const materials = neededAcrossExercises((source) => source.gym_materials)
+  const facilities = neededAcrossExercises((source) => source.gym_facilities)
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
@@ -217,6 +227,28 @@ function RegisterSessionPage() {
                 </ul>
                 <p className="mt-3 text-xs text-slate-500">
                   La lista de materiales se actualiza si haces alguno de los ejercicios
+                  alternativos.
+                </p>
+              </div>
+            )}
+
+            {facilities.length > 0 && (
+              <div className="mt-4 rounded-lg border border-slate-700 bg-slate-800/50 p-4">
+                <h2 className="text-sm font-medium tracking-wide text-slate-400 uppercase">
+                  Instalaciones
+                </h2>
+                <ul className="mt-3 flex flex-wrap gap-2">
+                  {facilities.map((facility) => (
+                    <li
+                      key={facility.id}
+                      className="inline-flex rounded-full border border-slate-600 bg-slate-800 px-3 py-1 text-sm text-slate-100"
+                    >
+                      {facility.name}
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-3 text-xs text-slate-500">
+                  La lista de instalaciones se actualiza si haces alguno de los ejercicios
                   alternativos.
                 </p>
               </div>

@@ -31,6 +31,7 @@ function NewExercisePage() {
           description: param.description || null,
         })),
         gym_materials: values.gymMaterials.map((material) => ({ name: material.name })),
+        gym_facilities: values.gymFacilities.map((facility) => ({ name: facility.name })),
       },
     })
     if (error || !data) {

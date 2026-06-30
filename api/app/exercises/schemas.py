@@ -25,6 +25,13 @@ class GymMaterialInput(BaseModel):
     name: str
 
 
+class GymFacilityInput(BaseModel):
+    """A facility on the exercise form — just its name. The server finds an existing
+    facility by name (case-insensitive) or creates one, then links it."""
+
+    name: str
+
+
 class CreateExerciseRequest(BaseModel):
     name: str
     description: str | None = None
@@ -34,6 +41,7 @@ class CreateExerciseRequest(BaseModel):
     related_exercises: list[RelatedExerciseInput] = []
     parameters: list[ParameterInput] = []
     gym_materials: list[GymMaterialInput] = []
+    gym_facilities: list[GymFacilityInput] = []
 
 
 class UpdateExerciseRequest(BaseModel):
@@ -45,6 +53,7 @@ class UpdateExerciseRequest(BaseModel):
     related_exercises: list[RelatedExerciseInput] = []
     parameters: list[ParameterInput] = []
     gym_materials: list[GymMaterialInput] = []
+    gym_facilities: list[GymFacilityInput] = []
 
 
 class ExerciseListParams(PaginationParams):
@@ -113,6 +122,25 @@ class GymMaterialListParams(PaginationParams):
     search: str | None = None
 
 
+class GymFacilityResponse(BaseModel):
+    """A gym facility as shown on an exercise (and in the autocomplete suggestions)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+
+    @field_serializer("id")
+    def serialize_id(self, value: uuid.UUID) -> str:
+        return str(value)
+
+
+class GymFacilityListParams(PaginationParams):
+    """Query params for the gym-facilities autocomplete: pagination + name search."""
+
+    search: str | None = None
+
+
 class ExerciseResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -127,6 +155,7 @@ class ExerciseResponse(BaseModel):
     related_exercises: list[RelatedExerciseResponse] = []
     parameters: list[ParameterResponse] = []
     gym_materials: list[GymMaterialResponse] = []
+    gym_facilities: list[GymFacilityResponse] = []
 
     @field_serializer("id")
     def serialize_id(self, value: uuid.UUID) -> str:

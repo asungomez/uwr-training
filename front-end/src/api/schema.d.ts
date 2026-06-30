@@ -432,6 +432,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/gym-facilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Gym Facilities
+         * @description Gym facilities, filterable by name — for the exercise form's autocomplete.
+         */
+        get: operations["list_gym_facilities_gym_facilities_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/trainings": {
         parameters: {
             query?: never;
@@ -1503,6 +1523,11 @@ export interface components {
              * @default []
              */
             gym_materials: components["schemas"]["GymMaterialInput"][];
+            /**
+             * Gym Facilities
+             * @default []
+             */
+            gym_facilities: components["schemas"]["GymFacilityInput"][];
         };
         /** CreateInvitationRequest */
         CreateInvitationRequest: {
@@ -1661,6 +1686,11 @@ export interface components {
              * @default []
              */
             gym_materials: components["schemas"]["GymMaterialResponse"][];
+            /**
+             * Gym Facilities
+             * @default []
+             */
+            gym_facilities: components["schemas"]["GymFacilityResponse"][];
             /** Thumbnail Url */
             readonly thumbnail_url: string | null;
             /** Video Url */
@@ -1680,6 +1710,25 @@ export interface components {
             key: string;
             /** Upload Id */
             upload_id: string;
+        };
+        /**
+         * GymFacilityInput
+         * @description A facility on the exercise form — just its name. The server finds an existing
+         *     facility by name (case-insensitive) or creates one, then links it.
+         */
+        GymFacilityInput: {
+            /** Name */
+            name: string;
+        };
+        /**
+         * GymFacilityResponse
+         * @description A gym facility as shown on an exercise (and in the autocomplete suggestions).
+         */
+        GymFacilityResponse: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
         };
         /**
          * GymMaterialInput
@@ -1902,12 +1951,17 @@ export interface components {
              * @default []
              */
             gym_materials: components["schemas"]["GymMaterialResponse"][];
+            /**
+             * Gym Facilities
+             * @default []
+             */
+            gym_facilities: components["schemas"]["GymFacilityResponse"][];
         };
         /**
          * LogFormExercise
          * @description One series item's exercise in the log form: the prescribed exercise plus the
          *     alternatives it can be swapped for, the parameters the athlete can record, and the
-         *     gym materials it needs (the materials list updates when an alternative is used).
+         *     gym materials + facilities it needs (these lists update when an alternative is used).
          */
         LogFormExercise: {
             /** Exercise Id */
@@ -1929,6 +1983,11 @@ export interface components {
              * @default []
              */
             gym_materials: components["schemas"]["GymMaterialResponse"][];
+            /**
+             * Gym Facilities
+             * @default []
+             */
+            gym_facilities: components["schemas"]["GymFacilityResponse"][];
         };
         /** LogFormParameter */
         LogFormParameter: {
@@ -2085,6 +2144,13 @@ export interface components {
         Page_ExerciseResponse_: {
             /** Items */
             items: components["schemas"]["ExerciseResponse"][];
+            /** Total Count */
+            total_count: number;
+        };
+        /** Page[GymFacilityResponse] */
+        Page_GymFacilityResponse_: {
+            /** Items */
+            items: components["schemas"]["GymFacilityResponse"][];
             /** Total Count */
             total_count: number;
         };
@@ -2747,6 +2813,11 @@ export interface components {
              * @default []
              */
             gym_materials: components["schemas"]["GymMaterialInput"][];
+            /**
+             * Gym Facilities
+             * @default []
+             */
+            gym_facilities: components["schemas"]["GymFacilityInput"][];
         };
         /** UpdateMaterialRequest */
         UpdateMaterialRequest: {
@@ -3762,6 +3833,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Page_GymMaterialResponse_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_gym_facilities_gym_facilities_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+                search?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_GymFacilityResponse_"];
                 };
             };
             /** @description Validation Error */

@@ -48,6 +48,7 @@ class ErrorCode(enum.StrEnum):
     material_not_found = "material_not_found"
     invalid_material = "invalid_material"
     invalid_gym_material = "invalid_gym_material"
+    invalid_gym_facility = "invalid_gym_facility"
 
 
 def api_error(status_code: int, code: ErrorCode, message: str) -> HTTPException:

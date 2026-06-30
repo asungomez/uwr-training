@@ -15,6 +15,9 @@ from app.exercises.schemas import (
     ExerciseLogEntry,
     ExerciseLogParameterValue,
     ExerciseResponse,
+    GymFacilityInput,
+    GymFacilityListParams,
+    GymFacilityResponse,
     GymMaterialInput,
     GymMaterialListParams,
     GymMaterialResponse,
@@ -28,9 +31,11 @@ from app.exercises.schemas import (
 )
 from app.models import (
     Exercise,
+    ExerciseGymFacility,
     ExerciseGymMaterial,
     ExerciseParameter,
     ExerciseRelation,
+    GymFacility,
     GymMaterial,
     SessionLog,
     SessionLogAction,
@@ -72,6 +77,35 @@ async def list_gym_materials(
     )
 
 
+# Gym facilities are managed inline through the exercise form, but get their own
+# read endpoint for the autocomplete suggestions.
+gym_facilities_router = APIRouter(prefix="/gym-facilities", tags=["gym-facilities"])
+
+
+@gym_facilities_router.get("", response_model=Page[GymFacilityResponse])
+async def list_gym_facilities(
+    _user: Annotated[User, Depends(current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    params: Annotated[GymFacilityListParams, Query()],
+) -> Page[GymFacilityResponse]:
+    """Gym facilities, filterable by name — for the exercise form's autocomplete."""
+    filters: list[ColumnElement[bool]] = []
+    if params.search:
+        filters.append(GymFacility.name.ilike(f"%{params.search.strip()}%"))
+    total = await session.scalar(select(func.count()).select_from(GymFacility).where(*filters))
+    rows = await session.scalars(
+        select(GymFacility)
+        .where(*filters)
+        .order_by(GymFacility.name)
+        .offset(params.offset)
+        .limit(params.page_size)
+    )
+    return Page(
+        items=[GymFacilityResponse.model_validate(row) for row in rows.all()],
+        total_count=total or 0,
+    )
+
+
 def _serialize(exercise: Exercise) -> ExerciseResponse:
     """Build the response, flattening each relation to {id, name, note}. Requires
     `related` and each relation's `related_exercise` to be loaded."""
@@ -96,12 +130,16 @@ def _serialize(exercise: Exercise) -> ExerciseResponse:
         gym_materials=[
             GymMaterialResponse.model_validate(link.gym_material) for link in exercise.gym_materials
         ],
+        gym_facilities=[
+            GymFacilityResponse.model_validate(link.gym_facility)
+            for link in exercise.gym_facilities
+        ],
     )
 
 
 async def _load_exercise(session: AsyncSession, exercise_id: uuid.UUID) -> Exercise | None:
     """Fetch an exercise with its relations (and each relation's target), parameters,
-    and gym-material links (with each material) loaded."""
+    and gym-material/facility links (with each material/facility) loaded."""
     exercise: Exercise | None = await session.scalar(
         select(Exercise)
         .where(Exercise.id == exercise_id)
@@ -109,6 +147,7 @@ async def _load_exercise(session: AsyncSession, exercise_id: uuid.UUID) -> Exerc
             selectinload(Exercise.related).selectinload(ExerciseRelation.related_exercise),
             selectinload(Exercise.parameters),
             selectinload(Exercise.gym_materials).selectinload(ExerciseGymMaterial.gym_material),
+            selectinload(Exercise.gym_facilities).selectinload(ExerciseGymFacility.gym_facility),
         )
     )
     return exercise
@@ -211,6 +250,41 @@ async def _build_gym_materials(
     return links
 
 
+async def _build_gym_facilities(
+    session: AsyncSession, facilities: list[GymFacilityInput]
+) -> list[ExerciseGymFacility]:
+    """Build the exercise→facility links, finding each facility by name
+    (case-insensitive) or creating it. Rejects blank and duplicate names within the
+    same exercise. Facilities are shared, so the same name across exercises reuses one row."""
+    links: list[ExerciseGymFacility] = []
+    seen: set[str] = set()
+    for position, item in enumerate(facilities):
+        name = item.name.strip()
+        if not name:
+            raise api_error(
+                status.HTTP_400_BAD_REQUEST,
+                ErrorCode.invalid_gym_facility,
+                "Facility name is required",
+            )
+        if name.casefold() in seen:
+            raise api_error(
+                status.HTTP_400_BAD_REQUEST,
+                ErrorCode.invalid_gym_facility,
+                "Duplicate facility",
+            )
+        seen.add(name.casefold())
+        # Find an existing facility by case-insensitive name, else create it.
+        facility = await session.scalar(
+            select(GymFacility).where(func.lower(GymFacility.name) == name.lower())
+        )
+        if facility is None:
+            facility = GymFacility(name=name)
+            session.add(facility)
+            await session.flush()  # assign its id before linking
+        links.append(ExerciseGymFacility(gym_facility_id=facility.id, position=position))
+    return links
+
+
 @router.post("/media-uploads", response_model=MediaUploadResponse)
 async def create_media_upload(
     body: MediaUploadRequest,
@@ -250,6 +324,7 @@ async def list_exercises(
             selectinload(Exercise.related).selectinload(ExerciseRelation.related_exercise),
             selectinload(Exercise.parameters),
             selectinload(Exercise.gym_materials).selectinload(ExerciseGymMaterial.gym_material),
+            selectinload(Exercise.gym_facilities).selectinload(ExerciseGymFacility.gym_facility),
         )
         .order_by(Exercise.name)
         .offset(params.offset)
@@ -371,6 +446,7 @@ async def create_exercise(
     exercise.related = await _build_relations(session, exercise.id, body.related_exercises)
     exercise.parameters = _build_parameters(body.parameters)
     exercise.gym_materials = await _build_gym_materials(session, body.gym_materials)
+    exercise.gym_facilities = await _build_gym_facilities(session, body.gym_facilities)
     session.add(exercise)
     await session.commit()
 
@@ -421,13 +497,15 @@ async def update_exercise(
     exercise.related.clear()
     exercise.parameters.clear()
     exercise.gym_materials.clear()
+    exercise.gym_facilities.clear()
     # Flush the removals before inserting, so re-using a name/target doesn't race the
-    # orphan delete and trip a unique constraint. Build the material links after this
-    # flush too, so re-linking the same material doesn't race the link's orphan delete.
+    # orphan delete and trip a unique constraint. Build the material/facility links
+    # after this flush too, so re-linking the same one doesn't race its orphan delete.
     await session.flush()
     exercise.related = new_relations
     exercise.parameters = new_parameters
     exercise.gym_materials = await _build_gym_materials(session, body.gym_materials)
+    exercise.gym_facilities = await _build_gym_facilities(session, body.gym_facilities)
     await session.commit()
 
     reloaded = await _load_exercise(session, exercise_id)

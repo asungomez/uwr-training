@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, field_serializer
 
-from app.exercises.schemas import GymMaterialResponse
+from app.exercises.schemas import GymFacilityResponse, GymMaterialResponse
 from app.models import SessionLogAction
 
 # ---- log form (what the athlete fills in) -----------------------------------
@@ -27,6 +27,7 @@ class LogFormAlternative(BaseModel):
     name: str
     parameters: list[LogFormParameter] = []
     gym_materials: list[GymMaterialResponse] = []
+    gym_facilities: list[GymFacilityResponse] = []
 
     @field_serializer("exercise_id")
     def serialize_exercise_id(self, value: uuid.UUID) -> str:
@@ -36,13 +37,14 @@ class LogFormAlternative(BaseModel):
 class LogFormExercise(BaseModel):
     """One series item's exercise in the log form: the prescribed exercise plus the
     alternatives it can be swapped for, the parameters the athlete can record, and the
-    gym materials it needs (the materials list updates when an alternative is used)."""
+    gym materials + facilities it needs (these lists update when an alternative is used)."""
 
     exercise_id: uuid.UUID
     name: str
     alternatives: list[LogFormAlternative] = []
     parameters: list[LogFormParameter] = []
     gym_materials: list[GymMaterialResponse] = []
+    gym_facilities: list[GymFacilityResponse] = []
 
     @field_serializer("exercise_id")
     def serialize_exercise_id(self, value: uuid.UUID) -> str:

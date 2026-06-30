@@ -71,6 +71,22 @@ export function ExerciseMetaSection({ exercise, onSelectExercise }: SectionProps
         </div>
       )}
 
+      {exercise.gym_facilities.length > 0 && (
+        <div>
+          <h3 className="text-lg font-semibold text-slate-100">Instalaciones</h3>
+          <ul className="mt-3 flex flex-wrap gap-2">
+            {exercise.gym_facilities.map((facility) => (
+              <li
+                key={facility.id}
+                className="inline-flex rounded-full border border-slate-600 bg-slate-800 px-3 py-1 text-sm text-slate-100"
+              >
+                {facility.name}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {exercise.parameters.length > 0 && (
         <div>
           <h3 className="text-lg font-semibold text-slate-100">Parámetros</h3>

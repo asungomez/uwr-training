@@ -167,6 +167,12 @@ class Exercise(Base):
         cascade="all, delete-orphan",
         order_by="ExerciseGymMaterial.position",
     )
+    # Gym facilities/installations needed (e.g. "máquina de remo"), same pattern as
+    # gym_materials: ordered link rows that cascade; the shared facilities don't.
+    gym_facilities: Mapped[list["ExerciseGymFacility"]] = relationship(
+        cascade="all, delete-orphan",
+        order_by="ExerciseGymFacility.position",
+    )
 
 
 class ExerciseParameter(Base):
@@ -246,6 +252,40 @@ class ExerciseGymMaterial(Base):
     position: Mapped[int] = mapped_column(default=0)
 
     gym_material: Mapped["GymMaterial"] = relationship()
+
+
+class GymFacility(Base):
+    """A gym facility/installation an exercise needs (e.g. "máquina de remo",
+    "barra de dominadas"). Shared across exercises via an n:n link; unique by name so
+    the same facility is reused, not duplicated."""
+
+    __tablename__ = "gym_facilities"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(_TZ, server_default=func.now())
+
+
+class ExerciseGymFacility(Base):
+    """Association row linking an exercise to a gym facility, with the position the
+    facility appears at in the exercise's list. Deleting the exercise removes the
+    link; facilities are only deleted explicitly, never cascaded from an exercise."""
+
+    __tablename__ = "exercise_gym_facilities"
+    __table_args__ = (
+        UniqueConstraint("exercise_id", "gym_facility_id", name="uq_exercise_gym_facility"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    exercise_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("exercises.id", ondelete="CASCADE"), index=True
+    )
+    gym_facility_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("gym_facilities.id", ondelete="CASCADE"), index=True
+    )
+    position: Mapped[int] = mapped_column(default=0)
+
+    gym_facility: Mapped["GymFacility"] = relationship()
 
 
 class TrainingSession(Base):
