@@ -2,15 +2,28 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical, Trash2 } from 'lucide-react'
 
+import MoveButtons from './MoveButtons'
 import type { NoteDraft } from './TrainingBlocksEditor'
 
 interface SortableNoteItemProps {
   item: NoteDraft
   onChange: (item: NoteDraft) => void
   onRemove: () => void
+  canMoveUp: boolean
+  canMoveDown: boolean
+  onMoveUp: () => void
+  onMoveDown: () => void
 }
 
-function SortableNoteItem({ item, onChange, onRemove }: SortableNoteItemProps) {
+function SortableNoteItem({
+  item,
+  onChange,
+  onRemove,
+  canMoveUp,
+  canMoveDown,
+  onMoveUp,
+  onMoveDown,
+}: SortableNoteItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
   })
@@ -26,16 +39,26 @@ function SortableNoteItem({ item, onChange, onRemove }: SortableNoteItemProps) {
       style={style}
       className={`flex items-start gap-2 ${isDragging ? 'z-10 opacity-60' : ''}`}
     >
-      {/* Drag handle — only this initiates dragging, scoped to this sub-block's items. */}
-      <button
-        type="button"
-        {...attributes}
-        {...listeners}
-        aria-label="Reordenar nota"
-        className="mt-1 cursor-grab touch-none rounded p-1 text-slate-500 transition-colors hover:bg-slate-700 hover:text-slate-200 focus:ring-2 focus:ring-indigo-400 focus:outline-none active:cursor-grabbing"
-      >
-        <GripVertical size={14} />
-      </button>
+      {/* Reorder controls: drag handle + move chevrons. Stacked on mobile. */}
+      <div className="mt-1 flex flex-col items-center sm:flex-row sm:items-start">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          aria-label="Reordenar nota"
+          className="cursor-grab touch-none rounded p-1 text-slate-500 transition-colors hover:bg-slate-700 hover:text-slate-200 focus:ring-2 focus:ring-indigo-400 focus:outline-none active:cursor-grabbing"
+        >
+          <GripVertical size={14} />
+        </button>
+
+        <MoveButtons
+          canMoveUp={canMoveUp}
+          canMoveDown={canMoveDown}
+          onMoveUp={onMoveUp}
+          onMoveDown={onMoveDown}
+          label="nota"
+        />
+      </div>
 
       <textarea
         value={item.text}

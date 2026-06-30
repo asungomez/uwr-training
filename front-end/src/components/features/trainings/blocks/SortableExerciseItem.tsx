@@ -10,6 +10,7 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 
 import type { components } from '@/api/schema'
 
+import MoveButtons from './MoveButtons'
 import type { SeriesDraft } from './TrainingBlocksEditor'
 
 type ExerciseType = components['schemas']['ExerciseType']
@@ -22,6 +23,10 @@ interface SortableExerciseItemProps {
   onCopy: () => void
   /** Restrict the search to this exercise type (null = no restriction). */
   exerciseType: ExerciseType | null
+  canMoveUp: boolean
+  canMoveDown: boolean
+  onMoveUp: () => void
+  onMoveDown: () => void
 }
 
 interface FieldProps {
@@ -56,6 +61,10 @@ function SortableExerciseItem({
   onRemove,
   onCopy,
   exerciseType,
+  canMoveUp,
+  canMoveDown,
+  onMoveUp,
+  onMoveDown,
 }: SortableExerciseItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
@@ -100,16 +109,27 @@ function SortableExerciseItem({
       style={style}
       className={`flex items-start gap-2 rounded-md border border-slate-700 bg-slate-900/40 p-2 ${isDragging ? 'z-10 opacity-60' : ''}`}
     >
-      {/* Drag handle — scoped to this sub-block's items. */}
-      <button
-        type="button"
-        {...attributes}
-        {...listeners}
-        aria-label="Reordenar ejercicio"
-        className="mt-1 cursor-grab touch-none rounded p-1 text-slate-500 transition-colors hover:bg-slate-700 hover:text-slate-200 focus:ring-2 focus:ring-indigo-400 focus:outline-none active:cursor-grabbing"
-      >
-        <GripVertical size={14} />
-      </button>
+      {/* Reorder controls: drag handle + move chevrons. Stacked vertically on
+          mobile (scarce width), side-by-side from sm up. */}
+      <div className="mt-1 flex flex-col items-center sm:flex-row sm:items-start">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          aria-label="Reordenar ejercicio"
+          className="cursor-grab touch-none rounded p-1 text-slate-500 transition-colors hover:bg-slate-700 hover:text-slate-200 focus:ring-2 focus:ring-indigo-400 focus:outline-none active:cursor-grabbing"
+        >
+          <GripVertical size={14} />
+        </button>
+
+        <MoveButtons
+          canMoveUp={canMoveUp}
+          canMoveDown={canMoveDown}
+          onMoveUp={onMoveUp}
+          onMoveDown={onMoveDown}
+          label="ejercicio"
+        />
+      </div>
 
       <div className="flex flex-1 flex-col gap-2">
         {item.exerciseId ? (
@@ -141,7 +161,7 @@ function SortableExerciseItem({
 
         {item.exerciseId && (
           <>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               <SeriesField
                 label="Series"
                 value={item.sets}

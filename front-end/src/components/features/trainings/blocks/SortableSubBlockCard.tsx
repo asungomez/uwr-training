@@ -20,6 +20,7 @@ import { Copy, GripVertical, Plus, Trash2 } from 'lucide-react'
 import type { components } from '@/api/schema'
 
 import { cloneItem } from './cloneDrafts'
+import MoveButtons from './MoveButtons'
 import SortableExerciseItem from './SortableExerciseItem'
 import SortableNoteItem from './SortableNoteItem'
 import type { ItemDraft, SeriesDraft, SubBlockDraft } from './TrainingBlocksEditor'
@@ -33,6 +34,10 @@ interface SortableSubBlockCardProps {
   /** Insert a copy of this whole sub-block right below it. */
   onCopy: () => void
   exerciseType: ExerciseType | null
+  canMoveUp: boolean
+  canMoveDown: boolean
+  onMoveUp: () => void
+  onMoveDown: () => void
 }
 
 function newNote(): ItemDraft {
@@ -61,6 +66,10 @@ function SortableSubBlockCard({
   onRemove,
   onCopy,
   exerciseType,
+  canMoveUp,
+  canMoveDown,
+  onMoveUp,
+  onMoveDown,
 }: SortableSubBlockCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: subBlock.id,
@@ -115,6 +124,13 @@ function SortableSubBlockCard({
     onChange({ ...subBlock, items })
   }
 
+  /** Move an item one position up (-1) or down (+1) within the sub-block. */
+  function moveItem(index: number, delta: number) {
+    const to = index + delta
+    if (to < 0 || to >= subBlock.items.length) return
+    onChange({ ...subBlock, items: arrayMove(subBlock.items, index, to) })
+  }
+
   return (
     <li
       ref={setNodeRef}
@@ -122,16 +138,26 @@ function SortableSubBlockCard({
       className={`rounded-md border border-slate-700 bg-slate-900/50 ${isDragging ? 'z-10 opacity-60 shadow-lg' : ''}`}
     >
       <div className="flex items-start gap-2 p-3">
-        {/* Drag handle — only this initiates dragging, scoped to this block's sub-blocks. */}
-        <button
-          type="button"
-          {...attributes}
-          {...listeners}
-          aria-label="Reordenar sub-bloque"
-          className="mt-1 cursor-grab touch-none rounded p-1 text-slate-500 transition-colors hover:bg-slate-700 hover:text-slate-200 focus:ring-2 focus:ring-indigo-400 focus:outline-none active:cursor-grabbing"
-        >
-          <GripVertical size={16} />
-        </button>
+        {/* Reorder controls: drag handle + move chevrons. Stacked on mobile. */}
+        <div className="mt-1 flex flex-col items-center sm:flex-row sm:items-start">
+          <button
+            type="button"
+            {...attributes}
+            {...listeners}
+            aria-label="Reordenar sub-bloque"
+            className="cursor-grab touch-none rounded p-1 text-slate-500 transition-colors hover:bg-slate-700 hover:text-slate-200 focus:ring-2 focus:ring-indigo-400 focus:outline-none active:cursor-grabbing"
+          >
+            <GripVertical size={16} />
+          </button>
+
+          <MoveButtons
+            canMoveUp={canMoveUp}
+            canMoveDown={canMoveDown}
+            onMoveUp={onMoveUp}
+            onMoveDown={onMoveDown}
+            label="sub-bloque"
+          />
+        </div>
 
         <div className="flex flex-1 flex-col gap-2">
           <input
@@ -162,8 +188,14 @@ function SortableSubBlockCard({
                 strategy={verticalListSortingStrategy}
               >
                 <ul className="flex flex-col gap-2">
-                  {subBlock.items.map((item) =>
-                    item.kind === 'series' ? (
+                  {subBlock.items.map((item, index) => {
+                    const move = {
+                      canMoveUp: index > 0,
+                      canMoveDown: index < subBlock.items.length - 1,
+                      onMoveUp: () => moveItem(index, -1),
+                      onMoveDown: () => moveItem(index, 1),
+                    }
+                    return item.kind === 'series' ? (
                       <SortableExerciseItem
                         key={item.id}
                         item={item}
@@ -171,6 +203,7 @@ function SortableSubBlockCard({
                         onRemove={() => removeItem(item.id)}
                         onCopy={() => copyItem(item.id)}
                         exerciseType={exerciseType}
+                        {...move}
                       />
                     ) : (
                       <SortableNoteItem
@@ -178,9 +211,10 @@ function SortableSubBlockCard({
                         item={item}
                         onChange={updateItem}
                         onRemove={() => removeItem(item.id)}
+                        {...move}
                       />
-                    ),
-                  )}
+                    )
+                  })}
                 </ul>
               </SortableContext>
             </DndContext>

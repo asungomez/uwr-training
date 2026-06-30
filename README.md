@@ -380,11 +380,16 @@ One-time AWS setup for the bucket:
 1. **Create the bucket** in your chosen region.
 2. **Public read** — bucket policy allowing `s3:GetObject` on `arn:aws:s3:::<bucket>/*`
    (objects are served directly to `<video>`/`<img>` via stable public URLs).
-3. **CORS** — allow `GET` and `POST` from the front-end origin
+3. **CORS** — allow `GET`, `POST` and `PUT` from the front-end origin
    (`https://uwr-training-frontend.onrender.com`); without it the browser's direct
-   upload is blocked.
-4. **IAM user** with `s3:PutObject` on the bucket; use its keys for
-   `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY`.
+   upload is blocked. `PUT` is needed because large files (materials, e.g. session
+   videos) upload via **multipart**, sending each part with a presigned `PUT`. No
+   special response-header exposure is required — the API reads each part's ETag
+   server-side (via `ListParts`) to complete the upload.
+4. **IAM user** with `s3:PutObject` on the bucket (covers the multipart
+   initiate/upload-part/complete actions), plus `s3:AbortMultipartUpload` and
+   `s3:ListMultipartUploadParts` so the API can finalize and clean up multipart
+   uploads; use its keys for `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY`.
 5. Set `S3_PUBLIC_BASE_URL` to the bucket's public base
    (`https://<bucket>.s3.<region>.amazonaws.com`).
 

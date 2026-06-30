@@ -193,6 +193,66 @@ def test_reorder_notes_within_sub_block_persists(
     expect(reloaded.nth(1)).to_have_value("Primera")
 
 
+def test_reorder_notes_with_move_chevrons(
+    page: Page,
+    app_url: str,
+    create_user: Callable[..., User],
+    create_training: Callable[..., TrainingSession],
+    log_in_as: Callable[[User], None],
+) -> None:
+    # Given a sub-block with three ordered notes.
+    admin = create_user(role="admin", email="admin@example.com")
+    training = create_training(
+        title="Chevrons",
+        category="gym",
+        subtype="accumulation",
+        blocks=[
+            TrainingBlock(
+                name="Bloque",
+                position=0,
+                sub_blocks=[
+                    TrainingSubBlock(
+                        name="Sub",
+                        position=0,
+                        items=[_note("Uno", 0), _note("Dos", 1), _note("Tres", 2)],
+                    )
+                ],
+            )
+        ],
+    )
+    log_in_as(admin)
+    page.goto(f"{app_url}/entrenamientos/{training.id}/editar")
+
+    notes = page.get_by_label("Nota", exact=True)
+    up = page.get_by_role("button", name="Subir nota")
+    down = page.get_by_role("button", name="Bajar nota")
+    # Both chevrons always render (one per note); the edge ones are disabled — the
+    # first note's "up" and the last note's "down".
+    expect(up).to_have_count(3)
+    expect(down).to_have_count(3)
+    expect(up.nth(0)).to_be_disabled()
+    expect(down.nth(2)).to_be_disabled()
+
+    # Move the first note ("Uno") down → Dos, Uno, Tres.
+    down.first.click()
+    expect(notes.nth(0)).to_have_value("Dos")
+    expect(notes.nth(1)).to_have_value("Uno")
+
+    # Move the last note ("Tres") up → Dos, Tres, Uno.
+    up.last.click()
+    expect(notes.nth(1)).to_have_value("Tres")
+    expect(notes.nth(2)).to_have_value("Uno")
+
+    # The new order persists after save + reload.
+    page.get_by_role("button", name="Guardar cambios").click()
+    expect(page.get_by_role("status").filter(has_text="Entrenamiento actualizado.")).to_be_visible()
+    page.goto(f"{app_url}/entrenamientos/{training.id}/editar")
+    reloaded = page.get_by_label("Nota", exact=True)
+    expect(reloaded.nth(0)).to_have_value("Dos")
+    expect(reloaded.nth(1)).to_have_value("Tres")
+    expect(reloaded.nth(2)).to_have_value("Uno")
+
+
 def test_note_drag_stays_within_its_sub_block(
     page: Page,
     app_url: str,

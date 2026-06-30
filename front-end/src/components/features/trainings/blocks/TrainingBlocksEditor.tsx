@@ -129,6 +129,13 @@ function TrainingBlocksEditor({
     onChange(next)
   }
 
+  /** Move a block one position up (-1) or down (+1). */
+  function moveBlock(index: number, delta: number) {
+    const to = index + delta
+    if (to < 0 || to >= blocks.length) return
+    onChange(arrayMove(blocks, index, to))
+  }
+
   function toggleCollapsed(id: string) {
     setCollapsed((prev) => {
       const next = new Set(prev)
@@ -179,7 +186,7 @@ function TrainingBlocksEditor({
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={blocks.map((b) => b.id)} strategy={verticalListSortingStrategy}>
           <ul className="flex flex-col gap-3">
-            {blocks.map((block) => (
+            {blocks.map((block, index) => (
               <SortableBlockCard
                 key={block.id}
                 block={block}
@@ -189,6 +196,10 @@ function TrainingBlocksEditor({
                 onRemove={() => removeBlock(block.id)}
                 onCopy={() => copyBlock(block.id)}
                 exerciseType={exerciseType}
+                canMoveUp={index > 0}
+                canMoveDown={index < blocks.length - 1}
+                onMoveUp={() => moveBlock(index, -1)}
+                onMoveDown={() => moveBlock(index, 1)}
               />
             ))}
           </ul>

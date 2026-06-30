@@ -20,6 +20,7 @@ import { ChevronDown, ChevronRight, Copy, GripVertical, Plus, Trash2 } from 'luc
 import type { components } from '@/api/schema'
 
 import { cloneSubBlock } from './cloneDrafts'
+import MoveButtons from './MoveButtons'
 import SortableSubBlockCard from './SortableSubBlockCard'
 import type { BlockDraft, SubBlockDraft } from './TrainingBlocksEditor'
 
@@ -34,6 +35,10 @@ interface SortableBlockCardProps {
   /** Insert a copy of this whole block right below it. */
   onCopy: () => void
   exerciseType: ExerciseType | null
+  canMoveUp: boolean
+  canMoveDown: boolean
+  onMoveUp: () => void
+  onMoveDown: () => void
 }
 
 function newSubBlock(): SubBlockDraft {
@@ -48,6 +53,10 @@ function SortableBlockCard({
   onRemove,
   onCopy,
   exerciseType,
+  canMoveUp,
+  canMoveDown,
+  onMoveUp,
+  onMoveDown,
 }: SortableBlockCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: block.id,
@@ -99,6 +108,13 @@ function SortableBlockCard({
     onChange({ ...block, subBlocks })
   }
 
+  /** Move a sub-block one position up (-1) or down (+1) within the block. */
+  function moveSubBlock(index: number, delta: number) {
+    const to = index + delta
+    if (to < 0 || to >= block.subBlocks.length) return
+    onChange({ ...block, subBlocks: arrayMove(block.subBlocks, index, to) })
+  }
+
   return (
     <li
       ref={setNodeRef}
@@ -106,16 +122,26 @@ function SortableBlockCard({
       className={`rounded-lg border border-slate-700 bg-slate-800 ${isDragging ? 'z-10 opacity-60 shadow-xl' : ''}`}
     >
       <div className="flex items-center gap-2 p-3">
-        {/* Drag handle — only this initiates dragging, so the name input stays usable. */}
-        <button
-          type="button"
-          {...attributes}
-          {...listeners}
-          aria-label="Reordenar bloque"
-          className="cursor-grab touch-none rounded p-1 text-slate-500 transition-colors hover:bg-slate-700 hover:text-slate-200 focus:ring-2 focus:ring-indigo-400 focus:outline-none active:cursor-grabbing"
-        >
-          <GripVertical size={18} />
-        </button>
+        {/* Reorder controls: drag handle + move chevrons. Stacked on mobile. */}
+        <div className="flex flex-col items-center sm:flex-row sm:items-center">
+          <button
+            type="button"
+            {...attributes}
+            {...listeners}
+            aria-label="Reordenar bloque"
+            className="cursor-grab touch-none rounded p-1 text-slate-500 transition-colors hover:bg-slate-700 hover:text-slate-200 focus:ring-2 focus:ring-indigo-400 focus:outline-none active:cursor-grabbing"
+          >
+            <GripVertical size={18} />
+          </button>
+
+          <MoveButtons
+            canMoveUp={canMoveUp}
+            canMoveDown={canMoveDown}
+            onMoveUp={onMoveUp}
+            onMoveDown={onMoveDown}
+            label="bloque"
+          />
+        </div>
 
         <button
           type="button"
@@ -170,7 +196,7 @@ function SortableBlockCard({
               strategy={verticalListSortingStrategy}
             >
               <ul className="flex flex-col gap-2">
-                {block.subBlocks.map((subBlock) => (
+                {block.subBlocks.map((subBlock, index) => (
                   <SortableSubBlockCard
                     key={subBlock.id}
                     subBlock={subBlock}
@@ -178,6 +204,10 @@ function SortableBlockCard({
                     onRemove={() => removeSubBlock(subBlock.id)}
                     onCopy={() => copySubBlock(subBlock.id)}
                     exerciseType={exerciseType}
+                    canMoveUp={index > 0}
+                    canMoveDown={index < block.subBlocks.length - 1}
+                    onMoveUp={() => moveSubBlock(index, -1)}
+                    onMoveDown={() => moveSubBlock(index, 1)}
                   />
                 ))}
               </ul>
