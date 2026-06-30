@@ -9,8 +9,10 @@ from sqlalchemy.orm import selectinload
 from app.auth.dependencies import current_user
 from app.db import get_session
 from app.errors import ErrorCode, api_error
+from app.exercises.schemas import GymMaterialResponse
 from app.models import (
     Exercise,
+    ExerciseGymMaterial,
     ExerciseRelation,
     SessionLog,
     SessionLogAction,
@@ -60,6 +62,7 @@ async def _load_session_exercises(
         select(TrainingSession)
         .where(TrainingSession.id == training_id)
         .options(
+            # The alternative exercises, with their own parameters + materials.
             selectinload(TrainingSession.blocks)
             .selectinload(TrainingBlock.sub_blocks)
             .selectinload(TrainingSubBlock.items)
@@ -71,7 +74,22 @@ async def _load_session_exercises(
             .selectinload(TrainingBlock.sub_blocks)
             .selectinload(TrainingSubBlock.items)
             .selectinload(TrainingItem.exercise)
+            .selectinload(Exercise.related)
+            .selectinload(ExerciseRelation.related_exercise)
+            .selectinload(Exercise.gym_materials)
+            .selectinload(ExerciseGymMaterial.gym_material),
+            # The prescribed exercises, with their parameters + materials.
+            selectinload(TrainingSession.blocks)
+            .selectinload(TrainingBlock.sub_blocks)
+            .selectinload(TrainingSubBlock.items)
+            .selectinload(TrainingItem.exercise)
             .selectinload(Exercise.parameters),
+            selectinload(TrainingSession.blocks)
+            .selectinload(TrainingBlock.sub_blocks)
+            .selectinload(TrainingSubBlock.items)
+            .selectinload(TrainingItem.exercise)
+            .selectinload(Exercise.gym_materials)
+            .selectinload(ExerciseGymMaterial.gym_material),
         )
     )
     return training
@@ -179,6 +197,11 @@ async def get_log_form(
             status.HTTP_404_NOT_FOUND, ErrorCode.training_not_found, "Training not found"
         )
 
+    def materials(exercise: Exercise) -> list[GymMaterialResponse]:
+        return [
+            GymMaterialResponse.model_validate(link.gym_material) for link in exercise.gym_materials
+        ]
+
     exercises = [
         LogFormExercise(
             exercise_id=exercise.id,
@@ -191,6 +214,7 @@ async def get_log_form(
                         LogFormParameter(parameter_id=param.id, name=param.name)
                         for param in relation.related_exercise.parameters
                     ],
+                    gym_materials=materials(relation.related_exercise),
                 )
                 for relation in exercise.related
             ],
@@ -198,6 +222,7 @@ async def get_log_form(
                 LogFormParameter(parameter_id=param.id, name=param.name)
                 for param in exercise.parameters
             ],
+            gym_materials=materials(exercise),
         )
         for exercise in _ordered_series_exercises(training)
     ]

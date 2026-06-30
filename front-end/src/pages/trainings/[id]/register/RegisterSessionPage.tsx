@@ -87,6 +87,28 @@ function RegisterSessionPage() {
     .flatMap((sub) => sub.items)
     .filter((item) => item.kind === 'series' && item.exercise_id)
 
+  // The materials to bring: the union across every series item's currently-performed
+  // exercise (the prescribed one, or the alternative the athlete switched to — so the
+  // list updates live with each swap). Deduped by id, kept in first-seen order.
+  const materials = (() => {
+    const byId = new Map<string, string>()
+    for (const item of seriesItems) {
+      const plannedId = item.exercise_id ?? ''
+      const formExercise = formByExerciseId.get(plannedId)
+      if (!formExercise) continue
+      const performedId = entries[item.id]?.performedExerciseId ?? plannedId
+      const source =
+        performedId === plannedId
+          ? formExercise.gym_materials
+          : (formExercise.alternatives.find((alt) => alt.exercise_id === performedId)
+              ?.gym_materials ?? [])
+      for (const material of source) {
+        if (!byId.has(material.id)) byId.set(material.id, material.name)
+      }
+    }
+    return [...byId.entries()].map(([materialId, name]) => ({ id: materialId, name }))
+  })()
+
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
     setSubmitting(true)
@@ -177,6 +199,28 @@ function RegisterSessionPage() {
               Registrar sesión
             </h1>
             <p className="mt-1 text-slate-400">{data.title ?? 'Sin título'}</p>
+
+            {materials.length > 0 && (
+              <div className="mt-6 rounded-lg border border-slate-700 bg-slate-800/50 p-4">
+                <h2 className="text-sm font-medium tracking-wide text-slate-400 uppercase">
+                  Materiales
+                </h2>
+                <ul className="mt-3 flex flex-wrap gap-2">
+                  {materials.map((material) => (
+                    <li
+                      key={material.id}
+                      className="inline-flex rounded-full border border-slate-600 bg-slate-800 px-3 py-1 text-sm text-slate-100"
+                    >
+                      {material.name}
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-3 text-xs text-slate-500">
+                  La lista de materiales se actualiza si haces alguno de los ejercicios
+                  alternativos.
+                </p>
+              </div>
+            )}
 
             {seriesItems.length === 0 ? (
               <p className="mt-6 text-sm text-slate-500">

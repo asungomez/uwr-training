@@ -1885,7 +1885,7 @@ export interface components {
         /**
          * LogFormAlternative
          * @description An alternative exercise the athlete may pick instead of the prescribed one,
-         *     with its own trackable parameters (shown when it's the one performed).
+         *     with its own trackable parameters and materials (shown/counted when performed).
          */
         LogFormAlternative: {
             /** Exercise Id */
@@ -1897,11 +1897,17 @@ export interface components {
              * @default []
              */
             parameters: components["schemas"]["LogFormParameter"][];
+            /**
+             * Gym Materials
+             * @default []
+             */
+            gym_materials: components["schemas"]["GymMaterialResponse"][];
         };
         /**
          * LogFormExercise
          * @description One series item's exercise in the log form: the prescribed exercise plus the
-         *     alternatives it can be swapped for and the parameters the athlete can record.
+         *     alternatives it can be swapped for, the parameters the athlete can record, and the
+         *     gym materials it needs (the materials list updates when an alternative is used).
          */
         LogFormExercise: {
             /** Exercise Id */
@@ -1918,6 +1924,11 @@ export interface components {
              * @default []
              */
             parameters: components["schemas"]["LogFormParameter"][];
+            /**
+             * Gym Materials
+             * @default []
+             */
+            gym_materials: components["schemas"]["GymMaterialResponse"][];
         };
         /** LogFormParameter */
         LogFormParameter: {
