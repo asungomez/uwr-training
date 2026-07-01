@@ -1,0 +1,44 @@
+# Keeps the free-tier Render API warm to avoid cold-start latency.
+#
+# Render's free web service spins down after ~15 min without inbound traffic; the
+# next request then pays a cold-start penalty. Render's own Cron Jobs are a paid
+# feature, so we ping the (DB-free, cheap) /health endpoint from a free GitHub
+# Actions schedule instead.
+#
+# Note: GitHub's scheduled runs are best-effort and can be delayed several minutes
+# under load, so we aim for ~10 min (comfortably under the spin-down window) rather
+# than exactly 15. Only the API web service counts against Render's 750 free
+# instance-hours/month; warming ~12 h/day stays well under that.
+#
+# We only warm it during the day to save the overnight pings. GitHub cron is UTC
+# only and does NOT follow daylight saving, so the window is pinned to CET (UTC+1):
+# 08:00-20:00 CET = 07:00-19:00 UTC. In summer (CEST, UTC+2) the same UTC hours land
+# at 09:00-21:00 local — one hour later than the winter window.
+name: Keep API warm
+
+on:
+  schedule:
+    # Every ~10 min across the CET daytime window, 07:00-19:00 UTC (08:00-20:00 CET).
+    # The hourly range stops at 18:50, so a final tick at 19:00 (20:00 CET) closes
+    # the window without pinging into the evening.
+    - cron: '*/10 7-18 * * *'
+    - cron: '0 19 * * *'
+  workflow_dispatch: {} # allow manual runs from the Actions tab
+
+# If a run is somehow still going when the next fires, skip the new one rather
+# than pile up.
+concurrency:
+  group: keep-api-warm
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping /health
+        run: |
+          # --fail makes curl exit non-zero on HTTP >= 400; retry a few times so a
+          # single blip (or the very cold start we're warming) doesn't fail the run.
+          curl --fail --show-error --silent \
+            --retry 5 --retry-all-errors --retry-delay 15 --max-time 60 \
+            https://uwr-training-api.onrender.com/health

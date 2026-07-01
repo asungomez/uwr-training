@@ -363,6 +363,20 @@ Everything deploys to [Render](https://render.com) via the
 - **`uwr-training-db`** — managed Postgres (free plan). `DATABASE_URL` is wired into
   the api automatically via `fromDatabase`.
 
+### Keeping the API warm
+
+The free API web service spins down after ~15 min idle, so the next request pays a
+cold-start delay. Render's own Cron Jobs are paid, so a free GitHub Actions schedule
+([`.github/workflows/keep-api-warm.yml`](.github/workflows/keep-api-warm.yml)) pings
+the DB-free `/health` endpoint every ~10 min during the day to keep it awake. Only
+the API counts against Render's 750 free instance-hours/month (the static site is
+CDN-served and doesn't).
+
+The window is **08:00–20:00 CET**, pinned in UTC as `07:00–19:00` since GitHub cron
+is UTC-only and ignores daylight saving — so in summer (CEST) it effectively runs
+09:00–21:00 local. Outside that window the service sleeps; the first morning request
+still pays one cold start. Widen the `cron:` hour range to cover more of the day.
+
 ### Media storage (S3) in production
 
 Exercise thumbnails/videos live in S3. Locally this is the `minio` container; in
