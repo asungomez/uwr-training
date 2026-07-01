@@ -1074,6 +1074,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/speed-test-logs/recent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Recent Speed Test Logs
+         * @description The athlete's last few speed-test times for the history graph, oldest first so
+         *     the chart reads left-to-right. Fixed-size and independent of list pagination.
+         */
+        get: operations["recent_speed_test_logs_speed_test_logs_recent_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/speed-test-logs/{log_id}": {
         parameters: {
             query?: never;
@@ -5385,6 +5406,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SpeedTestLogResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recent_speed_test_logs_speed_test_logs_recent_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpeedTestLogSummaryResponse"][];
                 };
             };
             /** @description Validation Error */

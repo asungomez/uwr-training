@@ -34,6 +34,9 @@ router = APIRouter(prefix="/speed-test-logs", tags=["speed-test-logs"])
 _CATEGORY = TrainingCategory.test
 _SUBTYPE = TrainingSubtype.speed
 
+# The number of most-recent points the history graph plots.
+GRAPH_POINTS = 10
+
 
 async def _load_log(session: AsyncSession, log_id: uuid.UUID) -> SpeedTestLog | None:
     log: SpeedTestLog | None = await session.scalar(
@@ -125,6 +128,22 @@ async def list_speed_test_logs(
         items=[SpeedTestLogSummaryResponse.model_validate(row) for row in rows.all()],
         total_count=total or 0,
     )
+
+
+@router.get("/recent", response_model=list[SpeedTestLogSummaryResponse])
+async def recent_speed_test_logs(
+    user: Annotated[User, Depends(current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[SpeedTestLog]:
+    """The athlete's last few speed-test times for the history graph, oldest first so
+    the chart reads left-to-right. Fixed-size and independent of list pagination."""
+    rows = await session.scalars(
+        select(SpeedTestLog)
+        .where(SpeedTestLog.athlete_id == user.id)
+        .order_by(SpeedTestLog.performed_at.desc())
+        .limit(GRAPH_POINTS)
+    )
+    return list(reversed(rows.all()))
 
 
 @router.get("/{log_id}", response_model=SpeedTestLogResponse)

@@ -3,13 +3,14 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { useQuery } from '@/api/client'
+import SpeedTestChart from '@/components/features/tests/SpeedTestChart'
 import { formatLogDate } from '@/components/features/trainings/logFormat'
 import Pagination from '@/components/molecules/Pagination'
 
 const PAGE_SIZE = 10
 
 /** The current athlete's own speed-test logs, most recent first (paginated). Each
- *  row links to the full log. */
+ *  row links to the full log. A chart of the last 10 times sits above the list. */
 function SpeedTestLogList() {
   const [page, setPage] = useState(1)
   const { data, isLoading } = useQuery(
@@ -17,8 +18,12 @@ function SpeedTestLogList() {
     { params: { query: { page, page_size: PAGE_SIZE } } },
     { keepPreviousData: true },
   )
+  // The graph's last-10 points, fetched separately so it's the same regardless of
+  // which list page is open.
+  const recent = useQuery('/speed-test-logs/recent', {})
 
   const logs = data?.items ?? []
+  const graphLogs = recent.data ?? []
   const pageCount = Math.ceil((data?.total_count ?? 0) / PAGE_SIZE)
 
   return (
@@ -31,9 +36,15 @@ function SpeedTestLogList() {
         <p className="mt-3 text-sm text-slate-500">Todavía no has hecho ninguna prueba.</p>
       )}
 
+      {graphLogs.length > 0 && (
+        <div className="mt-4">
+          <SpeedTestChart logs={graphLogs} />
+        </div>
+      )}
+
       {logs.length > 0 && (
         <>
-          <ul className="mt-3 flex flex-col gap-2">
+          <ul className="mt-4 flex flex-col gap-2">
             {logs.map((log) => (
               <li key={log.id}>
                 <Link
