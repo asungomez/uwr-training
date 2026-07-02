@@ -7,6 +7,19 @@ html {
   background-color: theme(--color-slate-900);
 }
 
+/* iOS Safari auto-zooms when a focused input/select/textarea has a font-size below
+   16px, and that zoom leaves the page horizontally scrollable. Our compact fields
+   use text-sm (14px), so force a 16px minimum on small screens only — desktop keeps
+   its denser sizing. We don't cap zoom via the viewport meta (that would block the
+   user's own pinch-zoom). */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 /* MDXEditor: blend into our slate field styling (the field atom owns the border). */
 .mdxeditor {
   --baseBg: transparent;
