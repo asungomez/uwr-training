@@ -962,6 +962,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/strength-test-logs/exercise-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Strength Test Exercise History
+         * @description Each strength-test exercise (in test order) with its current target load and
+         *     the athlete's last few results, oldest first — one series per graph on the
+         *     strength-test page. Fixed-size history, independent of the log list's pagination.
+         */
+        get: operations["strength_test_exercise_history_strength_test_logs_exercise_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/strength-test-logs/{log_id}": {
         parameters: {
             query?: never;
@@ -1639,6 +1661,48 @@ export interface components {
          * @enum {string}
          */
         DirectoryStatus: "active" | "inactive" | "invitation_pending" | "invitation_expired";
+        /**
+         * ExerciseHistory
+         * @description One test exercise with its current target load and recent result history, for
+         *     the per-exercise graphs on the strength-test page.
+         */
+        ExerciseHistory: {
+            /** Exercise Id */
+            exercise_id: string;
+            /** Exercise Name */
+            exercise_name: string;
+            /** Target Weight Kg */
+            target_weight_kg: number | null;
+            /**
+             * History
+             * @default []
+             */
+            history: components["schemas"]["ExerciseHistoryPoint"][];
+        };
+        /**
+         * ExerciseHistoryPoint
+         * @description One past result for an exercise's history graph.
+         */
+        ExerciseHistoryPoint: {
+            /**
+             * Performed At
+             * Format: date-time
+             */
+            performed_at: string;
+            /** Actual Weight Kg */
+            actual_weight_kg: number;
+        };
+        /**
+         * ExerciseHistoryResponse
+         * @description Every strength-test exercise (in order) with its target + result history.
+         */
+        ExerciseHistoryResponse: {
+            /**
+             * Exercises
+             * @default []
+             */
+            exercises: components["schemas"]["ExerciseHistory"][];
+        };
         /**
          * ExerciseLogEntry
          * @description One past occurrence of the athlete doing this exercise: when, in which
@@ -5170,6 +5234,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LatestResultsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    strength_test_exercise_history_strength_test_logs_exercise_history_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExerciseHistoryResponse"];
                 };
             };
             /** @description Validation Error */

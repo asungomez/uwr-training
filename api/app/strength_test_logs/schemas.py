@@ -115,3 +115,32 @@ class LatestResultsResponse(BaseModel):
     """The athlete's latest result per exercise (only exercises they've ever tested)."""
 
     results: list[LatestResult] = []
+
+
+class ExerciseHistoryPoint(BaseModel):
+    """One past result for an exercise's history graph."""
+
+    performed_at: datetime
+    actual_weight_kg: float
+
+
+class ExerciseHistory(BaseModel):
+    """One test exercise with its current target load and recent result history, for
+    the per-exercise graphs on the strength-test page."""
+
+    exercise_id: uuid.UUID
+    exercise_name: str
+    # Current target (latest body weight x multiplier); null if no body weight logged.
+    target_weight_kg: float | None
+    # Last few results, oldest first so the chart reads left-to-right.
+    history: list[ExerciseHistoryPoint] = []
+
+    @field_serializer("exercise_id")
+    def serialize_id(self, value: uuid.UUID) -> str:
+        return str(value)
+
+
+class ExerciseHistoryResponse(BaseModel):
+    """Every strength-test exercise (in order) with its target + result history."""
+
+    exercises: list[ExerciseHistory] = []

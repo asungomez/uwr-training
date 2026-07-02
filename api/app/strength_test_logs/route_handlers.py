@@ -23,6 +23,9 @@ from app.models import (
 from app.pagination import Page, PaginationParams
 from app.strength_test_logs.schemas import (
     CreateStrengthTestLogRequest,
+    ExerciseHistory,
+    ExerciseHistoryPoint,
+    ExerciseHistoryResponse,
     LatestResult,
     LatestResultsResponse,
     StrengthTestLogEntryResponse,
@@ -45,6 +48,9 @@ router = APIRouter(prefix="/strength-test-logs", tags=["strength-test-logs"])
 # A strength-test log counts towards a week's test/strength requirement.
 _CATEGORY = TrainingCategory.test
 _SUBTYPE = TrainingSubtype.strength
+
+# The number of most-recent results each exercise's history graph plots.
+GRAPH_POINTS = 10
 
 
 async def _latest_bodyweight(session: AsyncSession, athlete_id: uuid.UUID) -> float | None:
@@ -220,6 +226,52 @@ async def latest_strength_test_results(
         results=[
             LatestResult(exercise_id=exercise_id, weight_kg=weight)
             for exercise_id, weight in latest.items()
+        ]
+    )
+
+
+@router.get("/exercise-history", response_model=ExerciseHistoryResponse)
+async def strength_test_exercise_history(
+    user: Annotated[User, Depends(current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> ExerciseHistoryResponse:
+    """Each strength-test exercise (in test order) with its current target load and
+    the athlete's last few results, oldest first — one series per graph on the
+    strength-test page. Fixed-size history, independent of the log list's pagination."""
+    items = await _test_exercises(session)
+    bodyweight = await _latest_bodyweight(session, user.id)
+
+    # All of the athlete's results, newest first, so we can take the last N per exercise.
+    rows = await session.execute(
+        select(
+            StrengthTestLogEntry.exercise_id,
+            StrengthTestLogEntry.actual_weight_kg,
+            StrengthTestLog.performed_at,
+        )
+        .join(StrengthTestLog, StrengthTestLogEntry.log_id == StrengthTestLog.id)
+        .where(StrengthTestLog.athlete_id == user.id)
+        .order_by(StrengthTestLog.performed_at.desc())
+    )
+    by_exercise: dict[uuid.UUID, list[ExerciseHistoryPoint]] = {}
+    for exercise_id, weight, performed_at in rows.all():
+        points = by_exercise.setdefault(exercise_id, [])
+        if len(points) < GRAPH_POINTS:
+            points.append(ExerciseHistoryPoint(performed_at=performed_at, actual_weight_kg=weight))
+
+    return ExerciseHistoryResponse(
+        exercises=[
+            ExerciseHistory(
+                exercise_id=exercise.id,
+                exercise_name=exercise.name,
+                target_weight_kg=(
+                    round(bodyweight * item.weight_multiplier, 2)
+                    if bodyweight is not None
+                    else None
+                ),
+                # Stored newest-first above; reverse to oldest-first for the chart.
+                history=list(reversed(by_exercise.get(exercise.id, []))),
+            )
+            for item, exercise in items
         ]
     )
 
