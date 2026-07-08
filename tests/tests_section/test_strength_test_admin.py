@@ -57,12 +57,12 @@ def test_admin_edits_strength_test(
     expect(
         page.get_by_role("status").filter(has_text="Prueba de fuerza actualizada.")
     ).to_be_visible()
-
-    # Back on the info page, the exercise + multiplier are listed.
     expect(page).to_have_url(f"{app_url}/pruebas/fuerza")
-    main = page.get_by_role("main")
-    expect(main.get_by_text("Peso muerto")).to_be_visible()
-    expect(main.get_by_text("×1.5")).to_be_visible()
+
+    # Reopening the editor shows the saved exercise + multiplier persisted.
+    page.goto(f"{app_url}/pruebas/fuerza/editar")
+    expect(page.get_by_text("Peso muerto")).to_be_visible()
+    expect(page.get_by_label("Multiplicador")).to_have_value("1.5")
 
 
 def test_edit_page_preloads_existing_items(

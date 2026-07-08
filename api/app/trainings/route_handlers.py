@@ -13,6 +13,7 @@ from app.errors import ErrorCode, api_error
 from app.models import (
     SUBTYPES_BY_CATEGORY,
     Exercise,
+    LacticAcidTestWarmup,
     SessionLog,
     SpeedTestWarmup,
     TrainingBlock,
@@ -191,8 +192,9 @@ async def list_trainings(
     """All training sessions, filterable by title search, category and subtype.
     Each carries when the requesting athlete last logged it. Visible to any user."""
     filters: list[ColumnElement[bool]] = [
-        # The speed-test warmup is a pool session but isn't a normal training; hide it.
-        TrainingSession.id.not_in(select(SpeedTestWarmup.training_session_id))
+        # The test warmups are pool sessions but aren't normal trainings; hide them.
+        TrainingSession.id.not_in(select(SpeedTestWarmup.training_session_id)),
+        TrainingSession.id.not_in(select(LacticAcidTestWarmup.training_session_id)),
     ]
     if params.search:
         filters.append(TrainingSession.title.ilike(f"%{params.search.strip()}%"))

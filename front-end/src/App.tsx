@@ -5,12 +5,16 @@ import { useAuth } from '@/auth/context'
 import AppLayout from '@/components/features/layout/AppLayout'
 import AcceptInvitationPage from '@/pages/accept-invitation/[token]/AcceptInvitationPage'
 import BodyweightPage from '@/pages/bodyweight/BodyweightPage'
+import RegisterLacticAcidTestPage from '@/pages/tests/register/RegisterLacticAcidTestPage'
+import LacticAcidTestLogDetailPage from '@/pages/tests/logs/[logId]/LacticAcidTestLogDetailPage'
+import EditLacticAcidWarmupPage from '@/pages/tests/edit/EditLacticAcidWarmupPage'
 import EditStrengthTestPage from '@/pages/tests/edit/EditStrengthTestPage'
 import EditWarmupPage from '@/pages/tests/edit/EditWarmupPage'
 import SpeedTestLogDetailPage from '@/pages/tests/logs/[logId]/SpeedTestLogDetailPage'
 import RegisterSpeedTestPage from '@/pages/tests/register/RegisterSpeedTestPage'
 import StrengthTestLogDetailPage from '@/pages/tests/logs/[logId]/StrengthTestLogDetailPage'
 import RegisterStrengthTestPage from '@/pages/tests/register/RegisterStrengthTestPage'
+import LacticAcidTestPage from '@/pages/tests/LacticAcidTestPage'
 import SpeedTestPage from '@/pages/tests/SpeedTestPage'
 import StrengthTestPage from '@/pages/tests/StrengthTestPage'
 import EditExercisePage from '@/pages/exercises/[id]/edit/EditExercisePage'
@@ -148,6 +152,22 @@ function App() {
           <Route path="/pruebas/velocidad/registros/:logId" element={<SpeedTestLogDetailPage />} />
           <Route element={<AdminRoute />}>
             <Route path="/pruebas/velocidad/editar-calentamiento" element={<EditWarmupPage />} />
+          </Route>
+          <Route path="/pruebas/acido-lactico" element={<LacticAcidTestPage />} />
+          <Route path="/pruebas/acido-lactico/registrar" element={<RegisterLacticAcidTestPage />} />
+          <Route
+            path="/pruebas/acido-lactico/registros/marca-personal/:logId"
+            element={<LacticAcidTestLogDetailPage kind="personal-best" />}
+          />
+          <Route
+            path="/pruebas/acido-lactico/registros/resultado/:logId"
+            element={<LacticAcidTestLogDetailPage kind="test-result" />}
+          />
+          <Route element={<AdminRoute />}>
+            <Route
+              path="/pruebas/acido-lactico/editar-calentamiento"
+              element={<EditLacticAcidWarmupPage />}
+            />
           </Route>
           <Route path="/usuarios" element={<AdminRoute />}>
             <Route index element={<UsersPage />} />

@@ -58,7 +58,7 @@ def test_register_warns_when_no_bodyweight(
     log_in_as(member)
 
     page.goto(f"{app_url}/pruebas/fuerza")
-    page.get_by_role("link", name="Hacer prueba").click()
+    page.get_by_role("link", name="Empezar prueba").click()
     expect(page).to_have_url(f"{app_url}/pruebas/fuerza/registrar")
 
     # No body-weight register → a warning, no reference weight, and a shortcut to register.

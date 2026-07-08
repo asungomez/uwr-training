@@ -72,6 +72,9 @@ function Sidebar({ onNavigate }: SidebarProps) {
       <NavLink to="/pruebas/velocidad" className={subLinkClass} onClick={onNavigate}>
         Prueba de velocidad
       </NavLink>
+      <NavLink to="/pruebas/acido-lactico" className={subLinkClass} onClick={onNavigate}>
+        Prueba de ácido láctico
+      </NavLink>
 
       {isAdmin && (
         <>

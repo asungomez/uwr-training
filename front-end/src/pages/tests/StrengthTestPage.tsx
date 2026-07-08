@@ -19,7 +19,7 @@ function StrengthTestPage() {
           className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
         >
           <Play size={16} />
-          Hacer prueba
+          Empezar prueba
         </Link>
         {isAdmin && (
           <Link

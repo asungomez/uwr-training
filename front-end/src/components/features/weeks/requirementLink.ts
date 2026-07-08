@@ -22,7 +22,9 @@ export function requirementLabel(category: Category, subtype: Subtype): string {
 export function requirementLink(category: Category, subtype: Subtype): string | null {
   // Tests each have their own explanation page.
   if (category === 'test') {
-    return subtype === 'speed' ? '/pruebas/velocidad' : '/pruebas/fuerza'
+    if (subtype === 'speed') return '/pruebas/velocidad'
+    if (subtype === 'lactic') return '/pruebas/acido-lactico'
+    return '/pruebas/fuerza'
   }
   if (category === 'cardio') {
     // Cardio subtypes are a subset of the shared subtypes; map via cardio slugs.

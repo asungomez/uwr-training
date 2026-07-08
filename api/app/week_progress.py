@@ -18,6 +18,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import (
     CardioSessionLog,
     CardioTraining,
+    LacticAcidPersonalBestLog,
+    LacticAcidTestResultLog,
     SessionLog,
     SpeedTestLog,
     StrengthTestLog,
@@ -31,13 +33,14 @@ from app.models import (
 
 class WeekLogSummary(BaseModel):
     """A log (of the requesting athlete) that counts towards a requirement. `kind`
-    tells gym/pool ("training") from cardio ("cardio"), strength tests ("test") and
-    speed tests ("speed-test"), so the UI links to the right detail page.
-    `training_id` is the TrainingSession or CardioTraining id — null for the tests,
-    which have no training entity."""
+    tells gym/pool ("training") from cardio ("cardio"), strength tests ("test"),
+    speed tests ("speed-test") and the two lactic-acid tests ("lactic-pb",
+    "lactic-result"), so the UI links to the right detail page. `training_id` is the
+    TrainingSession or CardioTraining id — null for the tests, which have no training
+    entity."""
 
     log_id: uuid.UUID
-    kind: Literal["training", "cardio", "test", "speed-test"]
+    kind: Literal["training", "cardio", "test", "speed-test", "lactic-pb", "lactic-result"]
     training_id: uuid.UUID | None
     training_title: str | None
     performed_at: datetime
@@ -91,6 +94,23 @@ async def logs_by_requirement(
         select(SpeedTestLog)
         .where(SpeedTestLog.athlete_id == athlete_id, SpeedTestLog.week_id.in_(week_ids))
         .order_by(SpeedTestLog.performed_at.desc())
+    )
+    # lactic-acid tests (personal best + test result): both count as test/lactic.
+    lactic_pb_rows = await session.scalars(
+        select(LacticAcidPersonalBestLog)
+        .where(
+            LacticAcidPersonalBestLog.athlete_id == athlete_id,
+            LacticAcidPersonalBestLog.week_id.in_(week_ids),
+        )
+        .order_by(LacticAcidPersonalBestLog.performed_at.desc())
+    )
+    lactic_result_rows = await session.scalars(
+        select(LacticAcidTestResultLog)
+        .where(
+            LacticAcidTestResultLog.athlete_id == athlete_id,
+            LacticAcidTestResultLog.week_id.in_(week_ids),
+        )
+        .order_by(LacticAcidTestResultLog.performed_at.desc())
     )
 
     Row = tuple[uuid.UUID, TrainingCategory, TrainingSubtype, WeekLogSummary]
@@ -154,6 +174,36 @@ async def logs_by_requirement(
                 ),
             )
             for log in speed_rows.all()
+        ]
+        + [
+            (
+                log.week_id,
+                TrainingCategory.test,
+                TrainingSubtype.lactic,
+                WeekLogSummary(
+                    log_id=log.id,
+                    kind="lactic-pb",
+                    training_id=None,
+                    training_title="Prueba de ácido láctico (marca personal)",
+                    performed_at=log.performed_at,
+                ),
+            )
+            for log in lactic_pb_rows.all()
+        ]
+        + [
+            (
+                log.week_id,
+                TrainingCategory.test,
+                TrainingSubtype.lactic,
+                WeekLogSummary(
+                    log_id=log.id,
+                    kind="lactic-result",
+                    training_id=None,
+                    training_title="Prueba de ácido láctico (resultado)",
+                    performed_at=log.performed_at,
+                ),
+            )
+            for log in lactic_result_rows.all()
         ]
     )
 
@@ -251,7 +301,36 @@ async def latest_used_week(session: AsyncSession, athlete_id: uuid.UUID) -> Week
             .limit(1)
         )
     ).first()
-    candidates = [row for row in (training_row, cardio_row, test_row, speed_row) if row is not None]
+    lactic_pb_row = (
+        await session.execute(
+            select(Week, LacticAcidPersonalBestLog.performed_at)
+            .join(LacticAcidPersonalBestLog, LacticAcidPersonalBestLog.week_id == Week.id)
+            .where(LacticAcidPersonalBestLog.athlete_id == athlete_id)
+            .order_by(LacticAcidPersonalBestLog.performed_at.desc())
+            .limit(1)
+        )
+    ).first()
+    lactic_result_row = (
+        await session.execute(
+            select(Week, LacticAcidTestResultLog.performed_at)
+            .join(LacticAcidTestResultLog, LacticAcidTestResultLog.week_id == Week.id)
+            .where(LacticAcidTestResultLog.athlete_id == athlete_id)
+            .order_by(LacticAcidTestResultLog.performed_at.desc())
+            .limit(1)
+        )
+    ).first()
+    candidates = [
+        row
+        for row in (
+            training_row,
+            cardio_row,
+            test_row,
+            speed_row,
+            lactic_pb_row,
+            lactic_result_row,
+        )
+        if row is not None
+    ]
     if not candidates:
         return None
     week: Week = max(candidates, key=lambda row: row[1])[0]

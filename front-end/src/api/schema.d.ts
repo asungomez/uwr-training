@@ -1050,6 +1050,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/lactic-acid-test/warmup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Warmup
+         * @description The lactic-acid-test warmup session (with its blocks). Visible to any user.
+         */
+        get: operations["get_warmup_lactic_acid_test_warmup_get"];
+        /**
+         * Update Warmup
+         * @description Replace the warmup's title and block tree. Same shape as editing any training
+         *     session — it IS a pool session — but fixed to the singleton warmup.
+         */
+        put: operations["update_warmup_lactic_acid_test_warmup_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/speed-test-logs/form": {
         parameters: {
             query?: never;
@@ -1156,6 +1181,155 @@ export interface paths {
          * @description Change (or clear) which calendar week this speed-test log counts towards.
          */
         patch: operations["update_speed_test_log_week_speed_test_logs__log_id__week_patch"];
+        trace?: never;
+    };
+    "/lactic-acid-test-logs/form": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Lactic Acid Test Log Form
+         * @description What the athlete needs to take the lactic-acid test: the warmup session
+         *     (read-only) plus the assignable weeks (recommending test/lactic, not yet full)
+         *     and the recommended one to pre-select.
+         */
+        get: operations["get_lactic_acid_test_log_form_lactic_acid_test_logs_form_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lactic-acid-test-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Lactic Acid Test Log
+         * @description Record the lactic-acid test: the personal best, the test result, or both. At
+         *     least one time must be present, and each present one is saved as its own log
+         *     (both sharing the optional week).
+         */
+        post: operations["create_lactic_acid_test_log_lactic_acid_test_logs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lactic-acid-test-logs/personal-best/recent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Recent Personal Best Logs
+         * @description The athlete's last few personal-best times for the history graph, oldest first
+         *     so the chart reads left-to-right. Fixed-size.
+         */
+        get: operations["recent_personal_best_logs_lactic_acid_test_logs_personal_best_recent_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lactic-acid-test-logs/test-result/recent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Recent Test Result Logs
+         * @description The athlete's last few test-result times for the history graph, oldest first so
+         *     the chart reads left-to-right. Fixed-size.
+         */
+        get: operations["recent_test_result_logs_lactic_acid_test_logs_test_result_recent_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lactic-acid-test-logs/latest-personal-best": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Latest Personal Best
+         * @description The athlete's most recent personal-best log, or null if they have none. Used to
+         *     build the test-result interpretation table (which is relative to the personal
+         *     best).
+         */
+        get: operations["get_latest_personal_best_lactic_acid_test_logs_latest_personal_best_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lactic-acid-test-logs/personal-best/{log_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Personal Best Log
+         * @description A personal-best log's detail. The athlete can read their own; an admin can read
+         *     any athlete's (to review tests from the user-detail page).
+         */
+        get: operations["get_personal_best_log_lactic_acid_test_logs_personal_best__log_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lactic-acid-test-logs/test-result/{log_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Test Result Log
+         * @description A test-result log's detail. Same access rules as the personal-best detail.
+         */
+        get: operations["get_test_result_log_lactic_acid_test_logs_test_result__log_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/materials/uploads/start": {
@@ -1580,6 +1754,30 @@ export interface components {
              */
             email: string;
         };
+        /**
+         * CreateLacticAcidTestLogRequest
+         * @description Record either measure of the lactic-acid test (or both). `personal_best` is the
+         *     single 50 m max-effort time; `test_result` is the average over 8 repetitions. Both
+         *     are optional seconds (with decimals), but at least one must be present. Each saved
+         *     one becomes its own log, sharing the optional week.
+         */
+        CreateLacticAcidTestLogRequest: {
+            /** Personal Best */
+            personal_best?: number | null;
+            /** Test Result */
+            test_result?: number | null;
+            /** Week Id */
+            week_id?: string | null;
+        };
+        /**
+         * CreateLacticAcidTestLogResponse
+         * @description The logs created from one submission — the personal best, the test result, or
+         *     both, whichever the athlete filled in.
+         */
+        CreateLacticAcidTestLogResponse: {
+            personal_best?: components["schemas"]["LacticAcidTestLogResponse"] | null;
+            test_result?: components["schemas"]["LacticAcidTestLogResponse"] | null;
+        };
         /** CreateMaterialRequest */
         CreateMaterialRequest: {
             /** Title */
@@ -1947,6 +2145,70 @@ export interface components {
             effort?: string | null;
             /** Load Percentage */
             load_percentage?: number | null;
+        };
+        /**
+         * LacticAcidTestLogFormResponse
+         * @description What the athlete needs to take the lactic-acid test: the warmup session (shown
+         *     read-only) plus the assignable weeks and the recommended one to pre-select.
+         */
+        LacticAcidTestLogFormResponse: {
+            warmup: components["schemas"]["TrainingSessionDetailResponse"];
+            /**
+             * Weeks
+             * @default []
+             */
+            weeks: components["schemas"]["LacticAcidTestLogFormWeek"][];
+            /** Recommended Week Id */
+            recommended_week_id?: string | null;
+        };
+        /**
+         * LacticAcidTestLogFormWeek
+         * @description A calendar week the athlete can assign a lactic-acid-test log to.
+         */
+        LacticAcidTestLogFormWeek: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /**
+         * LacticAcidTestLogResponse
+         * @description A single lactic-acid-test log (personal best or test result).
+         */
+        LacticAcidTestLogResponse: {
+            /** Id */
+            id: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "personal-best" | "test-result";
+            /**
+             * Performed At
+             * Format: date-time
+             */
+            performed_at: string;
+            /** Seconds */
+            seconds: number;
+            /** Week Id */
+            week_id: string | null;
+            /** Week Name */
+            week_name: string | null;
+        };
+        /**
+         * LacticAcidTestLogSummaryResponse
+         * @description List view of a lactic-acid-test log: when it was done and the time.
+         */
+        LacticAcidTestLogSummaryResponse: {
+            /** Id */
+            id: string;
+            /**
+             * Performed At
+             * Format: date-time
+             */
+            performed_at: string;
+            /** Seconds */
+            seconds: number;
         };
         /**
          * LatestResult
@@ -2844,7 +3106,7 @@ export interface components {
          * TrainingSubtype
          * @enum {string}
          */
-        TrainingSubtype: "adaptation" | "accumulation" | "transmutation" | "realization" | "endurance" | "alactic" | "aerobic" | "anaerobic" | "strength" | "speed";
+        TrainingSubtype: "adaptation" | "accumulation" | "transmutation" | "realization" | "endurance" | "alactic" | "aerobic" | "anaerobic" | "strength" | "speed" | "lactic";
         /**
          * UpdateCardioLogWeekRequest
          * @description Change (or clear) which calendar week a cardio log counts towards.
@@ -3069,10 +3331,11 @@ export interface components {
         /**
          * WeekLogSummary
          * @description A log (of the requesting athlete) that counts towards a requirement. `kind`
-         *     tells gym/pool ("training") from cardio ("cardio"), strength tests ("test") and
-         *     speed tests ("speed-test"), so the UI links to the right detail page.
-         *     `training_id` is the TrainingSession or CardioTraining id — null for the tests,
-         *     which have no training entity.
+         *     tells gym/pool ("training") from cardio ("cardio"), strength tests ("test"),
+         *     speed tests ("speed-test") and the two lactic-acid tests ("lactic-pb",
+         *     "lactic-result"), so the UI links to the right detail page. `training_id` is the
+         *     TrainingSession or CardioTraining id — null for the tests, which have no training
+         *     entity.
          */
         WeekLogSummary: {
             /** Log Id */
@@ -3081,7 +3344,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "training" | "cardio" | "test" | "speed-test";
+            kind: "training" | "cardio" | "test" | "speed-test" | "lactic-pb" | "lactic-result";
             /** Training Id */
             training_id: string | null;
             /** Training Title */
@@ -5414,6 +5677,72 @@ export interface operations {
             };
         };
     };
+    get_warmup_lactic_acid_test_warmup_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrainingSessionDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_warmup_lactic_acid_test_warmup_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTrainingRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrainingSessionDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_speed_test_log_form_speed_test_logs_form_get: {
         parameters: {
             query?: never;
@@ -5602,6 +5931,231 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SpeedTestLogResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_lactic_acid_test_log_form_lactic_acid_test_logs_form_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LacticAcidTestLogFormResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_lactic_acid_test_log_lactic_acid_test_logs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateLacticAcidTestLogRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateLacticAcidTestLogResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recent_personal_best_logs_lactic_acid_test_logs_personal_best_recent_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LacticAcidTestLogSummaryResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recent_test_result_logs_lactic_acid_test_logs_test_result_recent_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LacticAcidTestLogSummaryResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_latest_personal_best_lactic_acid_test_logs_latest_personal_best_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LacticAcidTestLogResponse"] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_personal_best_log_lactic_acid_test_logs_personal_best__log_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                log_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LacticAcidTestLogResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_test_result_log_lactic_acid_test_logs_test_result__log_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                log_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LacticAcidTestLogResponse"];
                 };
             };
             /** @description Validation Error */

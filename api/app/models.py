@@ -44,6 +44,7 @@ class TrainingSubtype(enum.StrEnum):
     # test
     strength = "strength"
     speed = "speed"
+    lactic = "lactic"
 
 
 # Which subtypes are valid for each category (enforced in the API layer).
@@ -64,7 +65,11 @@ SUBTYPES_BY_CATEGORY: dict[TrainingCategory, tuple[TrainingSubtype, ...]] = {
         TrainingSubtype.anaerobic,
         TrainingSubtype.alactic,
     ),
-    TrainingCategory.test: (TrainingSubtype.strength, TrainingSubtype.speed),
+    TrainingCategory.test: (
+        TrainingSubtype.strength,
+        TrainingSubtype.speed,
+        TrainingSubtype.lactic,
+    ),
 }
 
 
@@ -756,6 +761,22 @@ class SpeedTestWarmup(Base):
     training_session: Mapped["TrainingSession"] = relationship()
 
 
+class LacticAcidTestWarmup(Base):
+    """Singleton pointer to THE lactic-acid-test warmup. Like the speed-test warmup,
+    the warmup is an ordinary pool TrainingSession (so it reuses the whole block/item
+    model and the training form); this one-row table just records which session it is,
+    and lets the trainings list hide it from the normal pool listing."""
+
+    __tablename__ = "lactic_acid_test_warmup"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    training_session_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("training_sessions.id", ondelete="CASCADE"), unique=True
+    )
+
+    training_session: Mapped["TrainingSession"] = relationship()
+
+
 class SpeedTestLog(Base):
     """One athlete taking the speed test once: the time (seconds, with decimals) for
     the 25 m underwater fins sprint. Counts towards a week's test/speed requirement
@@ -769,6 +790,50 @@ class SpeedTestLog(Base):
     )
     # The calendar week this log counts towards (optional, editable). SET NULL so
     # deleting a week doesn't lose the log, just its link.
+    week_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("weeks.id", ondelete="SET NULL"), default=None, index=True
+    )
+    seconds: Mapped[float] = mapped_column()
+    performed_at: Mapped[datetime] = mapped_column(_TZ, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(_TZ, server_default=func.now())
+
+    week: Mapped["Week | None"] = relationship()
+
+
+class LacticAcidPersonalBestLog(Base):
+    """An athlete's personal best on the lactic-acid test: the time (seconds, with
+    decimals) for a single 50 m `cuartos` sprint at max effort. Counts towards a
+    week's test/lactic requirement like other logs."""
+
+    __tablename__ = "lactic_acid_personal_best_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    athlete_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    # The calendar week this log counts towards (optional, editable). SET NULL so
+    # deleting a week doesn't lose the log, just its link.
+    week_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("weeks.id", ondelete="SET NULL"), default=None, index=True
+    )
+    seconds: Mapped[float] = mapped_column()
+    performed_at: Mapped[datetime] = mapped_column(_TZ, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(_TZ, server_default=func.now())
+
+    week: Mapped["Week | None"] = relationship()
+
+
+class LacticAcidTestResultLog(Base):
+    """An athlete's lactic-acid test result: the average time (seconds, with decimals)
+    across 8 repetitions of the 50 m `cuartos` sprint on 60 s cycles. Counts towards a
+    week's test/lactic requirement like other logs."""
+
+    __tablename__ = "lactic_acid_test_result_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    athlete_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
     week_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("weeks.id", ondelete="SET NULL"), default=None, index=True
     )

@@ -103,8 +103,8 @@ function WeekDetailPage() {
                     {req.logs.length > 0 && (
                       <ul className="mt-3 flex flex-col gap-1 border-t border-slate-700 pt-3">
                         {req.logs.map((log) => {
-                          // Each log kind has its own detail route; strength-test
-                          // logs aren't tied to a training.
+                          // Each log kind has its own detail route; the tests aren't
+                          // tied to a training.
                           const logLink =
                             log.kind === 'cardio'
                               ? `/entrenamientos/cardio/sesion/${log.training_id}/registros/${log.log_id}`
@@ -112,7 +112,11 @@ function WeekDetailPage() {
                                 ? `/pruebas/fuerza/registros/${log.log_id}`
                                 : log.kind === 'speed-test'
                                   ? `/pruebas/velocidad/registros/${log.log_id}`
-                                  : `/entrenamientos/${log.training_id}/registros/${log.log_id}`
+                                  : log.kind === 'lactic-pb'
+                                    ? `/pruebas/acido-lactico/registros/marca-personal/${log.log_id}`
+                                    : log.kind === 'lactic-result'
+                                      ? `/pruebas/acido-lactico/registros/resultado/${log.log_id}`
+                                      : `/entrenamientos/${log.training_id}/registros/${log.log_id}`
                           return (
                             <li key={log.log_id}>
                               <Link
