@@ -40,6 +40,12 @@ function RegisterSessionPage() {
   const form = useQuery('/trainings/{training_id}/log-form', {
     params: { path: { training_id: trainingId } },
   })
+  // The athlete's latest strength-test result per exercise, to turn a series' load %
+  // into an absolute kg (same as the training detail view). Keyed by exercise id.
+  const { data: latestResults } = useQuery('/strength-test-logs/latest-results', {})
+  const testWeightByExercise = new Map(
+    (latestResults?.results ?? []).map((result) => [result.exercise_id, result.weight_kg]),
+  )
 
   const isLoading = training.isLoading || form.isLoading
   const error = training.error ?? form.error
@@ -285,6 +291,11 @@ function RegisterSessionPage() {
                                   item.exercise_id
                                     ? formByExerciseId.get(item.exercise_id)
                                     : undefined
+                                }
+                                latestTestWeight={
+                                  item.exercise_id
+                                    ? (testWeightByExercise.get(item.exercise_id) ?? null)
+                                    : null
                                 }
                                 state={
                                   entries[item.id] ?? {

@@ -1,10 +1,11 @@
-import { Check, Repeat2, X } from 'lucide-react'
+import { Check, Info, Repeat2, TriangleAlert, X } from 'lucide-react'
 import { useState } from 'react'
 
 import type { components } from '@/api/schema'
 import { controlClass } from '@/components/atoms/form/fieldStyles'
 import ExerciseLogList from '@/components/features/exercises/ExerciseLogList'
 import { prescriptionFields } from '@/components/features/trainings/prescription'
+import Tooltip from '@/components/molecules/Tooltip'
 
 type ItemResponse = components['schemas']['ItemResponse']
 type LogFormExercise = components['schemas']['LogFormExercise']
@@ -27,6 +28,10 @@ interface SeriesLogCardProps {
   onChange: (state: SeriesEntryState) => void
   /** Open the exercise's full description in the side panel. */
   onSelectExercise: (exerciseId: string) => void
+  /** The athlete's latest strength-test result (kg) for the prescribed exercise, used
+   *  to turn the load % into an absolute load. `null`/`undefined` = no result yet, so
+   *  the load shows as a bare % with a warning. */
+  latestTestWeight?: number | null
 }
 
 /** One series item in the "start session" flow: read the prescription, open the
@@ -38,9 +43,18 @@ function SeriesLogCard({
   state,
   onChange,
   onSelectExercise,
+  latestTestWeight,
 }: SeriesLogCardProps) {
   const [picking, setPicking] = useState(false)
   const fields = prescriptionFields(item)
+  // A load is shown only when the admin set a percentage on this item. With a test
+  // result, show the absolute kg; otherwise show the % with a warning. Based on the
+  // prescribed exercise, matching the training detail view.
+  const hasLoad = item.load_percentage != null
+  const loadKg =
+    hasLoad && latestTestWeight != null
+      ? Math.round((item.load_percentage! / 100) * latestTestWeight)
+      : null
   const alternatives = formExercise?.alternatives ?? []
   const plannedId = item.exercise_id ?? ''
   const isAlternative = state.performedExerciseId !== plannedId
@@ -101,6 +115,26 @@ function SeriesLogCard({
                   {field.label}: <span className="text-slate-200">{field.value}</span>
                 </span>
               ))}
+            </span>
+          )}
+          {hasLoad && (
+            <span className="mt-1 flex items-center gap-1 text-sm text-slate-400">
+              Carga:{' '}
+              {loadKg != null ? (
+                <Tooltip label="Calculada a partir del resultado de tu última prueba">
+                  <span className="inline-flex items-center gap-1 text-slate-200">
+                    {loadKg} kg <span className="text-slate-500">({item.load_percentage}%)</span>
+                    <Info size={14} className="text-slate-500" />
+                  </span>
+                </Tooltip>
+              ) : (
+                <Tooltip label="Haz una prueba de fuerza para calcular una carga más precisa">
+                  <span className="inline-flex items-center gap-1 text-amber-300">
+                    {item.load_percentage}%
+                    <TriangleAlert size={14} />
+                  </span>
+                </Tooltip>
+              )}
             </span>
           )}
           {item.text && <p className="mt-1 text-sm text-slate-400">{item.text}</p>}
