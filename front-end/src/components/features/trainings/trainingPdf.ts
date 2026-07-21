@@ -51,6 +51,12 @@ function renderTraining(pdf: SessionPdf, training: TrainingDetail): void {
         if (!text) return
         const color = item.kind === 'note' ? MUTED : INK
         pdf.write(text, { indent: 8, size: 9, color, lineH: 5 })
+        // Series items can carry an extra note below the prescription (notes use their
+        // text as the line itself, so only add this for series). Matches the on-screen
+        // view, which shows this commentary under the exercise.
+        if (item.kind === 'series' && item.text) {
+          pdf.write(item.text, { indent: 11, size: 8.5, color: MUTED, lineH: 4.5 })
+        }
       })
 
       pdf.space(1.5)
