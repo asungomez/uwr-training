@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import beepSound from '@/assets/beep.mp3'
 import type { components } from '@/api/schema'
+import ConfirmDialog from '@/components/molecules/ConfirmDialog'
 
 import {
   blockDoneLabel,
@@ -134,6 +135,30 @@ function CardioTimer({ training, onClose }: CardioTimerProps) {
   // 0→1 fill of the block-done countdown ring.
   const [blockDoneProgress, setBlockDoneProgress] = useState(0)
 
+  // Confirm before leaving so an accidental tap/Esc/back gesture doesn't discard the
+  // timer. Only guard while there's progress to lose — once finished, closing is
+  // harmless and shouldn't nag. Refs mirror the latest values for the window-level
+  // listeners (set up once on mount) to read without re-subscribing. `onClose` gets a
+  // ref too, since the parent passes a fresh closure each render.
+  const [confirmClose, setConfirmClose] = useState(false)
+  const guardRef = useRef(status !== 'finished')
+  const confirmOpenRef = useRef(confirmClose)
+  const onCloseRef = useRef(onClose)
+  // Ensures the Back-guard sentinel is pushed exactly once (StrictMode re-mounts).
+  const sentinelPushedRef = useRef(false)
+
+  // Keep the listener-facing refs in sync with the latest render values.
+  useEffect(() => {
+    guardRef.current = status !== 'finished'
+    confirmOpenRef.current = confirmClose
+    onCloseRef.current = onClose
+  })
+
+  const requestClose = useCallback(() => {
+    if (guardRef.current) setConfirmClose(true)
+    else onCloseRef.current()
+  }, [])
+
   // Sound starts muted: the timer is often opened well before the workout, and
   // an unexpected beep is jarring. The athlete unmutes once they're set up.
   const [muted, setMuted] = useState(true)
@@ -208,10 +233,12 @@ function CardioTimer({ training, onClose }: CardioTimerProps) {
     [segments, blocks],
   )
 
-  // Esc closes; lock background scroll while the overlay is up.
+  // Esc asks to close (confirming first if there's progress); lock background scroll
+  // while the overlay is up. When the confirm dialog is already open, its own Modal
+  // handles Esc (to cancel), so we don't act here.
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose()
+      if (event.key === 'Escape' && !confirmOpenRef.current) requestClose()
     }
     document.addEventListener('keydown', onKeyDown)
     const previous = document.body.style.overflow
@@ -226,7 +253,41 @@ function CardioTimer({ training, onClose }: CardioTimerProps) {
       audio?.pause()
       window.speechSynthesis?.cancel()
     }
-  }, [onClose])
+  }, [requestClose])
+
+  // Guard the browser Back button/gesture: push a sentinel history entry so a Back
+  // pops that (instead of leaving the page) and lets us ask to close. With no progress,
+  // Back just closes. `beforeunload` covers refresh / tab-close. Mount-only (onClose via
+  // ref). The push is deduped with a ref so StrictMode's mount→unmount→mount in dev
+  // adds a single sentinel (and doesn't do history work in cleanup, which would race
+  // the remount). We deliberately don't unwind the sentinel on close — that's at most
+  // one extra same-URL Back press, far safer than a cleanup that can misfire.
+  useEffect(() => {
+    if (!sentinelPushedRef.current) {
+      window.history.pushState({ cardioTimer: true }, '', window.location.href)
+      sentinelPushedRef.current = true
+    }
+    function onPopState() {
+      if (!guardRef.current) {
+        onCloseRef.current()
+        return
+      }
+      // Re-push so we stay on the page; then surface the confirm dialog.
+      window.history.pushState({ cardioTimer: true }, '', window.location.href)
+      if (!confirmOpenRef.current) setConfirmClose(true)
+    }
+    function onBeforeUnload(event: BeforeUnloadEvent) {
+      if (!guardRef.current) return
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('popstate', onPopState)
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => {
+      window.removeEventListener('popstate', onPopState)
+      window.removeEventListener('beforeunload', onBeforeUnload)
+    }
+  }, [])
 
   // Tick once per second while running (1s granularity is plenty for a workout).
   // When the current segment's countdown reaches zero we advance right here — to
@@ -318,7 +379,7 @@ function CardioTimer({ training, onClose }: CardioTimerProps) {
         <audio ref={audioRef} src={beepSound} preload="auto" />
         <button
           type="button"
-          onClick={onClose}
+          onClick={requestClose}
           aria-label="Cerrar cronómetro"
           className="rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white focus:ring-2 focus:ring-indigo-400 focus:outline-none"
         >
@@ -424,6 +485,16 @@ function CardioTimer({ training, onClose }: CardioTimerProps) {
           </>
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirmClose}
+        title="¿Cerrar el cronómetro?"
+        message="Se perderá el progreso del cronómetro. ¿Seguro que quieres cerrarlo?"
+        confirmLabel="Sí, cerrar"
+        destructive
+        onConfirm={onClose}
+        onCancel={() => setConfirmClose(false)}
+      />
     </div>
   )
 }

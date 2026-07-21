@@ -189,6 +189,97 @@ def test_timer_reads_segments_aloud_when_unmuted(
         page.wait_for_function("(p) => window.__spoken.includes(p)", arg=phrase, timeout=5000)
 
 
+def test_closing_a_running_timer_asks_for_confirmation(
+    page: Page,
+    app_url: str,
+    create_user: Callable[..., User],
+    create_cardio_training: Callable[..., CardioTraining],
+    log_in_as: Callable[[User], None],
+) -> None:
+    # A running (unfinished) timer shouldn't be closed by an accidental tap: the X
+    # asks first. Cancelling keeps the timer; confirming returns to the register form.
+    member = create_user(role="member", email="member@example.com")
+    training = create_cardio_training(
+        title="Serie larga",
+        subtype="anaerobic",
+        items=[_block(0, effort_seconds=60)],
+    )
+    log_in_as(member)
+
+    page.goto(f"{app_url}/entrenamientos/cardio/sesion/{training.id}/registrar")
+    page.get_by_role("button", name="Iniciar crono").click()
+    expect(page.get_by_text("Bloque 1/1", exact=True)).to_be_visible()
+
+    # Clicking the X opens a confirmation instead of closing outright.
+    page.get_by_role("button", name="Cerrar cronómetro").click()
+    dialog = page.get_by_role("dialog")
+    expect(dialog.get_by_text("¿Cerrar el cronómetro?")).to_be_visible()
+
+    # Cancelling keeps the timer running (still on the timer view).
+    dialog.get_by_role("button", name="Cancelar").click()
+    expect(page.get_by_text("Bloque 1/1", exact=True)).to_be_visible()
+
+    # Confirming closes the timer and returns to the register form.
+    page.get_by_role("button", name="Cerrar cronómetro").click()
+    page.get_by_role("dialog").get_by_role("button", name="Sí, cerrar").click()
+    expect(page.get_by_role("button", name="Finalizar sesión")).to_be_visible()
+
+
+def test_finished_timer_closes_without_confirmation(
+    page: Page,
+    app_url: str,
+    create_user: Callable[..., User],
+    create_cardio_training: Callable[..., CardioTraining],
+    log_in_as: Callable[[User], None],
+) -> None:
+    # Once finished there's no progress to lose, so the X closes straight away.
+    member = create_user(role="member", email="member@example.com")
+    training = create_cardio_training(
+        title="Serie corta",
+        subtype="anaerobic",
+        items=[_block(0, effort_seconds=1)],
+    )
+    log_in_as(member)
+
+    page.goto(f"{app_url}/entrenamientos/cardio/sesion/{training.id}/registrar")
+    page.get_by_role("button", name="Iniciar crono").click()
+    expect(page.get_by_text("Entrenamiento finalizado")).to_be_visible()
+
+    # No confirmation dialog — closes directly back to the register form.
+    page.get_by_role("button", name="Cerrar cronómetro").click()
+    expect(page.get_by_role("dialog")).to_have_count(0)
+    expect(page.get_by_role("button", name="Finalizar sesión")).to_be_visible()
+
+
+def test_back_button_on_running_timer_asks_for_confirmation(
+    page: Page,
+    app_url: str,
+    create_user: Callable[..., User],
+    create_cardio_training: Callable[..., CardioTraining],
+    log_in_as: Callable[[User], None],
+) -> None:
+    # The browser Back gesture is guarded too: it surfaces the same confirmation
+    # rather than navigating away and discarding the timer.
+    member = create_user(role="member", email="member@example.com")
+    training = create_cardio_training(
+        title="Serie larga",
+        subtype="anaerobic",
+        items=[_block(0, effort_seconds=60)],
+    )
+    log_in_as(member)
+
+    page.goto(f"{app_url}/entrenamientos/cardio/sesion/{training.id}/registrar")
+    page.get_by_role("button", name="Iniciar crono").click()
+    expect(page.get_by_text("Bloque 1/1", exact=True)).to_be_visible()
+
+    # Pressing Back pops the sentinel entry and asks to close; the timer stays up.
+    page.go_back()
+    dialog = page.get_by_role("dialog")
+    expect(dialog.get_by_text("¿Cerrar el cronómetro?")).to_be_visible()
+    dialog.get_by_role("button", name="Cancelar").click()
+    expect(page.get_by_text("Bloque 1/1", exact=True)).to_be_visible()
+
+
 def test_timer_button_hidden_without_timed_blocks(
     page: Page,
     app_url: str,
