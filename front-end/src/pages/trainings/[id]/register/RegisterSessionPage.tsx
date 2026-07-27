@@ -1,5 +1,5 @@
 import { Check, ChevronRight, Hourglass, Loader2, RotateCcw, TriangleAlert } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { api, useQuery } from '@/api/client'
@@ -24,36 +24,51 @@ interface NamedItem {
 
 // Collapse rapid edits (e.g. typing a weight) into a single auto-save PUT.
 const SAVE_DEBOUNCE_MS = 800
+// How long the "Guardado" confirmation lingers before fading back to idle.
+const SAVED_VISIBLE_MS = 2000
 
 // Auto-save lifecycle shown by the indicator: nothing pending, in-flight, done, failed.
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
+const SAVE_CONFIG = {
+  saving: {
+    icon: <Loader2 size={13} className="animate-spin" />,
+    label: 'Guardando',
+    cls: 'border-slate-600 bg-slate-800 text-slate-300',
+  },
+  saved: {
+    icon: <Check size={13} />,
+    label: 'Guardado',
+    cls: 'border-emerald-600/50 bg-slate-800 text-emerald-300',
+  },
+  error: {
+    icon: <TriangleAlert size={13} />,
+    label: 'Error al guardar',
+    cls: 'border-red-600/50 bg-slate-800 text-red-300',
+  },
+} as const
+
 /** A small, unintrusive auto-save indicator, fixed to the bottom of the viewport so
- *  it stays visible while scrolling a long session on a phone. Hidden when idle. */
+ *  it stays visible while scrolling a long session on a phone. Fades in when there's
+ *  something to show and fades out when the status returns to idle. */
 function SaveIndicator({ status }: { status: SaveStatus }) {
-  if (status === 'idle') return null
-  const config = {
-    saving: {
-      icon: <Loader2 size={13} className="animate-spin" />,
-      label: 'Guardando',
-      cls: 'border-slate-600 bg-slate-800 text-slate-300',
-    },
-    saved: {
-      icon: <Check size={13} />,
-      label: 'Guardado',
-      cls: 'border-emerald-600/50 bg-slate-800 text-emerald-300',
-    },
-    error: {
-      icon: <TriangleAlert size={13} />,
-      label: 'Error al guardar',
-      cls: 'border-red-600/50 bg-slate-800 text-red-300',
-    },
-  }[status]
+  // Keep the last non-idle config mounted through the fade-out (idle → opacity 0 →
+  // unmount, on transition end), so the pill doesn't vanish abruptly when "Guardado"
+  // clears. Updated during render (not an effect) per the set-state-in-render pattern.
+  const [shown, setShown] = useState<Exclude<SaveStatus, 'idle'> | null>(null)
+  if (status !== 'idle' && status !== shown) setShown(status)
+  const visible = status !== 'idle'
+  if (!shown) return null
+
+  const config = SAVE_CONFIG[shown]
   return (
     <div
       role="status"
       aria-live="polite"
-      className={`fixed bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium shadow-lg ${config.cls}`}
+      onTransitionEnd={() => {
+        if (!visible) setShown(null)
+      }}
+      className={`fixed bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium shadow-lg transition-opacity duration-500 ${config.cls} ${visible ? 'opacity-100' : 'opacity-0'}`}
     >
       {config.icon}
       {config.label}
@@ -127,6 +142,14 @@ function RegisterSessionPage() {
   // Auto-save state, surfaced by a small fixed indicator so the athlete (on a phone,
   // mid-workout) can trust their progress is being saved.
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
+
+  // "Guardado" is a fleeting confirmation — fade it back to idle after a moment.
+  // "Guardando" and "Error al guardar" persist (an error shouldn't vanish on its own).
+  useEffect(() => {
+    if (saveStatus !== 'saved') return
+    const id = setTimeout(() => setSaveStatus('idle'), SAVED_VISIBLE_MS)
+    return () => clearTimeout(id)
+  }, [saveStatus])
 
   // The full session structure (blocks/items + prescription) and the log-form
   // (per-exercise alternatives + parameters). Merged by exercise id.

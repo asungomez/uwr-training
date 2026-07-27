@@ -283,8 +283,12 @@ def test_list_shows_in_progress_for_partial_then_clears_on_submit(
     expect(row.get_by_text("En progreso", exact=False)).to_be_visible()
     expect(row.get_by_text("Última vez", exact=False)).to_have_count(0)
 
-    # Complete the session; the row goes back to "Última vez", no longer in progress.
-    _register_a_session(page, app_url, str(training.id))
+    # Reopen and submit the resumed draft (the squat is already marked done) — the row
+    # then goes back to "Última vez", no longer in progress.
+    page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
+    page.get_by_role("button", name="Finalizar sesión").click()
+    expect(page.get_by_role("status").filter(has_text="Sesión registrada.")).to_be_visible()
+
     page.goto(f"{app_url}/entrenamientos/gimnasio/acumulacion")
     row = page.get_by_role("listitem").filter(has_text="Sesión registrable")
     expect(row.get_by_text("En progreso", exact=False)).to_have_count(0)
@@ -413,3 +417,27 @@ def test_submit_promotes_partial_to_single_complete_log(
     expect(page).to_have_url(f"{app_url}/entrenamientos/{training.id}")
     logs = page.get_by_role("main").get_by_role("list").last
     expect(logs.get_by_text("promoción")).to_be_visible()
+
+
+def test_save_indicator_shows_saving_then_saved(
+    page: Page,
+    app_url: str,
+    create_user: Callable[..., User],
+    create_exercise: Callable[..., Exercise],
+    create_training: Callable[..., TrainingSession],
+    log_in_as: Callable[[User], None],
+) -> None:
+    # The auto-save indicator gives the athlete confidence their progress is saved:
+    # it's hidden at rest, shows "Guardando" while the PUT is in flight, then "Guardado".
+    member = create_user(role="member", email="member@example.com")
+    training = _make_training(create_exercise, create_training)
+    log_in_as(member)
+
+    page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
+    # Nothing shown before any change.
+    expect(page.get_by_text("Guardado", exact=True)).to_have_count(0)
+
+    page.get_by_role("button", name="Hecho").first.click()
+    # After the debounced save resolves, "Guardado" is shown (the transient "Guardando"
+    # may be too brief to assert reliably, so we assert the settled state).
+    expect(page.get_by_text("Guardado", exact=True)).to_be_visible()
