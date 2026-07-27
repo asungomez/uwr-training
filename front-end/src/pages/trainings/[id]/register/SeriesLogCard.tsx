@@ -25,7 +25,9 @@ interface SeriesLogCardProps {
   /** The log-form info for this exercise (alternatives + parameters), if any. */
   formExercise: LogFormExercise | undefined
   state: SeriesEntryState
-  onChange: (state: SeriesEntryState) => void
+  /** Report a change. `immediate` marks a discrete action (done/skip/swap) that should
+   *  auto-save right away; free-text edits omit it so they stay debounced. */
+  onChange: (state: SeriesEntryState, immediate?: boolean) => void
   /** Open the exercise's full description in the side panel. */
   onSelectExercise: (exerciseId: string) => void
   /** The athlete's latest strength-test result (kg) for the prescribed exercise, used
@@ -70,7 +72,7 @@ function SeriesLogCard({
     : (formExercise?.parameters ?? [])
 
   function performWith(exerciseId: string) {
-    onChange({ ...state, performedExerciseId: exerciseId })
+    onChange({ ...state, performedExerciseId: exerciseId }, true)
     setPicking(false)
   }
 
@@ -144,7 +146,7 @@ function SeriesLogCard({
           <button
             type="button"
             onClick={() =>
-              onChange({ ...state, action: state.action === 'done' ? 'pending' : 'done' })
+              onChange({ ...state, action: state.action === 'done' ? 'pending' : 'done' }, true)
             }
             aria-pressed={state.action === 'done'}
             className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus:ring-2 focus:ring-indigo-400 focus:outline-none ${
@@ -159,7 +161,10 @@ function SeriesLogCard({
           <button
             type="button"
             onClick={() =>
-              onChange({ ...state, action: state.action === 'skipped' ? 'pending' : 'skipped' })
+              onChange(
+                { ...state, action: state.action === 'skipped' ? 'pending' : 'skipped' },
+                true,
+              )
             }
             aria-pressed={state.action === 'skipped'}
             className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus:ring-2 focus:ring-indigo-400 focus:outline-none ${

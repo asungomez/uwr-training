@@ -2,7 +2,7 @@ import { Check, ChevronRight, Hourglass, Loader2, RotateCcw, TriangleAlert } fro
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
-import { api, useQuery } from '@/api/client'
+import { api, API_BASE, useQuery } from '@/api/client'
 import { errorMessage } from '@/api/errors'
 import type { components } from '@/api/schema'
 import { controlClass } from '@/components/atoms/form/fieldStyles'
@@ -26,8 +26,11 @@ interface NamedItem {
 const SAVE_DEBOUNCE_MS = 800
 // How long the "Guardado" confirmation lingers before fading back to idle.
 const SAVED_VISIBLE_MS = 2000
-// Interval between retries after a failed save (one global loop, latest snapshot).
-const SAVE_RETRY_MS = 5000
+// Retry after a failed save on an exponential backoff (one global loop, latest
+// snapshot): first retry at BASE, doubling each consecutive failure up to MAX. No
+// max attempts — it keeps trying until it succeeds or a clear/submit stops it.
+const SAVE_RETRY_BASE_MS = 2000
+const SAVE_RETRY_MAX_MS = 60000
 
 // Auto-save lifecycle shown by the indicator: nothing pending, in-flight, done, failed.
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
@@ -148,6 +151,9 @@ function RegisterSessionPage() {
   // --- Auto-save machinery (see runSave/scheduleSave/scheduleRetry below) ---
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Current backoff delay for the next retry — grows while saves keep failing, reset on
+  // success (or clear/submit). 0 means "not backing off yet".
+  const retryDelayRef = useRef(0)
   // The latest form snapshot, read at save time so a retry always sends current state
   // (not the state that failed). Updated in lockstep with `entries`.
   const latestEntriesRef = useRef<Record<string, SeriesEntryState>>({})
@@ -159,6 +165,10 @@ function RegisterSessionPage() {
   // Set by clear/submit: no new save may start, and any in-flight/queued save must not
   // touch status or reschedule a retry (its write would resurrect a just-removed draft).
   const savesSuspendedRef = useRef(false)
+  // True while the latest edit hasn't been confirmed saved — drives the on-hide flush
+  // (a phone lock is the worst-case moment to have a debounce pending). Cleared on a
+  // successful save.
+  const pendingSaveRef = useRef(false)
 
   // "Guardado" is a fleeting confirmation — fade it back to idle after a moment.
   // "Guardando" and "Error al guardar" persist (an error shouldn't vanish on its own).
@@ -197,6 +207,11 @@ function RegisterSessionPage() {
   const formByExerciseId = new Map(
     (form.data?.exercises ?? []).map((exercise) => [exercise.exercise_id, exercise]),
   )
+  // All series items in order (for building the submission + auto-save payloads).
+  const seriesItems: ItemResponse[] = (data?.blocks ?? [])
+    .flatMap((block) => block.sub_blocks)
+    .flatMap((sub) => sub.items)
+    .filter((item) => item.kind === 'series' && item.exercise_id)
 
   // Per-item athlete state, keyed by item id (the same exercise in two items is
   // tracked independently). Initialized once both the session and the log-form (which
@@ -277,18 +292,22 @@ function RegisterSessionPage() {
       clearTimeout(retryTimer.current)
       retryTimer.current = null
     }
+    retryDelayRef.current = 0
   }
 
-  // One global retry loop: after a failed save, retry the LATEST snapshot on an interval
-  // until it succeeds (or a clear/submit suspends saving). If a retry is already pending
-  // we leave it — edits don't spawn their own cycles; the single timer picks up the
-  // latest state when it fires.
+  // One global retry loop: after a failed save, retry the LATEST snapshot on an
+  // exponential backoff until it succeeds (or a clear/submit suspends saving). Each
+  // consecutive failure doubles the delay (BASE → 2×BASE → … up to MAX). If a retry is
+  // already pending we leave it — edits don't spawn their own cycles; the single timer
+  // picks up the latest state when it fires.
   function scheduleRetry() {
     if (retryTimer.current || savesSuspendedRef.current) return
+    const delay = retryDelayRef.current === 0 ? SAVE_RETRY_BASE_MS : retryDelayRef.current
+    retryDelayRef.current = Math.min(delay * 2, SAVE_RETRY_MAX_MS)
     retryTimer.current = setTimeout(() => {
       retryTimer.current = null
       void runSave()
-    }, SAVE_RETRY_MS)
+    }, delay)
   }
 
   // Persist the latest snapshot. Single-flight: if a PUT is already in flight, mark dirty
@@ -319,6 +338,9 @@ function RegisterSessionPage() {
         } else {
           setSaveStatus('saved')
           clearRetry()
+          // Confirmed saved — unless an edit arrived mid-flight (dirty), which the
+          // re-run below will save and clear.
+          if (!dirtyRef.current) pendingSaveRef.current = false
         }
       })
       .catch(() => {
@@ -345,17 +367,59 @@ function RegisterSessionPage() {
     }, SAVE_DEBOUNCE_MS)
   }
 
-  function setEntry(itemId: string, state: SeriesEntryState) {
-    setEntries((prev) => ({ ...prev, [itemId]: state }))
-    // The effect syncing `latestEntriesRef` commits before this debounced save fires.
-    scheduleSave()
+  // On the page being hidden (phone lock, app switch, tab close) flush any unsaved edit
+  // immediately with a keepalive request — the browser guarantees it completes even as
+  // the page freezes, unlike the normal debounced/fetch save which can be killed. This
+  // is the safety net for "edit, then lock within the debounce window". Uses a raw
+  // fetch (the typed client doesn't forward keepalive) to the same endpoint + cookie.
+  function flushSave() {
+    if (savesSuspendedRef.current || !pendingSaveRef.current) return
+    const touched = touchedEntries(latestEntriesRef.current)
+    if (touched.length === 0) return
+    void fetch(`${API_BASE}/trainings/${trainingId}/logs/partial`, {
+      method: 'PUT',
+      keepalive: true,
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        entries: touched.map((item) => entryPayload(item, latestEntriesRef.current[item.id])),
+      }),
+    }).catch(() => {
+      /* best-effort; the normal save/retry loop covers the page-stays-open case */
+    })
   }
 
-  // All series items in order (for building the submission).
-  const seriesItems: ItemResponse[] = (data?.blocks ?? [])
-    .flatMap((block) => block.sub_blocks)
-    .flatMap((sub) => sub.items)
-    .filter((item) => item.kind === 'series' && item.exercise_id)
+  // Keep a ref to the current flush so a single mount-only listener always calls the
+  // latest closure (fresh seriesItems/entries) without re-subscribing each render.
+  const flushRef = useRef(flushSave)
+  useEffect(() => {
+    flushRef.current = flushSave
+  })
+  useEffect(() => {
+    function onHide() {
+      if (document.visibilityState === 'hidden') flushRef.current()
+    }
+    document.addEventListener('visibilitychange', onHide)
+    return () => document.removeEventListener('visibilitychange', onHide)
+  }, [])
+
+  function setEntry(itemId: string, state: SeriesEntryState, immediate = false) {
+    const next = { ...latestEntriesRef.current, [itemId]: state }
+    // Update the snapshot ref now (not via the post-render effect) so an immediate save
+    // reads this change synchronously.
+    latestEntriesRef.current = next
+    pendingSaveRef.current = true
+    setEntries(next)
+    // Discrete actions (done/skip/swap) save right away — they're the state most costly
+    // to lose to a phone lock. Free-text edits stay debounced so typing isn't chatty.
+    if (immediate) {
+      if (saveTimer.current) clearTimeout(saveTimer.current)
+      saveTimer.current = null
+      void runSave()
+    } else {
+      scheduleSave()
+    }
+  }
 
   // The union of materials/facilities to bring: across every series item's
   // currently-performed exercise (the prescribed one, or the alternative the athlete
@@ -394,6 +458,7 @@ function RegisterSessionPage() {
     saveTimer.current = null
     clearRetry()
     dirtyRef.current = false
+    pendingSaveRef.current = false
     if (inFlightRef.current) await inFlightRef.current
   }
 
@@ -596,7 +661,7 @@ function RegisterSessionPage() {
                                     paramValues: {},
                                   }
                                 }
-                                onChange={(state) => setEntry(item.id, state)}
+                                onChange={(state, immediate) => setEntry(item.id, state, immediate)}
                                 onSelectExercise={setPanelExerciseId}
                               />
                             ),

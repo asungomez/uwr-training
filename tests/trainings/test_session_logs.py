@@ -489,3 +489,63 @@ def test_failed_save_shows_error_then_retries_to_success(
             break
         page.wait_for_timeout(100)
     assert one_partial(), _session_log_rows(_db_engine, str(training.id))
+
+
+def test_discrete_action_saves_without_debounce_wait(
+    page: Page,
+    app_url: str,
+    _db_engine: sqlalchemy.Engine,
+    create_user: Callable[..., User],
+    create_exercise: Callable[..., Exercise],
+    create_training: Callable[..., TrainingSession],
+    log_in_as: Callable[[User], None],
+) -> None:
+    # Discrete actions (marking done) save immediately, not on the debounce — the
+    # partial lands well before the debounce window would elapse.
+    member = create_user(role="member", email="member@example.com")
+    training = _make_training(create_exercise, create_training)
+    log_in_as(member)
+
+    page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
+    page.get_by_role("button", name="Hecho").first.click()
+
+    # "Guardado" confirms the immediate save (no 800ms wait needed before it fires).
+    expect(page.get_by_text("Guardado", exact=True)).to_be_visible(timeout=3000)
+    assert _session_log_rows(_db_engine, str(training.id)) == [False]
+
+
+def test_flush_saves_pending_edit_when_page_hidden(
+    page: Page,
+    app_url: str,
+    _db_engine: sqlalchemy.Engine,
+    create_user: Callable[..., User],
+    create_exercise: Callable[..., Exercise],
+    create_training: Callable[..., TrainingSession],
+    log_in_as: Callable[[User], None],
+) -> None:
+    # A debounced (free-text) edit that hasn't saved yet is flushed on page-hide (phone
+    # lock / app switch) via a keepalive request, so the last field isn't lost.
+    member = create_user(role="member", email="member@example.com")
+    training = _make_training(create_exercise, create_training)
+    log_in_as(member)
+
+    page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
+    # Mark done (immediate save) so the Peso field appears and a partial exists.
+    page.get_by_role("button", name="Hecho").first.click()
+    expect(page.get_by_text("Guardado", exact=True)).to_be_visible(timeout=3000)
+
+    # Type a weight but DON'T wait for the debounce — this edit is still pending.
+    page.get_by_label("Peso", exact=False).fill("83kg")
+
+    # Simulate the phone locking: force visibilityState=hidden and fire the event.
+    page.evaluate(
+        """
+        Object.defineProperty(document, 'visibilityState',
+          { configurable: true, get: () => 'hidden' });
+        document.dispatchEvent(new Event('visibilitychange'));
+        """
+    )
+
+    # The flush persists the typed value: reopening the page restores 83kg.
+    page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
+    expect(page.get_by_label("Peso", exact=False)).to_have_value("83kg")
