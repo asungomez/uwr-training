@@ -2,7 +2,7 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -31,6 +31,7 @@ from app.models import (
 from app.pagination import Page, PaginationParams
 from app.session_logs.schemas import (
     CreateSessionLogRequest,
+    LogEntryInput,
     LogEntryResponse,
     LogFormAlternative,
     LogFormExercise,
@@ -40,6 +41,7 @@ from app.session_logs.schemas import (
     LogParameterValueResponse,
     SessionLogResponse,
     SessionLogSummaryResponse,
+    StartPartialSessionLogRequest,
     UpdateSessionLogWeekRequest,
 )
 from app.week_progress import (
@@ -145,6 +147,80 @@ async def _load_full_log(session: AsyncSession, log_id: uuid.UUID) -> SessionLog
     return log
 
 
+def _build_entries(
+    by_id: dict[uuid.UUID, Exercise], entries: list[LogEntryInput]
+) -> list[SessionLogEntry]:
+    """Validate and build the log's entry rows from the submission, against the
+    session's indexed exercises (`by_id`, each with its alternatives + parameters).
+    Shared by the full submit and the partial (auto-saved) log."""
+    rows: list[SessionLogEntry] = []
+    for position, entry in enumerate(entries):
+        planned = by_id.get(entry.planned_exercise_id)
+        if planned is None:
+            raise api_error(
+                status.HTTP_400_BAD_REQUEST,
+                ErrorCode.invalid_session_log,
+                "Logged an exercise that isn't part of this session",
+            )
+
+        if entry.action == "skipped":
+            # A skipped exercise carries no performed exercise or parameter values.
+            rows.append(
+                SessionLogEntry(
+                    position=position,
+                    action=SessionLogAction.skipped,
+                    planned_exercise_id=planned.id,
+                )
+            )
+            continue
+
+        # Done: the performed exercise is the planned one or one of its alternatives.
+        alternatives = {
+            relation.related_exercise.id: relation.related_exercise for relation in planned.related
+        }
+        if entry.performed_exercise_id == planned.id:
+            performed = planned
+        elif entry.performed_exercise_id in alternatives:
+            performed = alternatives[entry.performed_exercise_id]
+        else:
+            raise api_error(
+                status.HTTP_400_BAD_REQUEST,
+                ErrorCode.invalid_session_log,
+                "Performed exercise is not a valid option for this item",
+            )
+
+        # Parameters belong to the exercise actually performed (the alternative,
+        # when swapped) — not the prescribed one.
+        params_by_id = {param.id: param for param in performed.parameters}
+        values = []
+        for value_position, value in enumerate(entry.parameter_values):
+            if value.parameter_id not in params_by_id:
+                raise api_error(
+                    status.HTTP_400_BAD_REQUEST,
+                    ErrorCode.invalid_session_log,
+                    "Recorded a parameter that doesn't belong to this exercise",
+                )
+            text = value.value.strip()
+            if not text:
+                continue  # skip blank values — the parameter just wasn't recorded
+            values.append(
+                SessionLogParameterValue(
+                    position=value_position, parameter_id=value.parameter_id, value=text
+                )
+            )
+
+        rows.append(
+            SessionLogEntry(
+                position=position,
+                action=SessionLogAction.done,
+                planned_exercise_id=planned.id,
+                performed_exercise_id=performed.id,
+                parameter_values=values,
+            )
+        )
+    return rows
+
+
 async def _weeks_recommending(session: AsyncSession, training: TrainingSession) -> list[Week]:
     """Weeks whose requirements include this training's category+subtype, in order."""
     return await weeks_recommending(session, training.category, training.subtype)
@@ -194,6 +270,7 @@ def _serialize_log(log: SessionLog) -> SessionLogResponse:
         note=log.note,
         week_id=log.week_id,
         week_name=log.week.name if log.week else None,
+        complete=log.complete,
         entries=entries,
     )
 
@@ -260,12 +337,27 @@ async def get_log_form(
     latest = await latest_used_week(session, user.id)
     recommended = recommended_week_id(latest, selectable)
 
+    # The athlete's in-progress draft (if any), to pre-fill the form + show the banner.
+    partial_log = await session.scalar(
+        select(SessionLog).where(
+            SessionLog.training_session_id == training.id,
+            SessionLog.athlete_id == user.id,
+            SessionLog.complete.is_(False),
+        )
+    )
+    partial = None
+    if partial_log is not None:
+        loaded = await _load_full_log(session, partial_log.id)
+        assert loaded is not None
+        partial = _serialize_log(loaded)
+
     return LogFormResponse(
         training_id=training.id,
         title=training.title,
         exercises=exercises,
         weeks=weeks,
         recommended_week_id=recommended,
+        partial=partial,
     )
 
 
@@ -304,83 +396,110 @@ async def create_session_log(
             )
 
     note = body.note.strip() if body.note else None
-    log = SessionLog(
-        training_session_id=training.id,
-        athlete_id=user.id,
-        note=note or None,
-        week_id=body.week_id,
-    )
-    for position, entry in enumerate(body.entries):
-        planned = by_id.get(entry.planned_exercise_id)
-        if planned is None:
-            raise api_error(
-                status.HTTP_400_BAD_REQUEST,
-                ErrorCode.invalid_session_log,
-                "Logged an exercise that isn't part of this session",
-            )
+    new_entries = _build_entries(by_id, body.entries)
 
-        if entry.action == "skipped":
-            # A skipped exercise carries no performed exercise or parameter values.
-            log.entries.append(
-                SessionLogEntry(
-                    position=position,
-                    action=SessionLogAction.skipped,
-                    planned_exercise_id=planned.id,
-                )
-            )
-            continue
-
-        # Done: the performed exercise is the planned one or one of its alternatives.
-        alternatives = {
-            relation.related_exercise.id: relation.related_exercise for relation in planned.related
-        }
-        if entry.performed_exercise_id == planned.id:
-            performed = planned
-        elif entry.performed_exercise_id in alternatives:
-            performed = alternatives[entry.performed_exercise_id]
-        else:
-            raise api_error(
-                status.HTTP_400_BAD_REQUEST,
-                ErrorCode.invalid_session_log,
-                "Performed exercise is not a valid option for this item",
-            )
-
-        # Parameters belong to the exercise actually performed (the alternative,
-        # when swapped) — not the prescribed one.
-        params_by_id = {param.id: param for param in performed.parameters}
-        values = []
-        for value_position, value in enumerate(entry.parameter_values):
-            if value.parameter_id not in params_by_id:
-                raise api_error(
-                    status.HTTP_400_BAD_REQUEST,
-                    ErrorCode.invalid_session_log,
-                    "Recorded a parameter that doesn't belong to this exercise",
-                )
-            text = value.value.strip()
-            if not text:
-                continue  # skip blank values — the parameter just wasn't recorded
-            values.append(
-                SessionLogParameterValue(
-                    position=value_position, parameter_id=value.parameter_id, value=text
-                )
-            )
-
-        log.entries.append(
-            SessionLogEntry(
-                position=position,
-                action=SessionLogAction.done,
-                planned_exercise_id=planned.id,
-                performed_exercise_id=performed.id,
-                parameter_values=values,
-            )
+    # Submitting promotes the athlete's in-progress draft (if any) to a complete log,
+    # rather than leaving an orphan draft beside a fresh row: mark it complete and set
+    # the week + note now (a partial carried neither). Its entries are replaced with the
+    # final snapshot (old ones orphan-cascade away). No draft → create a complete log.
+    log = await session.scalar(
+        select(SessionLog)
+        .where(
+            SessionLog.training_session_id == training.id,
+            SessionLog.athlete_id == user.id,
+            SessionLog.complete.is_(False),
         )
+        .options(selectinload(SessionLog.entries))
+    )
+    if log is not None:
+        log.complete = True
+        log.note = note or None
+        log.week_id = body.week_id
+        log.entries = new_entries
+    else:
+        log = SessionLog(
+            training_session_id=training.id,
+            athlete_id=user.id,
+            note=note or None,
+            week_id=body.week_id,
+            entries=new_entries,
+        )
+        session.add(log)
 
-    session.add(log)
     await session.commit()
 
     reloaded = await _load_full_log(session, log.id)
     assert reloaded is not None
     return _serialize_log(reloaded)
+
+
+@router.put("/{training_id}/logs/partial", response_model=SessionLogResponse)
+async def save_partial_session_log(
+    training_id: uuid.UUID,
+    body: StartPartialSessionLogRequest,
+    user: Annotated[User, Depends(current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> SessionLogResponse:
+    """Upsert the athlete's partial (in-progress, auto-saved) log for this session from
+    the current form snapshot, so every change survives a phone lock + reload. One
+    partial per athlete+session: the first save creates it, later saves replace its
+    entries. Only touched items (done/skipped) are sent — pending ones are omitted.
+    A partial carries no week and doesn't count towards weeks / last-performed until
+    it's submitted (which marks it complete and removes the draft)."""
+    training = await _load_session_exercises(session, training_id)
+    if training is None:
+        raise api_error(
+            status.HTTP_404_NOT_FOUND, ErrorCode.training_not_found, "Training not found"
+        )
+
+    by_id = {exercise.id: exercise for exercise in _ordered_series_exercises(training)}
+    new_entries = _build_entries(by_id, body.entries)
+
+    # One partial per athlete+session: update it in place (replacing its entries, which
+    # orphan-cascade away), or create it on the first save.
+    existing = await session.scalar(
+        select(SessionLog)
+        .where(
+            SessionLog.training_session_id == training.id,
+            SessionLog.athlete_id == user.id,
+            SessionLog.complete.is_(False),
+        )
+        .options(selectinload(SessionLog.entries))
+    )
+    if existing is not None:
+        existing.entries = new_entries
+        log = existing
+    else:
+        log = SessionLog(
+            training_session_id=training.id,
+            athlete_id=user.id,
+            complete=False,
+            entries=new_entries,
+        )
+        session.add(log)
+    await session.commit()
+
+    reloaded = await _load_full_log(session, log.id)
+    assert reloaded is not None
+    return _serialize_log(reloaded)
+
+
+@router.delete("/{training_id}/logs/partial", status_code=status.HTTP_204_NO_CONTENT)
+async def clear_partial_session_log(
+    training_id: uuid.UUID,
+    user: Annotated[User, Depends(current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> None:
+    """Discard the athlete's in-progress draft for this session (the "start over"
+    action). A no-op if there's no partial. Submitted logs are untouched."""
+    await session.execute(
+        delete(SessionLog).where(
+            SessionLog.training_session_id == training_id,
+            SessionLog.athlete_id == user.id,
+            SessionLog.complete.is_(False),
+        )
+    )
+    await session.commit()
 
 
 @router.get("/{training_id}/logs", response_model=Page[SessionLogSummaryResponse])
@@ -390,10 +509,12 @@ async def list_session_logs(
     session: Annotated[AsyncSession, Depends(get_session)],
     params: Annotated[PaginationParams, Query()],
 ) -> Page[SessionLogSummaryResponse]:
-    """The current athlete's own logs for this session, most recent first, paged."""
+    """The current athlete's own logs for this session, most recent first, paged.
+    Partial (in-progress, auto-saved) logs are excluded — only submitted ones show."""
     filters = (
         SessionLog.training_session_id == training_id,
         SessionLog.athlete_id == user.id,
+        SessionLog.complete.is_(True),
     )
     total = await session.scalar(select(func.count()).select_from(SessionLog).where(*filters))
     rows = await session.scalars(

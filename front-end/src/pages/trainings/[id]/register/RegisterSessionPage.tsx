@@ -1,5 +1,5 @@
-import { ChevronRight } from 'lucide-react'
-import { useState } from 'react'
+import { ChevronRight, Hourglass, RotateCcw } from 'lucide-react'
+import { useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { api, useQuery } from '@/api/client'
@@ -15,9 +15,66 @@ import { useToast } from '@/components/toast/context'
 import SeriesLogCard, { type SeriesEntryState } from './SeriesLogCard'
 
 type ItemResponse = components['schemas']['ItemResponse']
+type TrainingDetail = components['schemas']['TrainingSessionDetailResponse']
+type SessionLog = components['schemas']['SessionLogResponse']
 interface NamedItem {
   id: string
   name: string
+}
+
+// Collapse rapid edits (e.g. typing a weight) into a single auto-save PUT.
+const SAVE_DEBOUNCE_MS = 800
+
+/** The per-item form state to start from: every series item pending, unless an
+ *  in-progress partial pre-fills it. A partial's entries reference the planned
+ *  exercise (not the item), so they're matched to items by planned exercise in order
+ *  — the same order both were built in — which lines up repeats of one exercise. */
+function buildInitialEntries(
+  data: TrainingDetail,
+  partial: SessionLog | null,
+): { entries: Record<string, SeriesEntryState>; hasPartial: boolean } {
+  const items = data.blocks
+    .flatMap((block) => block.sub_blocks)
+    .flatMap((sub) => sub.items)
+    .filter((item) => item.kind === 'series' && item.exercise_id)
+
+  const entries: Record<string, SeriesEntryState> = {}
+  for (const item of items) {
+    entries[item.id] = {
+      action: 'pending',
+      performedExerciseId: item.exercise_id ?? '',
+      paramValues: {},
+    }
+  }
+
+  const partialEntries = partial?.entries ?? []
+  if (partialEntries.length === 0) return { entries, hasPartial: false }
+
+  // Remaining items per planned exercise id, consumed in order.
+  const itemsByExercise = new Map<string, string[]>()
+  for (const item of items) {
+    const key = item.exercise_id ?? ''
+    if (!itemsByExercise.has(key)) itemsByExercise.set(key, [])
+    itemsByExercise.get(key)!.push(item.id)
+  }
+
+  let matched = false
+  for (const entry of partialEntries) {
+    const plannedId = entry.planned_exercise_id
+    if (!plannedId) continue
+    const queue = itemsByExercise.get(plannedId)
+    const itemId = queue?.shift()
+    if (!itemId) continue
+    matched = true
+    const paramValues: Record<string, string> = {}
+    for (const value of entry.parameter_values) paramValues[value.parameter_id] = value.value
+    entries[itemId] = {
+      action: entry.action,
+      performedExerciseId: entry.performed_exercise_id ?? plannedId,
+      paramValues,
+    }
+  }
+  return { entries, hasPartial: matched }
 }
 
 function RegisterSessionPage() {
@@ -55,28 +112,18 @@ function RegisterSessionPage() {
   )
 
   // Per-item athlete state, keyed by item id (the same exercise in two items is
-  // tracked independently). Initialized once the session loads.
+  // tracked independently). Initialized once both the session and the log-form (which
+  // carries any in-progress partial) have loaded.
   const [entries, setEntries] = useState<Record<string, SeriesEntryState>>({})
-  const [syncedData, setSyncedData] = useState(data)
-  if (data !== syncedData) {
-    setSyncedData(data)
-    if (data) {
-      const initial: Record<string, SeriesEntryState> = {}
-      for (const block of data.blocks) {
-        for (const sub of block.sub_blocks) {
-          for (const item of sub.items) {
-            if (item.kind === 'series' && item.exercise_id) {
-              initial[item.id] = {
-                action: 'pending',
-                performedExerciseId: item.exercise_id,
-                paramValues: {},
-              }
-            }
-          }
-        }
-      }
-      setEntries(initial)
-    }
+  // Whether we resumed an in-progress draft — drives the "continuing" banner.
+  const [resumed, setResumed] = useState(false)
+  // Init once both queries resolve; re-run only if the log-form reference changes.
+  const [initedForm, setInitedForm] = useState<typeof form.data>(undefined)
+  if (data && form.data && form.data !== initedForm) {
+    setInitedForm(form.data)
+    const { entries: initial, hasPartial } = buildInitialEntries(data, form.data.partial ?? null)
+    setEntries(initial)
+    setResumed(hasPartial)
   }
 
   // Pre-select the recommended week once the form loads (resynced if it changes);
@@ -87,8 +134,66 @@ function RegisterSessionPage() {
     setWeekId(form.data?.recommended_week_id ?? '')
   }
 
+  // The submission payload for one series item, from its current state. Shared by the
+  // full submit and the partial (auto-saved) log seed.
+  function entryPayload(item: ItemResponse, state: SeriesEntryState | undefined) {
+    const plannedId = item.exercise_id ?? ''
+    if (state?.action !== 'done') {
+      return { planned_exercise_id: plannedId, action: 'skipped' as const, parameter_values: [] }
+    }
+    const formExercise = formByExerciseId.get(plannedId)
+    const performedId = state.performedExerciseId || plannedId
+    // Parameters belong to the exercise actually performed — the planned one, or the
+    // chosen alternative (which carries its own parameters).
+    const performedParams =
+      performedId === plannedId
+        ? (formExercise?.parameters ?? [])
+        : (formExercise?.alternatives.find((alt) => alt.exercise_id === performedId)?.parameters ??
+          [])
+    return {
+      planned_exercise_id: plannedId,
+      action: 'done' as const,
+      performed_exercise_id: performedId,
+      parameter_values: performedParams
+        .map((param) => ({
+          parameter_id: param.parameter_id,
+          value: state.paramValues[param.parameter_id] ?? '',
+        }))
+        .filter((value) => value.value.trim() !== ''),
+    }
+  }
+
+  // Auto-save the partial log on every change, so progress survives a phone lock +
+  // page reload. Debounced so rapid edits (typing a parameter) collapse into one PUT,
+  // and only touched items (done/skipped, or with a recorded value) are sent — pending
+  // ones are omitted so they don't come back as "skipped". The PUT upserts the draft.
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  function scheduleSave(nextEntries: Record<string, SeriesEntryState>) {
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(() => {
+      const touched = seriesItems.filter((item) => {
+        const state = nextEntries[item.id]
+        return (
+          state != null &&
+          (state.action !== 'pending' ||
+            Object.values(state.paramValues).some((value) => value.trim() !== ''))
+        )
+      })
+      // Nothing meaningful yet → don't create an empty draft.
+      if (touched.length === 0) return
+      void api.PUT('/trainings/{training_id}/logs/partial', {
+        params: { path: { training_id: trainingId } },
+        body: { entries: touched.map((item) => entryPayload(item, nextEntries[item.id])) },
+      })
+    }, SAVE_DEBOUNCE_MS)
+  }
+
   function setEntry(itemId: string, state: SeriesEntryState) {
-    setEntries((prev) => ({ ...prev, [itemId]: state }))
+    setEntries((prev) => {
+      const next = { ...prev, [itemId]: state }
+      scheduleSave(next)
+      return next
+    })
   }
 
   // All series items in order (for building the submission).
@@ -127,43 +232,16 @@ function RegisterSessionPage() {
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
+    // Cancel any pending auto-save — submitting supersedes (and deletes) the draft, so
+    // a late PUT mustn't recreate it after the server drops it.
+    if (saveTimer.current) clearTimeout(saveTimer.current)
     setSubmitting(true)
     setRootError(undefined)
 
     const body = {
       note: note.trim() || null,
       week_id: weekId || null,
-      entries: seriesItems.map((item) => {
-        const plannedId = item.exercise_id ?? ''
-        const state = entries[item.id]
-        if (state?.action !== 'done') {
-          return {
-            planned_exercise_id: plannedId,
-            action: 'skipped' as const,
-            parameter_values: [],
-          }
-        }
-        const formExercise = formByExerciseId.get(plannedId)
-        const performedId = state.performedExerciseId || plannedId
-        // Parameters belong to the exercise actually performed — the planned one,
-        // or the chosen alternative (which carries its own parameters).
-        const performedParams =
-          performedId === plannedId
-            ? (formExercise?.parameters ?? [])
-            : (formExercise?.alternatives.find((alt) => alt.exercise_id === performedId)
-                ?.parameters ?? [])
-        return {
-          planned_exercise_id: plannedId,
-          action: 'done' as const,
-          performed_exercise_id: performedId,
-          parameter_values: performedParams
-            .map((param) => ({
-              parameter_id: param.parameter_id,
-              value: state.paramValues[param.parameter_id] ?? '',
-            }))
-            .filter((value) => value.value.trim() !== ''),
-        }
-      }),
+      entries: seriesItems.map((item) => entryPayload(item, entries[item.id])),
     }
 
     const { error: postError } = await api.POST('/trainings/{training_id}/logs', {
@@ -177,6 +255,26 @@ function RegisterSessionPage() {
     }
     toast.success('Sesión registrada.')
     void navigate(`/entrenamientos/${trainingId}`)
+  }
+
+  // "Start over": discard the in-progress draft and reset the form to pending.
+  const [clearing, setClearing] = useState(false)
+  async function handleClearPartial() {
+    // Cancel any pending auto-save so it can't resurrect the draft after we delete it.
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    setClearing(true)
+    const { error: deleteError } = await api.DELETE('/trainings/{training_id}/logs/partial', {
+      params: { path: { training_id: trainingId } },
+    })
+    setClearing(false)
+    if (deleteError) {
+      toast.error(errorMessage(deleteError))
+      return
+    }
+    if (data) setEntries(buildInitialEntries(data, null).entries)
+    setNote('')
+    setResumed(false)
+    toast.success('Progreso descartado.')
   }
 
   return (
@@ -215,6 +313,26 @@ function RegisterSessionPage() {
               Registrar sesión
             </h1>
             <p className="mt-1 text-slate-400">{data.title ?? 'Sin título'}</p>
+
+            {/* Non-invasive banner when we've resumed an auto-saved draft, with a way
+                to discard it and start fresh. */}
+            {resumed && (
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3">
+                <p className="flex items-center gap-2 text-sm text-amber-200">
+                  <Hourglass size={15} className="shrink-0" />
+                  Seguimos donde lo dejaste. Tu progreso se guardó automáticamente.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void handleClearPartial()}
+                  disabled={clearing}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-amber-500/50 px-3 py-1.5 text-sm font-medium text-amber-100 transition-colors hover:bg-amber-500/20 focus:ring-2 focus:ring-amber-400 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <RotateCcw size={14} />
+                  Empezar de nuevo
+                </button>
+              </div>
+            )}
 
             {materials.length > 0 && (
               <div className="mt-6 rounded-lg border border-slate-700 bg-slate-800/50 p-4">

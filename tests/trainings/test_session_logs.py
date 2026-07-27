@@ -1,7 +1,9 @@
 import re
 from collections.abc import Callable
 
+import sqlalchemy
 from playwright.sync_api import Page, expect
+from sqlalchemy import text
 
 from app.models import (
     Exercise,
@@ -14,6 +16,18 @@ from app.models import (
     TrainingSubBlock,
     User,
 )
+
+
+def _session_log_rows(engine: sqlalchemy.Engine, training_id: str) -> list[bool]:
+    """The `complete` flag of every session log for a training, for asserting that a
+    partial (complete=false) draft was/wasn't created."""
+    with engine.connect() as conn:
+        return list(
+            conn.execute(
+                text("SELECT complete FROM session_logs WHERE training_session_id = :tid"),
+                {"tid": training_id},
+            ).scalars()
+        )
 
 
 def _make_training(
@@ -189,3 +203,213 @@ def test_member_cannot_open_another_athletes_log(
     log_in_as(other)
     page.goto(log_url)
     expect(page.get_by_text("No se ha encontrado el registro.")).to_be_visible()
+
+
+def test_first_input_creates_hidden_partial_log(
+    page: Page,
+    app_url: str,
+    _db_engine: sqlalchemy.Engine,
+    create_user: Callable[..., User],
+    create_exercise: Callable[..., Exercise],
+    create_training: Callable[..., TrainingSession],
+    log_in_as: Callable[[User], None],
+) -> None:
+    # The first real input auto-saves a partial log (so progress survives a reload),
+    # but that partial stays invisible: no log-list entry, no "Última vez".
+    member = create_user(role="member", email="member@example.com")
+    training = _make_training(create_exercise, create_training)
+    log_in_as(member)
+
+    page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
+    # No partial exists until the athlete touches something.
+    assert _session_log_rows(_db_engine, str(training.id)) == []
+
+    # Marking the first exercise done seeds exactly one partial (complete = false).
+    page.get_by_role("button", name="Hecho").first.click()
+    expect(page.get_by_role("button", name="Hecho").first).to_have_attribute(
+        "aria-pressed", "true"
+    )
+
+    def one_partial() -> bool:
+        return _session_log_rows(_db_engine, str(training.id)) == [False]
+
+    # Poll until the debounced auto-save lands.
+    for _ in range(50):
+        if one_partial():
+            break
+        page.wait_for_timeout(100)
+    assert one_partial(), _session_log_rows(_db_engine, str(training.id))
+
+    # A second input still upserts the same single partial (never a second row).
+    page.get_by_role("button", name="No hecho").nth(1).click()
+    page.wait_for_timeout(1200)  # past the auto-save debounce
+    assert _session_log_rows(_db_engine, str(training.id)) == [False]
+
+    # The partial is invisible: the athlete's log list is empty…
+    result = page.request.get(f"{app_url}/api/trainings/{training.id}/logs")
+    assert result.json()["total_count"] == 0
+
+    # …and the subtype list shows no "Última vez" for this session.
+    page.goto(f"{app_url}/entrenamientos/gimnasio/acumulacion")
+    row = page.get_by_role("listitem").filter(has_text="Sesión registrable")
+    expect(row.get_by_text("Última vez", exact=False)).to_have_count(0)
+
+
+def test_list_shows_in_progress_for_partial_then_clears_on_submit(
+    page: Page,
+    app_url: str,
+    create_user: Callable[..., User],
+    create_exercise: Callable[..., Exercise],
+    create_training: Callable[..., TrainingSession],
+    log_in_as: Callable[[User], None],
+) -> None:
+    # A partial (in-progress) log surfaces as "En progreso" on the subtype list,
+    # replacing "Última vez". Submitting clears the partial and flips it to last-done.
+    member = create_user(role="member", email="member@example.com")
+    training = _make_training(create_exercise, create_training)
+    log_in_as(member)
+
+    # Touch one exercise to seed a partial, then check the subtype list.
+    page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
+    page.get_by_role("button", name="Hecho").first.click()
+    expect(page.get_by_role("button", name="Hecho").first).to_have_attribute(
+        "aria-pressed", "true"
+    )
+    # Give the async partial POST time to land before navigating away.
+    page.wait_for_timeout(500)
+
+    page.goto(f"{app_url}/entrenamientos/gimnasio/acumulacion")
+    row = page.get_by_role("listitem").filter(has_text="Sesión registrable")
+    expect(row.get_by_text("En progreso", exact=False)).to_be_visible()
+    expect(row.get_by_text("Última vez", exact=False)).to_have_count(0)
+
+    # Complete the session; the row goes back to "Última vez", no longer in progress.
+    _register_a_session(page, app_url, str(training.id))
+    page.goto(f"{app_url}/entrenamientos/gimnasio/acumulacion")
+    row = page.get_by_role("listitem").filter(has_text="Sesión registrable")
+    expect(row.get_by_text("En progreso", exact=False)).to_have_count(0)
+    expect(row.get_by_text("Última vez", exact=False)).to_be_visible()
+
+
+def test_register_prefills_from_partial_with_banner_and_clear(
+    page: Page,
+    app_url: str,
+    create_user: Callable[..., User],
+    create_exercise: Callable[..., Exercise],
+    create_training: Callable[..., TrainingSession],
+    log_in_as: Callable[[User], None],
+) -> None:
+    # Marking an exercise done seeds a partial; reopening the register page pre-fills
+    # the form from it and shows the "continuing where you left off" banner. "Empezar
+    # de nuevo" discards the draft and resets the form.
+    member = create_user(role="member", email="member@example.com")
+    training = _make_training(create_exercise, create_training)
+    log_in_as(member)
+
+    page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
+    # No banner on a fresh session.
+    expect(page.get_by_text("Seguimos donde lo dejaste", exact=False)).to_have_count(0)
+
+    # Mark the squat done, then let the partial POST land.
+    page.get_by_role("button", name="Hecho").first.click()
+    expect(page.get_by_role("button", name="Hecho").first).to_have_attribute(
+        "aria-pressed", "true"
+    )
+    page.wait_for_timeout(500)
+
+    # Reopen the page (as a lock+reload would): the draft is restored + the banner shows.
+    page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
+    expect(page.get_by_text("Seguimos donde lo dejaste", exact=False)).to_be_visible()
+    expect(page.get_by_role("button", name="Hecho").first).to_have_attribute(
+        "aria-pressed", "true"
+    )
+
+    # "Empezar de nuevo" clears the draft: banner gone, the exercise back to pending.
+    page.get_by_role("button", name="Empezar de nuevo").click()
+    expect(page.get_by_role("status").filter(has_text="Progreso descartado.")).to_be_visible()
+    expect(page.get_by_text("Seguimos donde lo dejaste", exact=False)).to_have_count(0)
+    expect(page.get_by_role("button", name="Hecho").first).to_have_attribute(
+        "aria-pressed", "false"
+    )
+
+    # And the draft is really gone: a reload shows a fresh form (no banner).
+    page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
+    expect(page.get_by_text("Seguimos donde lo dejaste", exact=False)).to_have_count(0)
+    expect(page.get_by_role("button", name="Hecho").first).to_have_attribute(
+        "aria-pressed", "false"
+    )
+
+
+def test_live_updates_persist_parameter_across_reload(
+    page: Page,
+    app_url: str,
+    create_user: Callable[..., User],
+    create_exercise: Callable[..., Exercise],
+    create_training: Callable[..., TrainingSession],
+    log_in_as: Callable[[User], None],
+) -> None:
+    # Every change auto-saves the partial: a parameter value typed after marking done
+    # is restored on reload (not just the first input).
+    member = create_user(role="member", email="member@example.com")
+    training = _make_training(create_exercise, create_training)
+    log_in_as(member)
+
+    page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
+    page.get_by_role("button", name="Hecho").first.click()
+    # The Peso field appears once done; type a value and let the debounced save land.
+    peso = page.get_by_label("Peso", exact=False)
+    peso.fill("72kg")
+    page.wait_for_timeout(1200)
+
+    # Reload as a lock+reopen would: the done state AND the typed value come back.
+    page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
+    expect(page.get_by_text("Seguimos donde lo dejaste", exact=False)).to_be_visible()
+    expect(page.get_by_role("button", name="Hecho").first).to_have_attribute(
+        "aria-pressed", "true"
+    )
+    expect(page.get_by_label("Peso", exact=False)).to_have_value("72kg")
+
+    # A further edit updates the same draft; reload reflects the new value.
+    page.get_by_label("Peso", exact=False).fill("75kg")
+    page.wait_for_timeout(1200)
+    page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
+    expect(page.get_by_label("Peso", exact=False)).to_have_value("75kg")
+
+
+def test_submit_promotes_partial_to_single_complete_log(
+    page: Page,
+    app_url: str,
+    _db_engine: sqlalchemy.Engine,
+    create_user: Callable[..., User],
+    create_exercise: Callable[..., Exercise],
+    create_training: Callable[..., TrainingSession],
+    log_in_as: Callable[[User], None],
+) -> None:
+    # Submitting a resumed draft promotes it in place: one complete log (no orphan
+    # partial left behind), carrying the note entered at submit time.
+    member = create_user(role="member", email="member@example.com")
+    training = _make_training(create_exercise, create_training)
+    log_in_as(member)
+
+    # Seed a draft, then reload so we're submitting the resumed partial.
+    page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
+    page.get_by_role("button", name="Hecho").first.click()
+    page.wait_for_timeout(1200)
+    page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
+    expect(page.get_by_text("Seguimos donde lo dejaste", exact=False)).to_be_visible()
+
+    # A partial exists (complete=false) before submitting.
+    assert _session_log_rows(_db_engine, str(training.id)) == [False]
+
+    # Add a note and finish.
+    page.get_by_label("Nota de la sesión", exact=False).fill("promoción")
+    page.get_by_role("button", name="Finalizar sesión").click()
+    expect(page.get_by_role("status").filter(has_text="Sesión registrada.")).to_be_visible()
+
+    # Exactly one row, now complete — the draft was promoted, not duplicated.
+    assert _session_log_rows(_db_engine, str(training.id)) == [True]
+
+    # The completed log shows in the list with its note.
+    expect(page).to_have_url(f"{app_url}/entrenamientos/{training.id}")
+    logs = page.get_by_role("main").get_by_role("list").last
+    expect(logs.get_by_text("promoción")).to_be_visible()

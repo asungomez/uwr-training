@@ -679,6 +679,7 @@ export interface paths {
         /**
          * List Session Logs
          * @description The current athlete's own logs for this session, most recent first, paged.
+         *     Partial (in-progress, auto-saved) logs are excluded — only submitted ones show.
          */
         get: operations["list_session_logs_trainings__training_id__logs_get"];
         put?: never;
@@ -690,6 +691,36 @@ export interface paths {
          */
         post: operations["create_session_log_trainings__training_id__logs_post"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/trainings/{training_id}/logs/partial": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Save Partial Session Log
+         * @description Upsert the athlete's partial (in-progress, auto-saved) log for this session from
+         *     the current form snapshot, so every change survives a phone lock + reload. One
+         *     partial per athlete+session: the first save creates it, later saves replace its
+         *     entries. Only touched items (done/skipped) are sent — pending ones are omitted.
+         *     A partial carries no week and doesn't count towards weeks / last-performed until
+         *     it's submitted (which marks it complete and removes the draft).
+         */
+        put: operations["save_partial_session_log_trainings__training_id__logs_partial_put"];
+        post?: never;
+        /**
+         * Clear Partial Session Log
+         * @description Discard the athlete's in-progress draft for this session (the "start over"
+         *     action). A no-op if there's no partial. Submitted logs are untouched.
+         */
+        delete: operations["clear_partial_session_log_trainings__training_id__logs_partial_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2370,6 +2401,7 @@ export interface components {
             weeks: components["schemas"]["LogFormWeek"][];
             /** Recommended Week Id */
             recommended_week_id?: string | null;
+            partial?: components["schemas"]["SessionLogResponse"] | null;
         };
         /**
          * LogFormWeek
@@ -2726,6 +2758,11 @@ export interface components {
             /** Week Name */
             week_name: string | null;
             /**
+             * Complete
+             * @default true
+             */
+            complete: boolean;
+            /**
              * Entries
              * @default []
              */
@@ -2745,6 +2782,11 @@ export interface components {
             performed_at: string;
             /** Note */
             note: string | null;
+            /**
+             * Complete
+             * @default true
+             */
+            complete: boolean;
         };
         /**
          * SpeedTestLogFormResponse
@@ -2801,6 +2843,19 @@ export interface components {
             performed_at: string;
             /** Seconds */
             seconds: number;
+        };
+        /**
+         * StartPartialSessionLogRequest
+         * @description Seed a partial (in-progress, auto-saved) log from the athlete's first input.
+         *     Just the entries so far — no note or week (a partial never touches week metrics).
+         *     Idempotent: if a partial already exists it's returned as-is, not overwritten.
+         */
+        StartPartialSessionLogRequest: {
+            /**
+             * Entries
+             * @default []
+             */
+            entries: components["schemas"]["LogEntryInput"][];
         };
         /**
          * StartUploadRequest
@@ -3079,6 +3134,8 @@ export interface components {
             created_at: string;
             /** Last Performed At */
             last_performed_at?: string | null;
+            /** In Progress Since */
+            in_progress_since?: string | null;
             /**
              * Blocks
              * @default []
@@ -3105,6 +3162,8 @@ export interface components {
             created_at: string;
             /** Last Performed At */
             last_performed_at?: string | null;
+            /** In Progress Since */
+            in_progress_since?: string | null;
         };
         /**
          * TrainingSubtype
@@ -4955,6 +5014,74 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SessionLogResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_partial_session_log_trainings__training_id__logs_partial_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                training_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartPartialSessionLogRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionLogResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    clear_partial_session_log_trainings__training_id__logs_partial_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                training_id: string;
+            };
+            cookie?: {
+                session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

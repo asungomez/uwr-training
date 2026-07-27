@@ -80,6 +80,9 @@ class TrainingSessionResponse(BaseModel):
     # When the requesting athlete last logged this session (their own logs only);
     # null if they never have.
     last_performed_at: datetime | None = None
+    # When the requesting athlete started an as-yet-unsubmitted (partial) log for this
+    # session; null if none is in progress. Takes visual priority over last_performed_at.
+    in_progress_since: datetime | None = None
 
     @field_serializer("id")
     def serialize_id(self, value: uuid.UUID) -> str:

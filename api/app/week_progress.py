@@ -69,11 +69,16 @@ async def logs_by_requirement(
     if not week_ids:
         return grouped
 
-    # gym/pool logs: type comes from the linked TrainingSession.
+    # gym/pool logs: type comes from the linked TrainingSession. Partial (in-progress)
+    # logs don't count towards a week — only submitted ones.
     training_rows = await session.execute(
         select(SessionLog, TrainingSession)
         .join(TrainingSession, SessionLog.training_session_id == TrainingSession.id)
-        .where(SessionLog.athlete_id == athlete_id, SessionLog.week_id.in_(week_ids))
+        .where(
+            SessionLog.athlete_id == athlete_id,
+            SessionLog.week_id.in_(week_ids),
+            SessionLog.complete.is_(True),
+        )
         .order_by(SessionLog.performed_at.desc())
     )
     # cardio logs: category is always cardio; subtype from the CardioTraining.
@@ -269,7 +274,7 @@ async def latest_used_week(session: AsyncSession, athlete_id: uuid.UUID) -> Week
         await session.execute(
             select(Week, SessionLog.performed_at)
             .join(SessionLog, SessionLog.week_id == Week.id)
-            .where(SessionLog.athlete_id == athlete_id)
+            .where(SessionLog.athlete_id == athlete_id, SessionLog.complete.is_(True))
             .order_by(SessionLog.performed_at.desc())
             .limit(1)
         )

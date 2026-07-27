@@ -237,7 +237,8 @@ async def list_user_training_logs(
 
     # Gym/pool session logs — skipped entirely when the filter asks only for cardio.
     if params.category != TrainingLogCategory.cardio:
-        session_filters = [SessionLog.athlete_id == user_id]
+        # Partial (in-progress) logs aren't shown in the athlete's history.
+        session_filters = [SessionLog.athlete_id == user_id, SessionLog.complete.is_(True)]
         if params.category == TrainingLogCategory.gym:
             session_filters.append(TrainingSession.category == TrainingCategory.gym)
         elif params.category == TrainingLogCategory.pool:

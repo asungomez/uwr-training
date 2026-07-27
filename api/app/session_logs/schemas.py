@@ -74,6 +74,9 @@ class LogFormResponse(BaseModel):
     weeks: list[LogFormWeek] = []
     # The week to pre-select (one of `weeks`), or null to leave the select empty.
     recommended_week_id: uuid.UUID | None = None
+    # The athlete's in-progress (auto-saved) draft for this session, to pre-fill the
+    # form and show the "continuing where you left off" banner. Null if none.
+    partial: "SessionLogResponse | None" = None
 
     @field_serializer("training_id")
     def serialize_training_id(self, value: uuid.UUID) -> str:
@@ -109,6 +112,14 @@ class CreateSessionLogRequest(BaseModel):
     note: str | None = None
     # The calendar week this session counts towards (optional).
     week_id: uuid.UUID | None = None
+    entries: list[LogEntryInput] = []
+
+
+class StartPartialSessionLogRequest(BaseModel):
+    """Seed a partial (in-progress, auto-saved) log from the athlete's first input.
+    Just the entries so far — no note or week (a partial never touches week metrics).
+    Idempotent: if a partial already exists it's returned as-is, not overwritten."""
+
     entries: list[LogEntryInput] = []
 
 
@@ -154,6 +165,8 @@ class SessionLogResponse(BaseModel):
     note: str | None
     week_id: uuid.UUID | None
     week_name: str | None
+    # False while still being logged (an auto-saved draft); true once submitted.
+    complete: bool = True
     entries: list[LogEntryResponse] = []
 
     @field_serializer("id", "training_session_id", "week_id")
@@ -169,7 +182,13 @@ class SessionLogSummaryResponse(BaseModel):
     id: uuid.UUID
     performed_at: datetime
     note: str | None
+    # False while still being logged (an auto-saved draft); true once submitted.
+    complete: bool = True
 
     @field_serializer("id")
     def serialize_id(self, value: uuid.UUID) -> str:
         return str(value)
+
+
+# LogFormResponse references SessionLogResponse (defined above) via a forward ref.
+LogFormResponse.model_rebuild()

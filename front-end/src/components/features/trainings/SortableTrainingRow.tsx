@@ -1,6 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { CalendarCheck, GripVertical } from 'lucide-react'
+import { CalendarCheck, GripVertical, Hourglass } from 'lucide-react'
 
 import type { components } from '@/api/schema'
 
@@ -68,11 +68,19 @@ function SortableTrainingRow({
         <span className="font-medium text-slate-100">
           {session.title ?? <span className="text-slate-500">{BLANK}</span>}
         </span>
-        {session.last_performed_at && (
-          <span className="inline-flex items-center gap-1.5 text-sm text-slate-400">
-            <CalendarCheck size={13} className="text-emerald-400" />
-            Última vez: {formatLastDone(session.last_performed_at)}
+        {/* An in-progress (partial) log takes priority over the last-done line. */}
+        {session.in_progress_since ? (
+          <span className="inline-flex items-center gap-1.5 text-sm text-amber-300">
+            <Hourglass size={13} />
+            En progreso · empezado {formatLastDone(session.in_progress_since)}
           </span>
+        ) : (
+          session.last_performed_at && (
+            <span className="inline-flex items-center gap-1.5 text-sm text-slate-400">
+              <CalendarCheck size={13} className="text-emerald-400" />
+              Última vez: {formatLastDone(session.last_performed_at)}
+            </span>
+          )
         )}
       </button>
     </li>

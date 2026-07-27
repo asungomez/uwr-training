@@ -566,6 +566,10 @@ class SessionLog(Base):
     performed_at: Mapped[datetime] = mapped_column(_TZ, server_default=func.now())
     # Free-text note the athlete writes when finishing, to remember something.
     note: Mapped[str | None] = mapped_column(default=None)
+    # False while the athlete is still logging (a partial, auto-saved draft); set true
+    # when they submit. Only complete logs count towards weeks / last-performed / the
+    # athlete's log list. Existing rows default to complete.
+    complete: Mapped[bool] = mapped_column(default=True, server_default="true")
     created_at: Mapped[datetime] = mapped_column(_TZ, server_default=func.now())
 
     entries: Mapped[list["SessionLogEntry"]] = relationship(

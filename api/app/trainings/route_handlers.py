@@ -214,27 +214,49 @@ async def list_trainings(
         )
     )
 
-    # When the current athlete last logged each of these sessions (one grouped query).
+    # When the current athlete last logged each of these sessions, and when they
+    # started an in-progress (partial) one — two grouped queries over their own logs.
     last_performed: dict[uuid.UUID, datetime] = {}
+    in_progress: dict[uuid.UUID, datetime] = {}
     if rows:
-        result = await session.execute(
+        row_ids = [row.id for row in rows]
+        performed_result = await session.execute(
             select(
                 SessionLog.training_session_id,
                 func.max(SessionLog.performed_at).label("last_performed_at"),
             )
             .where(
                 SessionLog.athlete_id == user.id,
-                SessionLog.training_session_id.in_([row.id for row in rows]),
+                SessionLog.training_session_id.in_(row_ids),
+                # Partial (in-progress) logs don't count as having performed the session.
+                SessionLog.complete.is_(True),
             )
             .group_by(SessionLog.training_session_id)
         )
-        for training_session_id, performed_at in result.all():
+        for training_session_id, performed_at in performed_result.all():
             last_performed[training_session_id] = performed_at
+
+        # At most one partial per athlete+session, but min() is safe regardless.
+        partial_result = await session.execute(
+            select(
+                SessionLog.training_session_id,
+                func.min(SessionLog.performed_at).label("started_at"),
+            )
+            .where(
+                SessionLog.athlete_id == user.id,
+                SessionLog.training_session_id.in_(row_ids),
+                SessionLog.complete.is_(False),
+            )
+            .group_by(SessionLog.training_session_id)
+        )
+        for training_session_id, started_at in partial_result.all():
+            in_progress[training_session_id] = started_at
 
     items = []
     for row in rows:
         item = TrainingSessionResponse.model_validate(row)
         item.last_performed_at = last_performed.get(row.id)
+        item.in_progress_since = in_progress.get(row.id)
         items.append(item)
     return Page(items=items, total_count=total or 0)
 

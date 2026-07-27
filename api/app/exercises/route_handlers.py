@@ -370,6 +370,8 @@ async def list_exercise_logs(
             SessionLogEntry.performed_exercise_id == exercise_id,
             SessionLogEntry.action == SessionLogAction.done,
             SessionLog.athlete_id == user.id,
+            # Only submitted logs — a partial draft isn't part of the athlete's history.
+            SessionLog.complete.is_(True),
         )
     )
     total = await session.scalar(select(func.count()).select_from(base.subquery()))
@@ -382,6 +384,7 @@ async def list_exercise_logs(
                 SessionLogEntry.performed_exercise_id == exercise_id,
                 SessionLogEntry.action == SessionLogAction.done,
                 SessionLog.athlete_id == user.id,
+                SessionLog.complete.is_(True),
             )
             .order_by(SessionLog.performed_at.desc())
             .offset(params.offset)
