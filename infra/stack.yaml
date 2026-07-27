@@ -1,0 +1,217 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >-
+  uwr-training: the single CloudFormation stack for the app on AWS. Built up
+  incrementally — this first slice provisions only the database: an Amazon RDS for
+  PostgreSQL 16 instance sized to stay within the AWS Free Tier (db.t4g.micro,
+  20 GB gp2, Single-AZ). Compute and the rest are added to THIS stack later. The
+  instance can be made publicly reachable (locked to a CIDR) so migrations and
+  local debugging work before there's any AWS compute.
+
+# ---------------------------------------------------------------------------
+# Parameters — everything that varies per environment or is a secret.
+# ---------------------------------------------------------------------------
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: >-
+      VPC to place the database in. RDS is always inside a VPC (there is no
+      "outside a VPC" option), but a VPC itself is free — only a NAT Gateway costs
+      money, and this stack has none. Use your account's default VPC: it already has
+      public subnets + an internet gateway at zero cost, and a publicly-accessible
+      instance in it is reachable directly from your laptop (no VPN/bastion needed),
+      scoped by the security group below.
+
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: >-
+      At least two subnets in different Availability Zones (RDS requires two even
+      for Single-AZ). The default VPC's subnets are fine.
+
+  DBName:
+    Type: String
+    Default: uwr
+    Description: Initial database name created inside the instance.
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9_]*"
+    MinLength: 1
+    MaxLength: 63
+
+  MasterUsername:
+    Type: String
+    Default: uwr
+    Description: Master (admin) username for the instance.
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9_]*"
+    MinLength: 1
+    MaxLength: 63
+
+  MasterUserPassword:
+    Type: String
+    Description: >-
+      Master user password. Provided at deploy time and never echoed. 8-128 chars,
+      no '/', '@', '"', or spaces (RDS restriction).
+    NoEcho: true
+    MinLength: 8
+    MaxLength: 128
+    AllowedPattern: '[^/@"\s]+'
+    ConstraintDescription: 8-128 characters and must not contain /, @, ", or spaces.
+
+  InstanceClass:
+    Type: String
+    Default: db.t4g.micro
+    Description: >-
+      Instance class. db.t4g.micro (Graviton) is the cheapest Free-Tier-eligible
+      option; db.t3.micro is the x86 equivalent if you hit a t4g availability issue.
+    AllowedValues:
+      - db.t4g.micro
+      - db.t3.micro
+
+  AllocatedStorage:
+    Type: Number
+    Default: 20
+    Description: Storage in GB. Free Tier covers 20 GB of General Purpose (SSD).
+    MinValue: 20
+    MaxValue: 20
+    ConstraintDescription: Kept at 20 GB to stay within the Free Tier storage allowance.
+
+  EngineVersion:
+    Type: String
+    Default: "16"
+    Description: >-
+      PostgreSQL major version (matches the dev stack's postgres:16). Major-only is
+      accepted; RDS picks a supported minor and AutoMinorVersionUpgrade keeps it current.
+
+  BackupRetentionDays:
+    Type: Number
+    Default: 7
+    Description: >-
+      Automated backup retention (days). Backup storage up to the DB's provisioned
+      size is free. 0 disables automated backups.
+    MinValue: 0
+    MaxValue: 35
+
+  PubliclyAccessible:
+    Type: String
+    Default: "true"
+    Description: >-
+      Whether the instance gets a public endpoint. "true" lets you connect from the
+      allowed CIDR before there's any AWS compute; flip to "false" once the app runs
+      inside the VPC.
+    AllowedValues: ["true", "false"]
+
+  AllowedCidr:
+    Type: String
+    Default: 127.0.0.1/32
+    Description: >-
+      CIDR allowed to reach Postgres (port 5432). Defaults to a non-routable
+      placeholder — set it to your IP (e.g. 203.0.113.4/32) so nothing is exposed
+      by accident. Never use 0.0.0.0/0.
+    AllowedPattern: '(\d{1,3}\.){3}\d{1,3}/\d{1,2}'
+    ConstraintDescription: Must be a valid CIDR like 203.0.113.4/32.
+
+  DeletionProtection:
+    Type: String
+    Default: "false"
+    Description: >-
+      Guards against accidental deletion. Left "false" while we're experimenting so
+      the stack can be torn down cheaply; turn "true" for anything real.
+    AllowedValues: ["true", "false"]
+
+# ---------------------------------------------------------------------------
+# Resources
+# ---------------------------------------------------------------------------
+Resources:
+  DBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub "${AWS::StackName} - Postgres access"
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          CidrIp: !Ref AllowedCidr
+          Description: PostgreSQL from the allowed CIDR
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-db-sg"
+
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: !Sub "${AWS::StackName} - Postgres subnet group"
+      SubnetIds: !Ref SubnetIds
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-db-subnets"
+
+  Database:
+    Type: AWS::RDS::DBInstance
+    # Snapshot the volume on stack deletion rather than losing data outright; harmless
+    # while empty, a safety net once it holds real logs. Set to Delete if you prefer
+    # clean teardowns during early experimentation.
+    DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
+    Metadata:
+      # W1011 suggests sourcing the master password from Secrets Manager / SSM via a
+      # dynamic reference. Deliberately not doing that yet: the password comes from a
+      # GitHub secret passed at deploy time as a NoEcho parameter. Revisit if/when we
+      # add Secrets Manager (which would also enable rotation).
+      cfn-lint:
+        config:
+          ignore_checks:
+            - W1011
+    Properties:
+      Engine: postgres
+      EngineVersion: !Ref EngineVersion
+      DBName: !Ref DBName
+      DBInstanceClass: !Ref InstanceClass
+      MasterUsername: !Ref MasterUsername
+      MasterUserPassword: !Ref MasterUserPassword
+      # --- storage: cheapest Free-Tier-safe config ---
+      AllocatedStorage: !Ref AllocatedStorage
+      StorageType: gp2
+      StorageEncrypted: true # default aws/rds KMS key — no extra cost
+      # --- keep it single-node and quiet (all cost-free choices) ---
+      MultiAZ: false
+      BackupRetentionPeriod: !Ref BackupRetentionDays
+      AutoMinorVersionUpgrade: true
+      MonitoringInterval: 0 # enhanced monitoring off (it bills)
+      # Performance Insights left off (only its short retention is free); enable later.
+      DeletionProtection: !Ref DeletionProtection
+      PubliclyAccessible: !Ref PubliclyAccessible
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      VPCSecurityGroups:
+        - !Ref DBSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-db"
+        - Key: Project
+          Value: uwr-training
+
+# ---------------------------------------------------------------------------
+# Outputs — for the deploy job / migrations / local debugging. No secrets echoed.
+# Everything lives in this one stack, so resources reference each other directly
+# (!Ref / !GetAtt) rather than via cross-stack Exports — hence plain Outputs here.
+# ---------------------------------------------------------------------------
+Outputs:
+  DBEndpointAddress:
+    Description: Hostname of the database instance.
+    Value: !GetAtt Database.Endpoint.Address
+
+  DBEndpointPort:
+    Description: Port the database listens on.
+    Value: !GetAtt Database.Endpoint.Port
+
+  DBName:
+    Description: Initial database name.
+    Value: !Ref DBName
+
+  DBSecurityGroupId:
+    Description: Security group protecting the database (app compute joins this later).
+    Value: !Ref DBSecurityGroup
+
+  DatabaseUrlHint:
+    Description: >-
+      Shape of the connection string the app expects (settings.py normalizes the
+      scheme to postgresql+asyncpg). Fill in the master password yourself.
+    Value: !Sub "postgresql://${MasterUsername}:<password>@${Database.Endpoint.Address}:${Database.Endpoint.Port}/${DBName}"

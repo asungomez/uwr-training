@@ -11,6 +11,9 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
+        # CloudFormation templates use intrinsic tags (!GetAtt, !Ref, !Sub) that plain
+        # PyYAML can't parse; the cfn-lint hook below validates them properly instead.
+        exclude: ^infra/.*\.ya?ml$
       - id: check-json
         # tsconfig files are JSONC (comments allowed); skip the strict JSON parse.
         exclude: ^front-end/tsconfig.*\.json$
@@ -18,6 +21,14 @@ repos:
       - id: check-merge-conflict
       - id: check-added-large-files
       - id: mixed-line-ending
+
+  # CloudFormation templates: cfn-lint understands the intrinsic tags check-yaml can't,
+  # and validates resource properties/enums/required fields. Scoped to infra/.
+  - repo: https://github.com/aws-cloudformation/cfn-lint
+    rev: v1.53.2
+    hooks:
+      - id: cfn-lint
+        files: ^infra/.*\.ya?ml$
 
   # Front-end: ESLint + Prettier. The wrapper runs them in a container (the
   # checker image), so neither the host nor a running dev stack needs node_modules.

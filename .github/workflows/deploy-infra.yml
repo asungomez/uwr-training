@@ -1,0 +1,94 @@
+# Deploys the AWS CloudFormation stack (infra/stack.yaml) — currently just the RDS
+# PostgreSQL database. Manual-only: infrastructure changes shouldn't fire on every
+# push, and the DB is stateful. Run it from the Actions tab when the template changes.
+#
+# Required repo secrets (see infra/README.md for how the IAM user is set up):
+#   AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY  — the scoped `uwr-training-ci` user
+#   AWS_REGION                                 — region to deploy into
+#   DB_MASTER_PASSWORD                         — RDS master password (NoEcho param)
+# Optional:
+#   DB_ALLOWED_CIDR — CIDR allowed to reach Postgres (e.g. your IP for local debug).
+#                     Defaults to a non-routable placeholder so nothing is exposed.
+#
+# The default VPC + its subnets are discovered at deploy time (read-only EC2 calls the
+# CI policy already grants), so no VPC/subnet IDs are ever hand-injected.
+name: Deploy infrastructure
+
+on:
+  workflow_dispatch: {} # manual runs only, from the Actions tab
+
+# Never let two deploys of the same stack overlap.
+concurrency:
+  group: deploy-infra
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  STACK_NAME: uwr-training
+  TEMPLATE: infra/stack.yaml
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Validate template
+        run: aws cloudformation validate-template --template-body "file://$TEMPLATE"
+
+      - name: Resolve default VPC and subnets
+        id: vpc
+        run: |
+          set -euo pipefail
+          vpc_id=$(aws ec2 describe-vpcs \
+            --filters Name=isDefault,Values=true \
+            --query 'Vpcs[0].VpcId' --output text)
+          if [ -z "$vpc_id" ] || [ "$vpc_id" = "None" ]; then
+            echo "::error::No default VPC in this region — create one or set VpcId explicitly." >&2
+            exit 1
+          fi
+          # Comma-join subnet ids for the List<AWS::EC2::Subnet::Id> parameter. The
+          # default VPC has one subnet per AZ, satisfying RDS's two-AZ requirement.
+          subnet_ids=$(aws ec2 describe-subnets \
+            --filters Name=vpc-id,Values="$vpc_id" \
+            --query 'Subnets[].SubnetId' --output text | tr '\t' ',')
+          echo "vpc_id=$vpc_id" >> "$GITHUB_OUTPUT"
+          echo "subnet_ids=$subnet_ids" >> "$GITHUB_OUTPUT"
+          echo "Default VPC: $vpc_id"
+          echo "Subnets: $subnet_ids"
+
+      - name: Deploy stack
+        # Secrets go through env, not inline `${{ }}` interpolation, so a password with
+        # shell metacharacters can't break (or inject into) the run command.
+        env:
+          DB_MASTER_PASSWORD: ${{ secrets.DB_MASTER_PASSWORD }}
+          DB_ALLOWED_CIDR: ${{ secrets.DB_ALLOWED_CIDR }}
+          VPC_ID: ${{ steps.vpc.outputs.vpc_id }}
+          SUBNET_IDS: ${{ steps.vpc.outputs.subnet_ids }}
+        run: |
+          set -euo pipefail
+          aws cloudformation deploy \
+            --stack-name "$STACK_NAME" \
+            --template-file "$TEMPLATE" \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides \
+              VpcId="$VPC_ID" \
+              SubnetIds="$SUBNET_IDS" \
+              MasterUserPassword="$DB_MASTER_PASSWORD" \
+              AllowedCidr="${DB_ALLOWED_CIDR:-127.0.0.1/32}"
+
+      - name: Show stack outputs
+        run: |
+          aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME" \
+            --query 'Stacks[0].Outputs' --output table
