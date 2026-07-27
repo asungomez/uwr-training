@@ -152,6 +152,28 @@ every push, and the DB is stateful. It:
    re-run; `--no-fail-on-empty-changeset` makes a no-op deploy succeed).
 5. Prints the stack outputs (DB endpoint, port, name).
 
+## Migrations
+
+The `.github/workflows/migrate-db.yml` workflow runs Alembic against the RDS database
+(`app.cli migrate`, which only upgrades when the DB isn't already at head) — **manual
+only**, run it after a deploy that includes new revisions.
+
+It reads the **host/port/name from the stack outputs** (no secret needed) and the
+**password from the `DB_MASTER_PASSWORD` secret** — the master password is a `NoEcho`
+CloudFormation parameter and can't be read back via the API, so it lives only in that
+secret. (Username defaults to `uwr`, overridable via an optional `DB_MASTER_USERNAME`
+secret.)
+
+**Runner access to the DB:** GitHub-hosted runners have unpredictable public IPs from a
+large AWS range, so we can't pre-allow them in the security group. The job detects its
+own egress IP, opens the SG to just that `/32` on 5432 for the run, then revokes it in an
+`always()` step (so it's torn down even if the migration fails). The DB stays closed the
+rest of the time. This needs only the `ec2:Authorize/RevokeSecurityGroupIngress` +
+`cloudformation:DescribeStacks` actions already in the policy above.
+
+> Assumes the RDS default parameter group (`rds.force_ssl=0`), so a plain connection
+> works. If you later set `force_ssl=1`, the migration URL will need an SSL option.
+
 ## `stack.yaml` parameters (set at deploy time)
 
 The workflow fills these in; you don't set them by hand.

@@ -1,0 +1,103 @@
+# Runs Alembic migrations against the AWS RDS database (app.cli `migrate`, which only
+# upgrades when the DB isn't already at head). Manual-only: migrations are stateful and
+# should be run deliberately, typically right after a deploy that includes new revisions.
+#
+# How the runner reaches the DB: the instance is publicly accessible but its security
+# group is closed to a placeholder CIDR. GitHub-hosted runners get an unpredictable
+# public IP from a large AWS range, so we can't pre-allow them. Instead this job detects
+# its own egress IP, opens the SG to just that /32 for the duration, runs the migration,
+# and revokes the rule afterwards (even on failure). The DB stays closed the rest of the
+# time.
+#
+# Required repo secrets:
+#   AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_REGION  — the scoped CI user
+#   DB_MASTER_PASSWORD                                      — RDS master password
+# The host/port/name come from the CloudFormation stack outputs (no secret needed); the
+# username defaults to the template's default ("uwr") and can be overridden by the
+# optional DB_MASTER_USERNAME secret.
+name: Migrate database
+
+on:
+  workflow_dispatch: {} # manual runs only
+
+concurrency:
+  group: migrate-db
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  STACK_NAME: uwr-training
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Read DB connection details from the stack
+        id: db
+        run: |
+          set -euo pipefail
+          out() { aws cloudformation describe-stacks --stack-name "$STACK_NAME" \
+            --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" --output text; }
+          echo "host=$(out DBEndpointAddress)" >> "$GITHUB_OUTPUT"
+          echo "port=$(out DBEndpointPort)" >> "$GITHUB_OUTPUT"
+          echo "name=$(out DBName)" >> "$GITHUB_OUTPUT"
+          # The security group id, so we can open/close it for this run.
+          echo "sg=$(out DBSecurityGroupId)" >> "$GITHUB_OUTPUT"
+
+      - name: Open the DB security group to this runner
+        id: sg
+        run: |
+          set -euo pipefail
+          runner_ip=$(curl -fsS https://checkip.amazonaws.com | tr -d '[:space:]')
+          cidr="${runner_ip}/32"
+          echo "cidr=$cidr" >> "$GITHUB_OUTPUT"
+          # Idempotent-ish: authorize; if the rule somehow already exists, don't fail.
+          aws ec2 authorize-security-group-ingress \
+            --group-id "${{ steps.db.outputs.sg }}" \
+            --protocol tcp --port 5432 --cidr "$cidr" \
+            2>/dev/null || echo "Ingress rule may already exist; continuing."
+          echo "Opened ${{ steps.db.outputs.sg }} to $cidr on 5432"
+
+      - name: Install uv
+        # uv provisions the pinned Python (requires-python >=3.12) and the locked deps.
+        uses: astral-sh/setup-uv@v5
+
+      - name: Run migrations
+        working-directory: api
+        env:
+          # Assemble the URL from CLI-discovered host/port/name + the secret password.
+          # settings.normalize_db_url() rewrites the scheme to asyncpg. The password is
+          # passed via env (never inline) so special characters can't break the shell.
+          DB_HOST: ${{ steps.db.outputs.host }}
+          DB_PORT: ${{ steps.db.outputs.port }}
+          DB_NAME: ${{ steps.db.outputs.name }}
+          DB_USER: ${{ secrets.DB_MASTER_USERNAME || 'uwr' }}
+          DB_PASSWORD: ${{ secrets.DB_MASTER_PASSWORD }}
+        run: |
+          set -euo pipefail
+          # URL-encode the password so reserved characters are safe in the URL.
+          enc_pw=$(python3 -c 'import os,urllib.parse; print(urllib.parse.quote(os.environ["DB_PASSWORD"], safe=""))')
+          url="postgresql://${DB_USER}:${enc_pw}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+          # --database-url is a top-level arg (before the subcommand), per app.cli.main.
+          uv run python -m app.cli --database-url "$url" migrate
+
+      - name: Revoke the runner's DB access
+        # always() so the rule is torn down even if the migration failed.
+        if: always() && steps.sg.outputs.cidr != ''
+        run: |
+          aws ec2 revoke-security-group-ingress \
+            --group-id "${{ steps.db.outputs.sg }}" \
+            --protocol tcp --port 5432 --cidr "${{ steps.sg.outputs.cidr }}" \
+            2>/dev/null || echo "Ingress rule already removed; nothing to revoke."
