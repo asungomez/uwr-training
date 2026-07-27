@@ -275,8 +275,8 @@ def test_list_shows_in_progress_for_partial_then_clears_on_submit(
     expect(page.get_by_role("button", name="Hecho").first).to_have_attribute(
         "aria-pressed", "true"
     )
-    # Give the async partial POST time to land before navigating away.
-    page.wait_for_timeout(500)
+    # Give the debounced auto-save time to land before navigating away.
+    page.wait_for_timeout(1200)
 
     page.goto(f"{app_url}/entrenamientos/gimnasio/acumulacion")
     row = page.get_by_role("listitem").filter(has_text="Sesión registrable")
@@ -310,12 +310,12 @@ def test_register_prefills_from_partial_with_banner_and_clear(
     # No banner on a fresh session.
     expect(page.get_by_text("Seguimos donde lo dejaste", exact=False)).to_have_count(0)
 
-    # Mark the squat done, then let the partial POST land.
+    # Mark the squat done, then let the debounced auto-save land.
     page.get_by_role("button", name="Hecho").first.click()
     expect(page.get_by_role("button", name="Hecho").first).to_have_attribute(
         "aria-pressed", "true"
     )
-    page.wait_for_timeout(500)
+    page.wait_for_timeout(1200)
 
     # Reopen the page (as a lock+reload would): the draft is restored + the banner shows.
     page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")

@@ -1,4 +1,4 @@
-import { ChevronRight, Hourglass, RotateCcw } from 'lucide-react'
+import { Check, ChevronRight, Hourglass, Loader2, RotateCcw, TriangleAlert } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
@@ -24,6 +24,42 @@ interface NamedItem {
 
 // Collapse rapid edits (e.g. typing a weight) into a single auto-save PUT.
 const SAVE_DEBOUNCE_MS = 800
+
+// Auto-save lifecycle shown by the indicator: nothing pending, in-flight, done, failed.
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
+
+/** A small, unintrusive auto-save indicator, fixed to the bottom of the viewport so
+ *  it stays visible while scrolling a long session on a phone. Hidden when idle. */
+function SaveIndicator({ status }: { status: SaveStatus }) {
+  if (status === 'idle') return null
+  const config = {
+    saving: {
+      icon: <Loader2 size={13} className="animate-spin" />,
+      label: 'Guardando',
+      cls: 'border-slate-600 bg-slate-800 text-slate-300',
+    },
+    saved: {
+      icon: <Check size={13} />,
+      label: 'Guardado',
+      cls: 'border-emerald-600/50 bg-slate-800 text-emerald-300',
+    },
+    error: {
+      icon: <TriangleAlert size={13} />,
+      label: 'Error al guardar',
+      cls: 'border-red-600/50 bg-slate-800 text-red-300',
+    },
+  }[status]
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className={`fixed bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium shadow-lg ${config.cls}`}
+    >
+      {config.icon}
+      {config.label}
+    </div>
+  )
+}
 
 /** The per-item form state to start from: every series item pending, unless an
  *  in-progress partial pre-fills it. A partial's entries reference the planned
@@ -88,6 +124,9 @@ function RegisterSessionPage() {
   const [weekId, setWeekId] = useState('')
   // The exercise shown in the description side panel (local — no URL param here).
   const [panelExerciseId, setPanelExerciseId] = useState<string | null>(null)
+  // Auto-save state, surfaced by a small fixed indicator so the athlete (on a phone,
+  // mid-workout) can trust their progress is being saved.
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
 
   // The full session structure (blocks/items + prescription) and the log-form
   // (per-exercise alternatives + parameters). Merged by exercise id.
@@ -181,10 +220,14 @@ function RegisterSessionPage() {
       })
       // Nothing meaningful yet → don't create an empty draft.
       if (touched.length === 0) return
-      void api.PUT('/trainings/{training_id}/logs/partial', {
-        params: { path: { training_id: trainingId } },
-        body: { entries: touched.map((item) => entryPayload(item, nextEntries[item.id])) },
-      })
+      setSaveStatus('saving')
+      void api
+        .PUT('/trainings/{training_id}/logs/partial', {
+          params: { path: { training_id: trainingId } },
+          body: { entries: touched.map((item) => entryPayload(item, nextEntries[item.id])) },
+        })
+        .then(({ error: putError }) => setSaveStatus(putError ? 'error' : 'saved'))
+        .catch(() => setSaveStatus('error'))
     }, SAVE_DEBOUNCE_MS)
   }
 
@@ -274,6 +317,7 @@ function RegisterSessionPage() {
     if (data) setEntries(buildInitialEntries(data, null).entries)
     setNote('')
     setResumed(false)
+    setSaveStatus('idle')
     toast.success('Progreso descartado.')
   }
 
@@ -479,6 +523,8 @@ function RegisterSessionPage() {
               onSelectExercise={setPanelExerciseId}
             />
           )}
+
+          <SaveIndicator status={saveStatus} />
         </div>
       )}
     </section>
