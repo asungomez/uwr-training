@@ -441,3 +441,51 @@ def test_save_indicator_shows_saving_then_saved(
     # After the debounced save resolves, "Guardado" is shown (the transient "Guardando"
     # may be too brief to assert reliably, so we assert the settled state).
     expect(page.get_by_text("Guardado", exact=True)).to_be_visible()
+
+
+def test_failed_save_shows_error_then_retries_to_success(
+    page: Page,
+    app_url: str,
+    _db_engine: sqlalchemy.Engine,
+    create_user: Callable[..., User],
+    create_exercise: Callable[..., Exercise],
+    create_training: Callable[..., TrainingSession],
+    log_in_as: Callable[[User], None],
+) -> None:
+    # When an auto-save fails, the indicator shows the error and a background retry
+    # loop keeps trying the latest snapshot until it succeeds — no draft is lost.
+    member = create_user(role="member", email="member@example.com")
+    training = _make_training(create_exercise, create_training)
+    log_in_as(member)
+
+    # Fail the first partial-save PUT, then let subsequent ones through.
+    calls = {"n": 0}
+
+    def handle(route):
+        if route.request.method == "PUT":
+            calls["n"] += 1
+            if calls["n"] == 1:
+                route.fulfill(status=500, body="{}", content_type="application/json")
+                return
+        route.continue_()
+
+    page.route("**/api/trainings/*/logs/partial", handle)
+
+    page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
+    page.get_by_role("button", name="Hecho").first.click()
+
+    # The first save fails → the error indicator shows.
+    expect(page.get_by_text("Error al guardar", exact=True)).to_be_visible()
+
+    # The retry loop resends the latest snapshot and succeeds → "Guardado", and the
+    # draft is now persisted (one complete=false row).
+    expect(page.get_by_text("Guardado", exact=True)).to_be_visible(timeout=15000)
+
+    def one_partial() -> bool:
+        return _session_log_rows(_db_engine, str(training.id)) == [False]
+
+    for _ in range(50):
+        if one_partial():
+            break
+        page.wait_for_timeout(100)
+    assert one_partial(), _session_log_rows(_db_engine, str(training.id))

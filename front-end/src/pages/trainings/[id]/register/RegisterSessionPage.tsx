@@ -26,6 +26,8 @@ interface NamedItem {
 const SAVE_DEBOUNCE_MS = 800
 // How long the "Guardado" confirmation lingers before fading back to idle.
 const SAVED_VISIBLE_MS = 2000
+// Interval between retries after a failed save (one global loop, latest snapshot).
+const SAVE_RETRY_MS = 5000
 
 // Auto-save lifecycle shown by the indicator: nothing pending, in-flight, done, failed.
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
@@ -143,6 +145,21 @@ function RegisterSessionPage() {
   // mid-workout) can trust their progress is being saved.
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
 
+  // --- Auto-save machinery (see runSave/scheduleSave/scheduleRetry below) ---
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // The latest form snapshot, read at save time so a retry always sends current state
+  // (not the state that failed). Updated in lockstep with `entries`.
+  const latestEntriesRef = useRef<Record<string, SeriesEntryState>>({})
+  // The in-flight PUT (or null): lets us serialize a clear/submit behind it, and avoid
+  // overlapping saves.
+  const inFlightRef = useRef<Promise<void> | null>(null)
+  // A save requested while one was in flight — re-run once it settles.
+  const dirtyRef = useRef(false)
+  // Set by clear/submit: no new save may start, and any in-flight/queued save must not
+  // touch status or reschedule a retry (its write would resurrect a just-removed draft).
+  const savesSuspendedRef = useRef(false)
+
   // "Guardado" is a fleeting confirmation — fade it back to idle after a moment.
   // "Guardando" and "Error al guardar" persist (an error shouldn't vanish on its own).
   useEffect(() => {
@@ -150,6 +167,14 @@ function RegisterSessionPage() {
     const id = setTimeout(() => setSaveStatus('idle'), SAVED_VISIBLE_MS)
     return () => clearTimeout(id)
   }, [saveStatus])
+
+  // On unmount, stop the debounce + retry timers so they don't fire on a gone page.
+  useEffect(() => {
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current)
+      if (retryTimer.current) clearTimeout(retryTimer.current)
+    }
+  }, [])
 
   // The full session structure (blocks/items + prescription) and the log-form
   // (per-exercise alternatives + parameters). Merged by exercise id.
@@ -187,6 +212,13 @@ function RegisterSessionPage() {
     setEntries(initial)
     setResumed(hasPartial)
   }
+
+  // Mirror the latest committed entries into a ref, so a retry (which fires later, off
+  // a timer) always reads the current snapshot rather than the state that failed. Ref
+  // writes belong in an effect, not render.
+  useEffect(() => {
+    latestEntriesRef.current = entries
+  }, [entries])
 
   // Pre-select the recommended week once the form loads (resynced if it changes);
   // tracked separately so a manual choice isn't clobbered on re-render.
@@ -226,40 +258,97 @@ function RegisterSessionPage() {
   }
 
   // Auto-save the partial log on every change, so progress survives a phone lock +
-  // page reload. Debounced so rapid edits (typing a parameter) collapse into one PUT,
-  // and only touched items (done/skipped, or with a recorded value) are sent — pending
-  // ones are omitted so they don't come back as "skipped". The PUT upserts the draft.
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  function scheduleSave(nextEntries: Record<string, SeriesEntryState>) {
+  // page reload. Only touched items (done/skipped, or with a recorded value) are sent —
+  // pending ones are omitted so they don't come back as "skipped". The PUT upserts the
+  // draft. See runSave for the debounce / retry / single-flight machinery.
+  function touchedEntries(source: Record<string, SeriesEntryState>): ItemResponse[] {
+    return seriesItems.filter((item) => {
+      const state = source[item.id]
+      return (
+        state != null &&
+        (state.action !== 'pending' ||
+          Object.values(state.paramValues).some((value) => value.trim() !== ''))
+      )
+    })
+  }
+
+  function clearRetry() {
+    if (retryTimer.current) {
+      clearTimeout(retryTimer.current)
+      retryTimer.current = null
+    }
+  }
+
+  // One global retry loop: after a failed save, retry the LATEST snapshot on an interval
+  // until it succeeds (or a clear/submit suspends saving). If a retry is already pending
+  // we leave it — edits don't spawn their own cycles; the single timer picks up the
+  // latest state when it fires.
+  function scheduleRetry() {
+    if (retryTimer.current || savesSuspendedRef.current) return
+    retryTimer.current = setTimeout(() => {
+      retryTimer.current = null
+      void runSave()
+    }, SAVE_RETRY_MS)
+  }
+
+  // Persist the latest snapshot. Single-flight: if a PUT is already in flight, mark dirty
+  // and let it re-run on settle, so we never fire overlapping PUTs and the last write
+  // wins. Failure starts/continues the retry loop; success stops it.
+  async function runSave(): Promise<void> {
+    if (savesSuspendedRef.current) return
+    if (inFlightRef.current) {
+      dirtyRef.current = true
+      return
+    }
+    const touched = touchedEntries(latestEntriesRef.current)
+    // Nothing meaningful yet → don't create an empty draft.
+    if (touched.length === 0) return
+    setSaveStatus('saving')
+    const promise = api
+      .PUT('/trainings/{training_id}/logs/partial', {
+        params: { path: { training_id: trainingId } },
+        body: {
+          entries: touched.map((item) => entryPayload(item, latestEntriesRef.current[item.id])),
+        },
+      })
+      .then(({ error: putError }) => {
+        if (savesSuspendedRef.current) return
+        if (putError) {
+          setSaveStatus('error')
+          scheduleRetry()
+        } else {
+          setSaveStatus('saved')
+          clearRetry()
+        }
+      })
+      .catch(() => {
+        if (savesSuspendedRef.current) return
+        setSaveStatus('error')
+        scheduleRetry()
+      })
+    inFlightRef.current = promise
+    await promise
+    inFlightRef.current = null
+    // Coalesced edits during the flight → save again with the newest snapshot.
+    if (!savesSuspendedRef.current && dirtyRef.current) {
+      dirtyRef.current = false
+      void runSave()
+    }
+  }
+
+  // Debounced entry point: collapse rapid edits (e.g. typing a weight) into one PUT.
+  function scheduleSave() {
     if (saveTimer.current) clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(() => {
-      const touched = seriesItems.filter((item) => {
-        const state = nextEntries[item.id]
-        return (
-          state != null &&
-          (state.action !== 'pending' ||
-            Object.values(state.paramValues).some((value) => value.trim() !== ''))
-        )
-      })
-      // Nothing meaningful yet → don't create an empty draft.
-      if (touched.length === 0) return
-      setSaveStatus('saving')
-      void api
-        .PUT('/trainings/{training_id}/logs/partial', {
-          params: { path: { training_id: trainingId } },
-          body: { entries: touched.map((item) => entryPayload(item, nextEntries[item.id])) },
-        })
-        .then(({ error: putError }) => setSaveStatus(putError ? 'error' : 'saved'))
-        .catch(() => setSaveStatus('error'))
+      saveTimer.current = null
+      void runSave()
     }, SAVE_DEBOUNCE_MS)
   }
 
   function setEntry(itemId: string, state: SeriesEntryState) {
-    setEntries((prev) => {
-      const next = { ...prev, [itemId]: state }
-      scheduleSave(next)
-      return next
-    })
+    setEntries((prev) => ({ ...prev, [itemId]: state }))
+    // The effect syncing `latestEntriesRef` commits before this debounced save fires.
+    scheduleSave()
   }
 
   // All series items in order (for building the submission).
@@ -296,11 +385,22 @@ function RegisterSessionPage() {
   const materials = neededAcrossExercises((source) => source.gym_materials)
   const facilities = neededAcrossExercises((source) => source.gym_facilities)
 
+  // Stop all auto-saving/retrying and wait for any in-flight PUT to finish, so a
+  // subsequent submit/clear (POST/DELETE) is guaranteed to be the last write — no late
+  // PUT can resurrect a draft the server just superseded or removed. Idempotent.
+  async function suspendSaves() {
+    savesSuspendedRef.current = true
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    saveTimer.current = null
+    clearRetry()
+    dirtyRef.current = false
+    if (inFlightRef.current) await inFlightRef.current
+  }
+
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
-    // Cancel any pending auto-save — submitting supersedes (and deletes) the draft, so
-    // a late PUT mustn't recreate it after the server drops it.
-    if (saveTimer.current) clearTimeout(saveTimer.current)
+    // Submitting supersedes the draft server-side; make sure no auto-save races it.
+    await suspendSaves()
     setSubmitting(true)
     setRootError(undefined)
 
@@ -316,6 +416,8 @@ function RegisterSessionPage() {
     })
     setSubmitting(false)
     if (postError) {
+      // Let the athlete edit + auto-save again if the submit itself failed.
+      savesSuspendedRef.current = false
       setRootError(errorMessage(postError))
       return
     }
@@ -326,14 +428,17 @@ function RegisterSessionPage() {
   // "Start over": discard the in-progress draft and reset the form to pending.
   const [clearing, setClearing] = useState(false)
   async function handleClearPartial() {
-    // Cancel any pending auto-save so it can't resurrect the draft after we delete it.
-    if (saveTimer.current) clearTimeout(saveTimer.current)
+    // Suspend saves (and drain any in-flight one) so nothing recreates the draft after
+    // we delete it.
+    await suspendSaves()
     setClearing(true)
     const { error: deleteError } = await api.DELETE('/trainings/{training_id}/logs/partial', {
       params: { path: { training_id: trainingId } },
     })
     setClearing(false)
     if (deleteError) {
+      // Deletion failed — resume saving so the athlete isn't stuck.
+      savesSuspendedRef.current = false
       toast.error(errorMessage(deleteError))
       return
     }
@@ -341,6 +446,8 @@ function RegisterSessionPage() {
     setNote('')
     setResumed(false)
     setSaveStatus('idle')
+    // A fresh draft may be created again from the next edit.
+    savesSuspendedRef.current = false
     toast.success('Progreso descartado.')
   }
 
