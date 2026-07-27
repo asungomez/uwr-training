@@ -2279,6 +2279,8 @@ export interface components {
              * Format: uuid
              */
             planned_exercise_id: string;
+            /** Training Item Id */
+            training_item_id?: string | null;
             /**
              * Action
              * @enum {string}
@@ -2297,6 +2299,8 @@ export interface components {
             /** Id */
             id: string | null;
             action: components["schemas"]["SessionLogAction"];
+            /** Training Item Id */
+            training_item_id: string | null;
             /** Planned Exercise Id */
             planned_exercise_id: string | null;
             /** Planned Exercise Name */

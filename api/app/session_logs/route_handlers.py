@@ -169,6 +169,7 @@ def _build_entries(
                 SessionLogEntry(
                     position=position,
                     action=SessionLogAction.skipped,
+                    training_item_id=entry.training_item_id,
                     planned_exercise_id=planned.id,
                 )
             )
@@ -213,6 +214,7 @@ def _build_entries(
             SessionLogEntry(
                 position=position,
                 action=SessionLogAction.done,
+                training_item_id=entry.training_item_id,
                 planned_exercise_id=planned.id,
                 performed_exercise_id=performed.id,
                 parameter_values=values,
@@ -245,6 +247,7 @@ def _serialize_log(log: SessionLog) -> SessionLogResponse:
             LogEntryResponse(
                 id=entry.id,
                 action=entry.action,
+                training_item_id=entry.training_item_id,
                 planned_exercise_id=entry.planned_exercise_id,
                 planned_exercise_name=entry.planned_exercise.name,
                 performed_exercise_id=entry.performed_exercise_id,

@@ -102,6 +102,9 @@ class LogEntryInput(BaseModel):
 
     # The series item's prescribed exercise (validates the item + the swap).
     planned_exercise_id: uuid.UUID
+    # Which training item (slot) this logs — a pre-fill hint so a resumed partial maps
+    # back to the exact slot when an exercise repeats. Optional; server stores it as-is.
+    training_item_id: uuid.UUID | None = None
     action: Literal["done", "skipped"]
     # Required when action == done; ignored when skipped.
     performed_exercise_id: uuid.UUID | None = None
@@ -146,6 +149,9 @@ class LogParameterValueResponse(BaseModel):
 class LogEntryResponse(BaseModel):
     id: uuid.UUID
     action: SessionLogAction
+    # The training item (slot) this entry logs, for pre-filling a resumed partial. Null
+    # for logs created before this was tracked.
+    training_item_id: uuid.UUID | None
     planned_exercise_id: uuid.UUID
     planned_exercise_name: str
     performed_exercise_id: uuid.UUID | None
@@ -153,7 +159,7 @@ class LogEntryResponse(BaseModel):
     is_alternative: bool
     parameter_values: list[LogParameterValueResponse] = []
 
-    @field_serializer("id", "planned_exercise_id", "performed_exercise_id")
+    @field_serializer("id", "training_item_id", "planned_exercise_id", "performed_exercise_id")
     def serialize_ids(self, value: uuid.UUID | None) -> str | None:
         return str(value) if value is not None else None
 

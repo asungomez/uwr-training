@@ -590,3 +590,70 @@ def test_db_enforces_one_partial_per_session(
     add_log(complete=True)
 
     assert sorted(_session_log_rows(_db_engine, str(training.id))) == [False, True, True]
+
+
+def test_repeated_exercise_prefills_the_touched_slot(
+    page: Page,
+    app_url: str,
+    create_user: Callable[..., User],
+    create_exercise: Callable[..., Exercise],
+    create_training: Callable[..., TrainingSession],
+    log_in_as: Callable[[User], None],
+) -> None:
+    # A pool-style session with the same exercise in two slots. Touching ONLY the
+    # second occurrence must, on reload, restore the second — not the first (the old
+    # by-exercise-order matching would have mislabeled it). training_item_id fixes this.
+    member = create_user(role="member", email="member@example.com")
+    swim = create_exercise(name="Cuartos", type="pool")
+    training = create_training(
+        title="Repeticiones piscina",
+        category="pool",
+        subtype="endurance",
+        blocks=[
+            TrainingBlock(
+                name="Bloque 1",
+                position=0,
+                sub_blocks=[
+                    TrainingSubBlock(
+                        name="Sub 1",
+                        position=0,
+                        items=[
+                            TrainingItem(
+                                kind=TrainingItemKind.series, position=0, exercise_id=swim.id
+                            )
+                        ],
+                    )
+                ],
+            ),
+            TrainingBlock(
+                name="Bloque 2",
+                position=1,
+                sub_blocks=[
+                    TrainingSubBlock(
+                        name="Sub 2",
+                        position=0,
+                        items=[
+                            TrainingItem(
+                                kind=TrainingItemKind.series, position=0, exercise_id=swim.id
+                            )
+                        ],
+                    )
+                ],
+            ),
+        ],
+    )
+    log_in_as(member)
+
+    page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
+    # Two "Hecho" buttons (one per slot). Mark ONLY the second done.
+    done_buttons = page.get_by_role("button", name="Hecho")
+    expect(done_buttons).to_have_count(2)
+    done_buttons.nth(1).click()
+    expect(page.get_by_text("Guardado", exact=True)).to_be_visible(timeout=3000)
+
+    # Reopen: the SECOND slot is done, the FIRST is still pending.
+    page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
+    expect(page.get_by_text("Seguimos donde lo dejaste", exact=False)).to_be_visible()
+    done_buttons = page.get_by_role("button", name="Hecho")
+    expect(done_buttons.nth(0)).to_have_attribute("aria-pressed", "false")
+    expect(done_buttons.nth(1)).to_have_attribute("aria-pressed", "true")

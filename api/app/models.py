@@ -607,6 +607,13 @@ class SessionLogEntry(Base):
     )
     position: Mapped[int]
     action: Mapped[SessionLogAction]
+    # Which training item (slot) this entry logs. A plain id, not an FK: it's only a
+    # pre-fill hint so a resumed partial maps each entry back to its exact slot (needed
+    # when the same exercise repeats across blocks/sub-blocks). The backend never joins
+    # on it and validates by planned_exercise_id; a stale id (after a training edit
+    # regenerates item ids) simply won't match and falls back to by-exercise order.
+    # Nullable for logs created before this column existed.
+    training_item_id: Mapped[uuid.UUID | None] = mapped_column(default=None)
     # The prescribed exercise for this item.
     planned_exercise_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("exercises.id", ondelete="CASCADE"), index=True
