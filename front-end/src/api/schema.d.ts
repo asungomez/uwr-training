@@ -526,8 +526,8 @@ export interface paths {
         };
         /**
          * List Cardio Trainings
-         * @description All cardio trainings, filterable by title search and subtype. Visible to
-         *     any authenticated user.
+         * @description All cardio trainings, filterable by title search and subtype. Each carries when
+         *     the requesting athlete last logged it. Visible to any authenticated user.
          */
         get: operations["list_cardio_trainings_cardio_trainings_get"];
         put?: never;
@@ -1662,6 +1662,8 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Last Performed At */
+            last_performed_at?: string | null;
             /**
              * Items
              * @default []
@@ -1685,6 +1687,8 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Last Performed At */
+            last_performed_at?: string | null;
         };
         /**
          * CreateBodyweightLogRequest

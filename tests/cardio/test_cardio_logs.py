@@ -58,6 +58,38 @@ def test_log_cardio_session_with_activity_and_note(
     expect(page.get_by_text("5km suaves")).to_be_visible()
 
 
+def test_list_shows_last_done_after_logging(
+    page: Page,
+    app_url: str,
+    create_user: Callable[..., User],
+    create_cardio_training: Callable[..., CardioTraining],
+    log_in_as: Callable[[User], None],
+) -> None:
+    # The cardio subtype list, like gym/pool, marks a session with "Última vez" once
+    # the athlete has logged it.
+    member = create_user(role="member", email="member@example.com")
+    create_cardio_training(title="Bici suave", subtype="aerobic")
+    log_in_as(member)
+
+    # Before logging, the row shows no "Última vez".
+    page.goto(f"{app_url}/entrenamientos/cardio/aerobico")
+    row = page.get_by_role("listitem").filter(has_text="Bici suave")
+    expect(row).to_be_visible()
+    expect(row.get_by_text("Última vez", exact=False)).to_have_count(0)
+
+    # Log the session.
+    row.get_by_text("Bici suave").click()
+    page.get_by_role("link", name="Empezar").click()
+    page.wait_for_url("**/registrar")
+    page.get_by_role("button", name="Finalizar sesión").click()
+    expect(page.get_by_role("status").filter(has_text="Sesión registrada.")).to_be_visible()
+
+    # Back on the subtype list, the row now shows when it was last done.
+    page.goto(f"{app_url}/entrenamientos/cardio/aerobico")
+    row = page.get_by_role("listitem").filter(has_text="Bici suave")
+    expect(row.get_by_text("Última vez", exact=False)).to_be_visible()
+
+
 def test_register_offers_only_matching_weeks(
     page: Page,
     app_url: str,

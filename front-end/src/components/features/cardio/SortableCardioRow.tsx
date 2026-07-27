@@ -1,12 +1,16 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical } from 'lucide-react'
+import { CalendarCheck, GripVertical } from 'lucide-react'
 
 import type { components } from '@/api/schema'
 
 type CardioTraining = components['schemas']['CardioTrainingResponse']
 
 const BLANK = 'Sin título'
+
+function formatLastDone(value: string): string {
+  return new Date(value).toLocaleDateString('es-ES', { dateStyle: 'long' })
+}
 
 interface SortableCardioRowProps {
   training: CardioTraining
@@ -59,9 +63,17 @@ function SortableCardioRow({
       <button
         type="button"
         onClick={onOpen}
-        className="flex-1 py-4 pr-4 pl-3 text-left font-medium text-slate-100 focus:outline-none"
+        className="flex flex-1 flex-col gap-0.5 py-4 pr-4 pl-3 text-left focus:outline-none"
       >
-        {training.title ?? <span className="text-slate-500">{BLANK}</span>}
+        <span className="font-medium text-slate-100">
+          {training.title ?? <span className="text-slate-500">{BLANK}</span>}
+        </span>
+        {training.last_performed_at && (
+          <span className="inline-flex items-center gap-1.5 text-sm text-slate-400">
+            <CalendarCheck size={13} className="text-emerald-400" />
+            Última vez: {formatLastDone(training.last_performed_at)}
+          </span>
+        )}
       </button>
     </li>
   )

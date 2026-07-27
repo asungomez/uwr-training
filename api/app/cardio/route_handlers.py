@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
@@ -23,6 +24,7 @@ from app.models import (
     CardioIntervalKind,
     CardioItem,
     CardioItemKind,
+    CardioSessionLog,
     CardioSubtype,
     CardioTraining,
     User,
@@ -89,12 +91,12 @@ async def _load_with_items(session: AsyncSession, training_id: uuid.UUID) -> Car
 
 @router.get("")
 async def list_cardio_trainings(
-    _user: Annotated[User, Depends(current_user)],
+    user: Annotated[User, Depends(current_user)],
     session: Annotated[AsyncSession, Depends(get_session)],
     params: Annotated[CardioListParams, Query()],
 ) -> Page[CardioTrainingResponse]:
-    """All cardio trainings, filterable by title search and subtype. Visible to
-    any authenticated user."""
+    """All cardio trainings, filterable by title search and subtype. Each carries when
+    the requesting athlete last logged it. Visible to any authenticated user."""
     filters: list[ColumnElement[bool]] = []
     if params.search:
         filters.append(CardioTraining.title.ilike(f"%{params.search.strip()}%"))
@@ -102,17 +104,39 @@ async def list_cardio_trainings(
         filters.append(CardioTraining.subtype == params.subtype)
 
     total = await session.scalar(select(func.count()).select_from(CardioTraining).where(*filters))
-    rows = await session.scalars(
-        select(CardioTraining)
-        .where(*filters)
-        .order_by(CardioTraining.position)
-        .offset(params.offset)
-        .limit(params.page_size)
+    rows = list(
+        await session.scalars(
+            select(CardioTraining)
+            .where(*filters)
+            .order_by(CardioTraining.position)
+            .offset(params.offset)
+            .limit(params.page_size)
+        )
     )
-    return Page(
-        items=[CardioTrainingResponse.model_validate(row) for row in rows.all()],
-        total_count=total or 0,
-    )
+
+    # When the current athlete last logged each of these sessions (one grouped query).
+    last_performed: dict[uuid.UUID, datetime] = {}
+    if rows:
+        result = await session.execute(
+            select(
+                CardioSessionLog.cardio_training_id,
+                func.max(CardioSessionLog.performed_at).label("last_performed_at"),
+            )
+            .where(
+                CardioSessionLog.athlete_id == user.id,
+                CardioSessionLog.cardio_training_id.in_([row.id for row in rows]),
+            )
+            .group_by(CardioSessionLog.cardio_training_id)
+        )
+        for cardio_training_id, performed_at in result.all():
+            last_performed[cardio_training_id] = performed_at
+
+    items = []
+    for row in rows:
+        item = CardioTrainingResponse.model_validate(row)
+        item.last_performed_at = last_performed.get(row.id)
+        items.append(item)
+    return Page(items=items, total_count=total or 0)
 
 
 @router.get("/{training_id}", response_model=CardioTrainingDetailResponse)
