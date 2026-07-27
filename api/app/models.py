@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, UniqueConstraint, func
+from sqlalchemy import DateTime, ForeignKey, Index, UniqueConstraint, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -550,6 +550,18 @@ class SessionLog(Base):
     and an optional note. Cascades away if the session is deleted."""
 
     __tablename__ = "session_logs"
+    # At most one in-progress (partial) draft per athlete+session, enforced in the DB so
+    # concurrent auto-saves can't create duplicates. Completed logs are unconstrained
+    # (an athlete performs a session many times), hence the partial WHERE clause.
+    __table_args__ = (
+        Index(
+            "uq_session_log_one_partial_per_session",
+            "athlete_id",
+            "training_session_id",
+            unique=True,
+            postgresql_where=text("complete = false"),
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     training_session_id: Mapped[uuid.UUID] = mapped_column(

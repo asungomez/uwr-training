@@ -549,3 +549,44 @@ def test_flush_saves_pending_edit_when_page_hidden(
     # The flush persists the typed value: reopening the page restores 83kg.
     page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
     expect(page.get_by_label("Peso", exact=False)).to_have_value("83kg")
+
+
+def test_db_enforces_one_partial_per_session(
+    _db_engine: sqlalchemy.Engine,
+    create_user: Callable[..., User],
+    create_exercise: Callable[..., Exercise],
+    create_training: Callable[..., TrainingSession],
+) -> None:
+    # A partial unique index guarantees at most one in-progress draft per athlete +
+    # session (a DB backstop against concurrent auto-saves), while completed logs stay
+    # unconstrained (a session is performed many times).
+    import sqlalchemy.exc
+    from sqlalchemy.orm import Session
+
+    from app.models import SessionLog
+
+    member = create_user(role="member", email="member@example.com")
+    training = _make_training(create_exercise, create_training)
+
+    def add_log(*, complete: bool) -> None:
+        with Session(_db_engine, expire_on_commit=False) as session:
+            session.add(
+                SessionLog(
+                    training_session_id=training.id, athlete_id=member.id, complete=complete
+                )
+            )
+            session.commit()
+
+    # First partial is fine; a second partial for the same athlete+session is rejected.
+    add_log(complete=False)
+    try:
+        add_log(complete=False)
+        raise AssertionError("expected the partial unique index to reject a second draft")
+    except sqlalchemy.exc.IntegrityError:
+        pass
+
+    # Completed logs are unconstrained — an athlete performs the session repeatedly.
+    add_log(complete=True)
+    add_log(complete=True)
+
+    assert sorted(_session_log_rows(_db_engine, str(training.id))) == [False, True, True]
