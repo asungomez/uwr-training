@@ -105,6 +105,7 @@ jobs:
             --stack-name "$STACK_NAME" \
             --template-file "$TEMPLATE" \
             --no-fail-on-empty-changeset \
+            --capabilities CAPABILITY_NAMED_IAM \
             --parameter-overrides \
               VpcId="$VPC_ID" \
               SubnetIds="$SUBNET_IDS" \
