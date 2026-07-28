@@ -234,6 +234,23 @@ Resources:
     Properties:
       RepositoryName: !Sub "${AWS::StackName}-api"
       ImageTagMutability: MUTABLE
+      # Lambda pulls the image as the `lambda.amazonaws.com` service principal, not as the
+      # account — so the repo must explicitly grant it pull access, or the function fails
+      # to create with "Lambda does not have permission to access the ECR image". Scoped
+      # to this account's functions via SourceAccount.
+      RepositoryPolicyText:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: LambdaECRImageRetrieval
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action:
+              - ecr:BatchGetImage
+              - ecr:GetDownloadUrlForLayer
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
       # Keep only the few most recent images so untagged layers don't accrue storage cost.
       LifecyclePolicy:
         LifecyclePolicyText: |

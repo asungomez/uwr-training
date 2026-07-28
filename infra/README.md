@@ -99,6 +99,8 @@ shouldn't be able to grant itself more power than it already has).
         "ecr:DescribeImages",
         "ecr:PutLifecyclePolicy",
         "ecr:GetLifecyclePolicy",
+        "ecr:SetRepositoryPolicy",
+        "ecr:GetRepositoryPolicy",
         "ecr:TagResource",
         "ecr:GetAuthorizationToken",
         "ecr:BatchCheckLayerAvailability",
