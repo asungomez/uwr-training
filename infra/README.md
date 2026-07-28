@@ -70,7 +70,7 @@ shouldn't be able to grant itself more power than it already has).
       "Resource": "*"
     },
     {
-      "Sid": "Ec2SecurityGroupAndVpcLookups",
+      "Sid": "Ec2SecurityGroupAndVpc",
       "Effect": "Allow",
       "Action": [
         "ec2:CreateSecurityGroup",
@@ -84,9 +84,85 @@ shouldn't be able to grant itself more power than it already has).
         "ec2:DescribeVpcs",
         "ec2:DescribeSubnets",
         "ec2:CreateTags",
-        "ec2:DeleteTags"
+        "ec2:DeleteTags",
+        "ec2:DescribeNetworkInterfaces"
       ],
       "Resource": "*"
+    },
+    {
+      "Sid": "EcrPushPull",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:CreateRepository",
+        "ecr:DeleteRepository",
+        "ecr:DescribeRepositories",
+        "ecr:DescribeImages",
+        "ecr:PutLifecyclePolicy",
+        "ecr:GetLifecyclePolicy",
+        "ecr:TagResource",
+        "ecr:GetAuthorizationToken",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:CompleteLayerUpload",
+        "ecr:PutImage",
+        "ecr:BatchGetImage",
+        "ecr:GetDownloadUrlForLayer"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "LambdaAndApiGateway",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:CreateFunction",
+        "lambda:UpdateFunctionCode",
+        "lambda:UpdateFunctionConfiguration",
+        "lambda:DeleteFunction",
+        "lambda:GetFunction",
+        "lambda:GetFunctionConfiguration",
+        "lambda:ListVersionsByFunction",
+        "lambda:AddPermission",
+        "lambda:RemovePermission",
+        "lambda:GetPolicy",
+        "lambda:TagResource",
+        "lambda:UntagResource",
+        "apigateway:GET",
+        "apigateway:POST",
+        "apigateway:PUT",
+        "apigateway:PATCH",
+        "apigateway:DELETE"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CloudWatchLogs",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:DeleteLogGroup",
+        "logs:DescribeLogGroups",
+        "logs:PutRetentionPolicy",
+        "logs:TagResource",
+        "logs:ListTagsForResource"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "IamForLambdaExecutionRole",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole",
+        "iam:DeleteRole",
+        "iam:GetRole",
+        "iam:TagRole",
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy",
+        "iam:ListRolePolicies",
+        "iam:ListAttachedRolePolicies",
+        "iam:PassRole"
+      ],
+      "Resource": "arn:aws:iam::*:role/uwr-training-*"
     }
   ]
 }
@@ -97,14 +173,21 @@ What it allows, and why:
 - **CloudFormation** — create/update/delete the stack and use change sets.
 - **RDS** — create/modify/delete the DB instance and subnet group, take snapshots
   (the template's `DeletionPolicy: Snapshot`), and tag resources.
-- **EC2 (security groups + VPC read)** — the template creates a security group and
-  needs to read your VPC/subnets. No instance/network *creation* is granted.
+- **EC2 (security groups + VPC read)** — create the DB + Lambda security groups and read
+  the VPC/subnets. No instance creation is granted. (When media/S3 is added, this will
+  also need VPC-endpoint actions for the S3 gateway endpoint.)
+- **ECR** — create the image repository and push/pull the API image.
+- **Lambda + API Gateway** — create/update the API function and its HTTP API.
+- **CloudWatch Logs** — create the function's log group with a retention policy.
+- **IAM** — create and pass the Lambda's execution role. This is the one privileged
+  addition: it's **scoped to `role/uwr-training-*`** so the deploy user can only manage
+  roles for this project, not arbitrary ones — it can't grant itself broader access.
 
-Actions use `Resource: "*"` because CloudFormation creates resources with
-CloudFormation-generated names that aren't known ahead of time, and RDS/EC2 tag and
-security-group APIs don't all support resource-level scoping cleanly. It's still
-scoped by **action** — this user can't touch IAM, S3, Lambda, etc. Tighten to specific
-ARNs later if you want; it's not required to get going.
+Most actions use `Resource: "*"` because CloudFormation names resources with generated
+identifiers not known ahead of time, and many of these tag/describe APIs don't support
+resource-level scoping cleanly. The sensitive exception — `iam:*` — **is** ARN-scoped to
+this project's role prefix. Everything else is bounded by **action**: no S3 data access,
+no arbitrary IAM, etc. Tighten further to specific ARNs later if you want.
 
 ### 2. Create the user
 
@@ -138,19 +221,44 @@ Repo → **Settings** → **Secrets and variables** → **Actions** → **New re
   `203.0.113.4/32`). Omit and it defaults to a non-routable placeholder so nothing is
   exposed. **Never `0.0.0.0/0`.**
 
+For the **API Lambda** (used once the API deploy runs — see below):
+
+- `APP_SECRET_KEY` — signs session-cookie JWTs (`NoEcho`). Generate once and keep stable
+  so existing sessions survive redeploys.
+
+(No S3 or CORS secrets yet — media isn't wired up, and CORS will come from the in-stack
+front-end's URL once that's added. See the parameters note in `stack.yaml`.)
+
 ## Deploying
 
-The `.github/workflows/deploy-infra.yml` workflow runs the deploy — **manual only**
-(Actions tab → *Deploy infrastructure* → *Run workflow*). Infra changes shouldn't fire on
-every push, and the DB is stateful. It:
+Two **manual** workflows (Actions tab → *Run workflow*), both targeting the same stack:
 
-1. Configures AWS credentials from the secrets above.
-2. Validates the template.
-3. Discovers the **default VPC + its subnets** with read-only EC2 calls, so no VPC/subnet
-   IDs are ever hand-entered.
-4. Runs `aws cloudformation deploy` against `infra/stack.yaml` (idempotent — safe to
-   re-run; `--no-fail-on-empty-changeset` makes a no-op deploy succeed).
-5. Prints the stack outputs (DB endpoint, port, name).
+**`deploy-infra.yml`** — the DB/ECR/networking side. Configures credentials, discovers
+the default VPC + subnets (no IDs hand-entered), reads the currently-live `ApiImageUri`
+so it isn't reset, and runs `aws cloudformation deploy` (idempotent;
+`--no-fail-on-empty-changeset`). Run it for the initial bootstrap and whenever the
+template's DB/networking changes.
+
+**`deploy-api.yml`** — the API side. Reads the ECR repo from the stack, builds
+`docker/dockerfiles/lambda.Dockerfile`, pushes it, then deploys with `ApiImageUri` set to
+the pushed **digest** (immutable — CloudFormation reliably sees the change). Run it to
+ship API code changes. Prints the API URL to test.
+
+Both share a `concurrency` group so they can't run at once (they mutate the same stack).
+
+> **Why both pass every parameter:** `aws cloudformation deploy` resets any parameter you
+> omit back to its template default. So each workflow passes the full set — `deploy-api`
+> owns `ApiImageUri`; `deploy-infra` preserves it by reading the live value. `NoEcho`
+> params (`MasterUserPassword`, `SecretKey`) can't be read back, so they always come from
+> secrets in both.
+
+### First-time order
+
+1. Set the secrets above (at minimum the AWS creds, `AWS_REGION`, `DB_MASTER_PASSWORD`;
+   add `APP_SECRET_KEY` before the API deploy).
+2. Run **Deploy infrastructure** — bootstraps the DB + ECR repo (no image yet).
+3. Run **Migrate database** — creates the schema (see below).
+4. Run **Deploy API** — builds/pushes the image and brings up the Lambda + HTTP API.
 
 ## Migrations
 
@@ -184,9 +292,24 @@ The workflow fills these in; you don't set them by hand.
 | `SubnetIds` | Auto-resolved to the default VPC's subnets — one per AZ, satisfying RDS's two-AZ requirement. |
 | `MasterUserPassword` | From the `DB_MASTER_PASSWORD` secret; `NoEcho`. |
 | `AllowedCidr` | From the optional `DB_ALLOWED_CIDR` secret; defaults to a non-routable placeholder. **Never `0.0.0.0/0`.** |
-| `PubliclyAccessible` | `true` for now so migrations can run before there's AWS compute; flip to `false` once the app runs inside the VPC. |
+| `PubliclyAccessible` | `true` for now so migrations run from the CI runner; the Lambda reaches the DB privately regardless. Flip to `false` later to fully close it. |
 | `InstanceClass` | `db.t4g.micro` (default, cheapest Free-Tier). `db.t3.micro` fallback if t4g is unavailable in your region. |
 | `DeletionProtection` | `false` while experimenting; `true` for anything real. |
+| `ApiImageUri` | ECR image the API Lambda runs. **Empty on the first deploy** (creates ECR + DB only); set by the API deploy after an image is pushed, which brings up the Lambda + HTTP API. |
+| `SecretKey` | API Lambda's JWT signing key, from the `APP_SECRET_KEY` secret. Only needed once `ApiImageUri` is set. |
+
+## The API is a two-phase deploy (chicken-and-egg)
+
+The Lambda needs an image, but the ECR repo to push the image to lives in the same
+stack. So the API comes up in two passes:
+
+1. **Bootstrap** — deploy with `ApiImageUri` empty. The `HasImage` condition skips the
+   Lambda/HTTP API but creates the **ECR repo** (and the DB). This is what the current
+   `deploy-infra.yml` does.
+2. **API deploy** (`deploy-api.yml`) — builds the image
+   (`docker/dockerfiles/lambda.Dockerfile`), pushes it to that repo, then deploys again
+   with `ApiImageUri` set to the pushed digest. That brings up the Lambda, its
+   role/log group, the DB ingress rule, and the HTTP API.
 
 ## Notes before the first deploy
 
@@ -194,8 +317,12 @@ The workflow fills these in; you don't set them by hand.
   account still qualifies before relying on "free".
 - **Region:** `db.t4g.micro` isn't offered in every region — the `db.t3.micro` fallback
   covers that.
-- The stack currently builds only the **database**. Compute and networking get added to
-  this same stack in later slices.
-- **VPC cost:** none. RDS is always in a VPC, but a VPC/subnets/security groups are free
-  — only a NAT Gateway bills, and this stack has none. Using the default VPC's public
-  subnets keeps the DB reachable from your laptop (scoped by `AllowedCidr`) with no VPN.
+- The stack builds the **database + API** (RDS, ECR, Lambda, HTTP API). The front-end
+  stays on Render for now and moves to AWS in a later slice.
+- **Cost:** stays in free tier. RDS/subnets/security groups are free; Lambda + HTTP API
+  have generous free tiers (1M requests/mo). No NAT Gateway anywhere — that's the one
+  thing that would bill.
+- **VPC cost:** none. RDS and the Lambda are in the default VPC; a VPC/subnets/SGs are
+  all free. (An S3 gateway endpoint — also free — gets added when media is wired up.)
+- **Media/S3 is not connected yet.** Media endpoints won't work until a bucket is added
+  to this stack; everything else (auth, trainings, logs, tests) works.

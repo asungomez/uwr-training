@@ -1,0 +1,119 @@
+# Builds the API container image, pushes it to the stack's ECR repo, and deploys the
+# CloudFormation stack (infra/stack.yaml) with ApiImageUri pointing at the pushed image
+# — which brings up / updates the API Lambda + HTTP API. Manual-only.
+#
+# Prerequisite: the stack must already exist with its ECR repo (run "Deploy
+# infrastructure" once first — the imageless bootstrap creates the repo).
+#
+# Same-stack note: this and deploy-infra.yml target the SAME stack, and `aws
+# cloudformation deploy` resets any parameter you don't pass to its template default.
+# So this workflow passes the FULL parameter set: it OWNS ApiImageUri (the new image)
+# and SecretKey (from a secret), and re-passes the DB parameters + discovered VPC so
+# they aren't reset. NoEcho params (MasterUserPassword, SecretKey) can't be read back
+# from the stack, so they always come from secrets.
+#
+# Required repo secrets:
+#   AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_REGION  — the scoped CI user
+#   DB_MASTER_PASSWORD                                      — RDS master password
+#   APP_SECRET_KEY                                          — JWT signing key (stable)
+# Optional:
+#   DB_ALLOWED_CIDR — CIDR allowed to reach Postgres; defaults to a closed placeholder.
+name: Deploy API
+
+on:
+  workflow_dispatch: {} # manual runs only
+
+concurrency:
+  group: deploy-infra # share the infra lock — both mutate the same stack
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  STACK_NAME: uwr-training
+  TEMPLATE: infra/stack.yaml
+  DOCKERFILE: docker/dockerfiles/lambda.Dockerfile
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Read stack outputs (ECR repo) and VPC/subnets
+        id: ctx
+        run: |
+          set -euo pipefail
+          repo=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" \
+            --query "Stacks[0].Outputs[?OutputKey=='ApiRepositoryUri'].OutputValue" \
+            --output text 2>/dev/null || true)
+          if [ -z "$repo" ] || [ "$repo" = "None" ]; then
+            echo "::error::ECR repo not found — run 'Deploy infrastructure' once first." >&2
+            exit 1
+          fi
+          vpc_id=$(aws ec2 describe-vpcs --filters Name=isDefault,Values=true \
+            --query 'Vpcs[0].VpcId' --output text)
+          subnet_ids=$(aws ec2 describe-subnets --filters Name=vpc-id,Values="$vpc_id" \
+            --query 'Subnets[].SubnetId' --output text | tr '\t' ',')
+          echo "repo=$repo" >> "$GITHUB_OUTPUT"
+          echo "vpc_id=$vpc_id" >> "$GITHUB_OUTPUT"
+          echo "subnet_ids=$subnet_ids" >> "$GITHUB_OUTPUT"
+          echo "ECR repo: $repo"
+
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push the API image
+        id: build
+        env:
+          REPO: ${{ steps.ctx.outputs.repo }}
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_SHA::12}"
+          docker build -f "$DOCKERFILE" -t "$REPO:$tag" -t "$REPO:latest" .
+          docker push "$REPO:$tag"
+          docker push "$REPO:latest"
+          # Deploy by DIGEST (immutable) rather than tag, so the Lambda always pins the
+          # exact image and CloudFormation reliably detects the change.
+          digest=$(aws ecr describe-images \
+            --repository-name "${REPO##*/}" \
+            --image-ids imageTag="$tag" \
+            --query 'imageDetails[0].imageDigest' --output text)
+          echo "image_uri=${REPO}@${digest}" >> "$GITHUB_OUTPUT"
+          echo "Pushed ${REPO}@${digest}"
+
+      - name: Deploy stack with the new image
+        env:
+          DB_MASTER_PASSWORD: ${{ secrets.DB_MASTER_PASSWORD }}
+          DB_ALLOWED_CIDR: ${{ secrets.DB_ALLOWED_CIDR }}
+          APP_SECRET_KEY: ${{ secrets.APP_SECRET_KEY }}
+          VPC_ID: ${{ steps.ctx.outputs.vpc_id }}
+          SUBNET_IDS: ${{ steps.ctx.outputs.subnet_ids }}
+          IMAGE_URI: ${{ steps.build.outputs.image_uri }}
+        run: |
+          set -euo pipefail
+          aws cloudformation deploy \
+            --stack-name "$STACK_NAME" \
+            --template-file "$TEMPLATE" \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides \
+              VpcId="$VPC_ID" \
+              SubnetIds="$SUBNET_IDS" \
+              MasterUserPassword="$DB_MASTER_PASSWORD" \
+              AllowedCidr="${DB_ALLOWED_CIDR:-127.0.0.1/32}" \
+              ApiImageUri="$IMAGE_URI" \
+              SecretKey="$APP_SECRET_KEY"
+
+      - name: Show the API URL
+        run: |
+          aws cloudformation describe-stacks --stack-name "$STACK_NAME" \
+            --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" --output text

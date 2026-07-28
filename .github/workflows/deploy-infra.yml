@@ -1,11 +1,18 @@
-# Deploys the AWS CloudFormation stack (infra/stack.yaml) — currently just the RDS
-# PostgreSQL database. Manual-only: infrastructure changes shouldn't fire on every
-# push, and the DB is stateful. Run it from the Actions tab when the template changes.
+# Deploys the AWS CloudFormation stack (infra/stack.yaml): the RDS database, the ECR
+# repo, and — once an image exists — the API Lambda + HTTP API. Manual-only: infra
+# changes shouldn't fire on every push, and the DB is stateful.
+#
+# This and the API deploy (deploy-api.yml) target the SAME stack. `aws cloudformation
+# deploy` resets any parameter you DON'T pass to its template default, so both workflows
+# pass the full parameter set. The one value this workflow doesn't own is ApiImageUri
+# (the API deploy sets it), so we read the currently-live value from the stack and pass
+# it back — otherwise re-running this would wipe out a deployed API.
 #
 # Required repo secrets (see infra/README.md for how the IAM user is set up):
 #   AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY  — the scoped `uwr-training-ci` user
 #   AWS_REGION                                 — region to deploy into
 #   DB_MASTER_PASSWORD                         — RDS master password (NoEcho param)
+#   APP_SECRET_KEY                             — JWT signing key (NoEcho); "" pre-API
 # Optional:
 #   DB_ALLOWED_CIDR — CIDR allowed to reach Postgres (e.g. your IP for local debug).
 #                     Defaults to a non-routable placeholder so nothing is exposed.
@@ -67,14 +74,30 @@ jobs:
           echo "Default VPC: $vpc_id"
           echo "Subnets: $subnet_ids"
 
+      - name: Read the live API image (preserve across this deploy)
+        id: img
+        run: |
+          set -euo pipefail
+          # The API deploy owns ApiImageUri; read whatever's live so we pass it back
+          # instead of letting `deploy` reset it to "" (which would remove the API).
+          # Empty string if the stack or the parameter doesn't exist yet.
+          image=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" \
+            --query "Stacks[0].Parameters[?ParameterKey=='ApiImageUri'].ParameterValue" \
+            --output text 2>/dev/null || true)
+          [ "$image" = "None" ] && image=""
+          echo "uri=$image" >> "$GITHUB_OUTPUT"
+          echo "Preserving ApiImageUri: '${image:-<empty>}'"
+
       - name: Deploy stack
-        # Secrets go through env, not inline `${{ }}` interpolation, so a password with
+        # Secrets go through env, not inline `${{ }}` interpolation, so values with
         # shell metacharacters can't break (or inject into) the run command.
         env:
           DB_MASTER_PASSWORD: ${{ secrets.DB_MASTER_PASSWORD }}
           DB_ALLOWED_CIDR: ${{ secrets.DB_ALLOWED_CIDR }}
+          APP_SECRET_KEY: ${{ secrets.APP_SECRET_KEY }}
           VPC_ID: ${{ steps.vpc.outputs.vpc_id }}
           SUBNET_IDS: ${{ steps.vpc.outputs.subnet_ids }}
+          API_IMAGE_URI: ${{ steps.img.outputs.uri }}
         run: |
           set -euo pipefail
           aws cloudformation deploy \
@@ -85,7 +108,9 @@ jobs:
               VpcId="$VPC_ID" \
               SubnetIds="$SUBNET_IDS" \
               MasterUserPassword="$DB_MASTER_PASSWORD" \
-              AllowedCidr="${DB_ALLOWED_CIDR:-127.0.0.1/32}"
+              AllowedCidr="${DB_ALLOWED_CIDR:-127.0.0.1/32}" \
+              ApiImageUri="$API_IMAGE_URI" \
+              SecretKey="${APP_SECRET_KEY:-}"
 
       - name: Show stack outputs
         run: |

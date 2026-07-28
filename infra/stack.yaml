@@ -116,6 +116,42 @@ Parameters:
       the stack can be torn down cheaply; turn "true" for anything real.
     AllowedValues: ["true", "false"]
 
+  # --- API (Lambda + HTTP API) -------------------------------------------------
+  ApiImageUri:
+    Type: String
+    Default: ""
+    Description: >-
+      ECR image URI (with digest or tag) the API Lambda runs. Left empty on the very
+      first deploy so the ECR repo + exec role are created before any image exists;
+      the deploy workflow then pushes the image and redeploys with this set, which
+      brings up the Lambda + HTTP API. Empty = database-and-ECR-only stack.
+
+  SecretKey:
+    Type: String
+    Default: ""
+    Description: >-
+      Signs session-cookie JWTs (app SECRET_KEY). Must be a stable non-empty value once
+      the Lambda is live; passed from a GitHub secret. NoEcho so it's never displayed.
+    NoEcho: true
+
+  # NOTE: no S3 or CORS parameters yet.
+  #  - S3/media: the app runs without S3 configured for now (media endpoints simply
+  #    won't work). A bucket will be added to THIS stack later and wired to the Lambda
+  #    via !Ref/!GetAtt — no NAT/endpoint needed until then, since the Lambda's only
+  #    outbound dependency is the DB (reached privately over the VPC).
+  #  - CORS: the front-end will also be an AWS resource in this stack, so CORS_ORIGINS
+  #    will come from that resource's URL via !GetAtt rather than a parameter. Until it
+  #    exists, the app's localhost default is fine (we test the API directly).
+
+# ---------------------------------------------------------------------------
+# Conditions
+# ---------------------------------------------------------------------------
+Conditions:
+  # The Lambda + HTTP API resources only exist once an image URI is supplied. This lets
+  # the first deploy create the ECR repo (and DB) with no image, so the workflow has a
+  # repo to push to before the function that consumes the image is created.
+  HasImage: !Not [!Equals [!Ref ApiImageUri, ""]]
+
 # ---------------------------------------------------------------------------
 # Resources
 # ---------------------------------------------------------------------------
@@ -188,6 +224,156 @@ Resources:
         - Key: Project
           Value: uwr-training
 
+  # --- Container registry for the API image ----------------------------------
+  # Created on every deploy (even the first, imageless one) so the workflow has a repo
+  # to push to before the Lambda that consumes the image exists.
+  ApiRepository:
+    Type: AWS::ECR::Repository
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      RepositoryName: !Sub "${AWS::StackName}-api"
+      ImageTagMutability: MUTABLE
+      # Keep only the few most recent images so untagged layers don't accrue storage cost.
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Keep only the last 5 images",
+                "selection": {
+                  "tagStatus": "any",
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 5
+                },
+                "action": { "type": "expire" }
+              }
+            ]
+          }
+
+  # --- API Lambda networking + role (only once there's an image to run) --------
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Condition: HasImage
+    Properties:
+      GroupDescription: !Sub "${AWS::StackName} - API Lambda"
+      VpcId: !Ref VpcId
+      # No ingress: nothing connects TO the Lambda (API Gateway invokes it via the AWS
+      # control plane, not the network). Egress stays at the default allow-all so it can
+      # reach the DB and the S3 gateway endpoint.
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-lambda-sg"
+
+  # Let the Lambda reach Postgres. Kept as a separate ingress rule (not inline on the DB
+  # SG) to avoid a circular dependency between the two security groups.
+  DBIngressFromLambda:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: HasImage
+    Properties:
+      GroupId: !Ref DBSecurityGroup
+      IpProtocol: tcp
+      FromPort: 5432
+      ToPort: 5432
+      SourceSecurityGroupId: !Ref LambdaSecurityGroup
+      Description: PostgreSQL from the API Lambda
+
+  # (No S3 VPC endpoint yet.) The Lambda's only outbound dependency right now is the DB,
+  # reached privately within the VPC — no internet route needed, so no NAT and no gateway
+  # endpoint. When media/S3 is added to this stack, add an S3 gateway endpoint (free) so
+  # the VPC Lambda can reach the bucket.
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Condition: HasImage
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-api-lambda-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      # Managed policy for CloudWatch Logs + creating/attaching the VPC ENIs a VPC Lambda
+      # needs. No S3 statement yet (media isn't wired up); add one when the bucket lands.
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-api-lambda-role"
+
+  ApiLogGroup:
+    Type: AWS::Logs::LogGroup
+    Condition: HasImage
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-api"
+      RetentionInDays: 14 # keep logs cheap; 14 days is plenty for a hobby app
+
+  ApiFunction:
+    Type: AWS::Lambda::Function
+    Condition: HasImage
+    DependsOn: ApiLogGroup # ensure the log group exists with our retention first
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-api"
+      PackageType: Image
+      Code:
+        ImageUri: !Ref ApiImageUri
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 30 # API Gateway HTTP API caps at 30s; match it
+      MemorySize: 512 # CPU scales with memory — 512 MB keeps FastAPI cold starts snappy
+      Architectures:
+        - x86_64
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+        SubnetIds: !Ref SubnetIds
+      Environment:
+        Variables:
+          # asyncpg URL to the in-stack database (settings.py normalizes the scheme).
+          DATABASE_URL: !Sub
+            - "postgresql://${User}:${Pass}@${Host}:${Port}/${Name}"
+            - User: !Ref MasterUsername
+              Pass: !Ref MasterUserPassword
+              Host: !GetAtt Database.Endpoint.Address
+              Port: !GetAtt Database.Endpoint.Port
+              Name: !Ref DBName
+          SECRET_KEY: !Ref SecretKey
+          COOKIE_SECURE: "true"
+          # No S3_* or CORS_ORIGINS yet — see the parameters note. Media endpoints are
+          # inert until a bucket is added to this stack; the app's localhost CORS default
+          # is harmless while we test the API directly.
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-api"
+        - Key: Project
+          Value: uwr-training
+
+  # HTTP API (v2): cheaper/simpler than REST, and Mangum speaks its payload format.
+  # A catch-all route forwards every method+path to the Lambda (FastAPI does routing).
+  HttpApi:
+    Type: AWS::ApiGatewayV2::Api
+    Condition: HasImage
+    Properties:
+      Name: !Sub "${AWS::StackName}-api"
+      ProtocolType: HTTP
+      Target: !GetAtt ApiFunction.Arn
+
+  # AWS::ApiGatewayV2::Api's `Target` shortcut auto-creates the integration, the
+  # $default route, and a $default auto-deploy stage — but NOT the invoke permission,
+  # so we grant it explicitly.
+  ApiInvokePermission:
+    Type: AWS::Lambda::Permission
+    Condition: HasImage
+    Properties:
+      FunctionName: !Ref ApiFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*"
+
 # ---------------------------------------------------------------------------
 # Outputs — for the deploy job / migrations / local debugging. No secrets echoed.
 # Everything lives in this one stack, so resources reference each other directly
@@ -215,3 +401,12 @@ Outputs:
       Shape of the connection string the app expects (settings.py normalizes the
       scheme to postgresql+asyncpg). Fill in the master password yourself.
     Value: !Sub "postgresql://${MasterUsername}:<password>@${Database.Endpoint.Address}:${Database.Endpoint.Port}/${DBName}"
+
+  ApiRepositoryUri:
+    Description: ECR repository URI the deploy workflow pushes the API image to.
+    Value: !GetAtt ApiRepository.RepositoryUri
+
+  ApiUrl:
+    Condition: HasImage
+    Description: Base URL of the HTTP API (the $default auto stage). Test the API here.
+    Value: !GetAtt HttpApi.ApiEndpoint
