@@ -69,8 +69,13 @@ jobs:
           subnet_ids=$(aws ec2 describe-subnets \
             --filters Name=vpc-id,Values="$vpc_id" \
             --query 'Subnets[].SubnetId' --output text | tr '\t' ',')
+          # Route tables for the S3 gateway endpoint (used once the API Lambda exists).
+          route_table_ids=$(aws ec2 describe-route-tables \
+            --filters Name=vpc-id,Values="$vpc_id" \
+            --query 'RouteTables[].RouteTableId' --output text | tr '\t' ',')
           echo "vpc_id=$vpc_id" >> "$GITHUB_OUTPUT"
           echo "subnet_ids=$subnet_ids" >> "$GITHUB_OUTPUT"
+          echo "route_table_ids=$route_table_ids" >> "$GITHUB_OUTPUT"
           echo "Default VPC: $vpc_id"
           echo "Subnets: $subnet_ids"
 
@@ -97,6 +102,7 @@ jobs:
           APP_SECRET_KEY: ${{ secrets.APP_SECRET_KEY }}
           VPC_ID: ${{ steps.vpc.outputs.vpc_id }}
           SUBNET_IDS: ${{ steps.vpc.outputs.subnet_ids }}
+          ROUTE_TABLE_IDS: ${{ steps.vpc.outputs.route_table_ids }}
           API_IMAGE_URI: ${{ steps.img.outputs.uri }}
         run: |
           set -euo pipefail
@@ -108,6 +114,7 @@ jobs:
             --parameter-overrides \
               VpcId="$VPC_ID" \
               SubnetIds="$SUBNET_IDS" \
+              RouteTableIds="$ROUTE_TABLE_IDS" \
               MasterUserPassword="$DB_MASTER_PASSWORD" \
               AllowedCidr="${DB_ALLOWED_CIDR:-127.0.0.1/32}" \
               ApiImageUri="$API_IMAGE_URI" \

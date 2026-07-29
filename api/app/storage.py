@@ -90,11 +90,14 @@ def _make_client(endpoint_url: str) -> "S3Client":
     directly avoids the redirect entirely.
     """
     resolved = endpoint_url or f"https://s3.{settings.s3_region}.amazonaws.com"
+    # With explicit keys set (local dev / MinIO) pass them through; when they're empty
+    # — as on Lambda — pass None so boto3 falls back to the ambient credential chain
+    # (the Lambda execution role) instead of signing with empty strings.
     return boto3.client(
         "s3",
         region_name=settings.s3_region,
-        aws_access_key_id=settings.s3_access_key_id,
-        aws_secret_access_key=settings.s3_secret_access_key,
+        aws_access_key_id=settings.s3_access_key_id or None,
+        aws_secret_access_key=settings.s3_secret_access_key or None,
         endpoint_url=resolved,
         config=Config(signature_version="s3v4"),
     )

@@ -83,9 +83,15 @@ shouldn't be able to grant itself more power than it already has).
         "ec2:DescribeSecurityGroupRules",
         "ec2:DescribeVpcs",
         "ec2:DescribeSubnets",
+        "ec2:DescribeRouteTables",
         "ec2:CreateTags",
         "ec2:DeleteTags",
-        "ec2:DescribeNetworkInterfaces"
+        "ec2:DescribeNetworkInterfaces",
+        "ec2:CreateVpcEndpoint",
+        "ec2:DeleteVpcEndpoints",
+        "ec2:ModifyVpcEndpoint",
+        "ec2:DescribeVpcEndpoints",
+        "ec2:DescribePrefixLists"
       ],
       "Resource": "*"
     },
@@ -157,6 +163,9 @@ shouldn't be able to grant itself more power than it already has).
         "iam:TagRole",
         "iam:AttachRolePolicy",
         "iam:DetachRolePolicy",
+        "iam:PutRolePolicy",
+        "iam:DeleteRolePolicy",
+        "iam:GetRolePolicy",
         "iam:ListRolePolicies",
         "iam:ListAttachedRolePolicies",
         "iam:PassRole"
@@ -172,9 +181,9 @@ What it allows, and why:
 - **CloudFormation** — create/update/delete the stack and use change sets.
 - **RDS** — create/modify/delete the DB instance and subnet group, take snapshots
   (the template's `DeletionPolicy: Snapshot`), and tag resources.
-- **EC2 (security groups + VPC read)** — create the DB + Lambda security groups and read
-  the VPC/subnets. No instance creation is granted. (When media/S3 is added, this will
-  also need VPC-endpoint actions for the S3 gateway endpoint.)
+- **EC2 (security groups, VPC read, VPC endpoint)** — create the DB + Lambda security
+  groups, read the VPC/subnets/route tables, and create the S3 gateway endpoint that lets
+  the VPC Lambda reach S3 without a (paid) NAT gateway. No instance creation is granted.
 - **ECR** — `GetAuthorizationToken` (account-level, must be `Resource: "*"`) plus full
   management (`ecr:*`) of **this project's repos only** (`repository/uwr-training-*`).
   It's `ecr:*` rather than an action list because CloudFormation calls a shifting set of
@@ -187,9 +196,10 @@ What it allows, and why:
   bucket in the account.
 - **Lambda + API Gateway** — create/update the API function and its HTTP API.
 - **CloudWatch Logs** — create the function's log group with a retention policy.
-- **IAM** — create and pass the Lambda's execution role. This is the one privileged
-  addition: it's **scoped to `role/uwr-training-*`** so the deploy user can only manage
-  roles for this project, not arbitrary ones — it can't grant itself broader access.
+- **IAM** — create/pass the Lambda's execution role and manage its inline policy (the
+  role's S3 access). This is the one privileged addition: it's **scoped to
+  `role/uwr-training-*`** so the deploy user can only manage roles for this project, not
+  arbitrary ones — it can't grant itself broader access.
 
 Most actions use `Resource: "*"` because CloudFormation names resources with generated
 identifiers not known ahead of time, and many of these tag/describe APIs don't support

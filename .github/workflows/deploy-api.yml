@@ -64,9 +64,13 @@ jobs:
             --query 'Vpcs[0].VpcId' --output text)
           subnet_ids=$(aws ec2 describe-subnets --filters Name=vpc-id,Values="$vpc_id" \
             --query 'Subnets[].SubnetId' --output text | tr '\t' ',')
+          # Route tables for the S3 gateway endpoint (comma-joined for the param).
+          route_table_ids=$(aws ec2 describe-route-tables --filters Name=vpc-id,Values="$vpc_id" \
+            --query 'RouteTables[].RouteTableId' --output text | tr '\t' ',')
           echo "repo=$repo" >> "$GITHUB_OUTPUT"
           echo "vpc_id=$vpc_id" >> "$GITHUB_OUTPUT"
           echo "subnet_ids=$subnet_ids" >> "$GITHUB_OUTPUT"
+          echo "route_table_ids=$route_table_ids" >> "$GITHUB_OUTPUT"
           echo "ECR repo: $repo"
 
       - name: Log in to Amazon ECR
@@ -98,6 +102,7 @@ jobs:
           APP_SECRET_KEY: ${{ secrets.APP_SECRET_KEY }}
           VPC_ID: ${{ steps.ctx.outputs.vpc_id }}
           SUBNET_IDS: ${{ steps.ctx.outputs.subnet_ids }}
+          ROUTE_TABLE_IDS: ${{ steps.ctx.outputs.route_table_ids }}
           IMAGE_URI: ${{ steps.build.outputs.image_uri }}
         run: |
           set -euo pipefail
@@ -109,6 +114,7 @@ jobs:
             --parameter-overrides \
               VpcId="$VPC_ID" \
               SubnetIds="$SUBNET_IDS" \
+              RouteTableIds="$ROUTE_TABLE_IDS" \
               MasterUserPassword="$DB_MASTER_PASSWORD" \
               AllowedCidr="${DB_ALLOWED_CIDR:-127.0.0.1/32}" \
               ApiImageUri="$IMAGE_URI" \

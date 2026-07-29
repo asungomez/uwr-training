@@ -134,14 +134,18 @@ Parameters:
       the Lambda is live; passed from a GitHub secret. NoEcho so it's never displayed.
     NoEcho: true
 
-  # NOTE: no S3 or CORS parameters yet.
-  #  - S3/media: the app runs without S3 configured for now (media endpoints simply
-  #    won't work). A bucket will be added to THIS stack later and wired to the Lambda
-  #    via !Ref/!GetAtt — no NAT/endpoint needed until then, since the Lambda's only
-  #    outbound dependency is the DB (reached privately over the VPC).
-  #  - CORS: the front-end will also be an AWS resource in this stack, so CORS_ORIGINS
-  #    will come from that resource's URL via !GetAtt rather than a parameter. Until it
-  #    exists, the app's localhost default is fine (we test the API directly).
+  RouteTableIds:
+    Type: CommaDelimitedList
+    Default: ""
+    Description: >-
+      Route table IDs the S3 gateway endpoint attaches to (the default VPC's route
+      tables). The deploy workflow discovers these like it does the subnets, so they're
+      not hand-entered. Only used when the Lambda exists (an image is present).
+
+  # NOTE: no S3 credential or CORS parameters. S3 bucket/region/URL come from the
+  # in-stack MediaBucket (via !Ref/!GetAtt); the Lambda authenticates to S3 with its
+  # execution role (no static keys). CORS_ORIGINS will come from the in-stack front-end
+  # resource's URL once that's added; until then the app's localhost default is fine.
 
 # ---------------------------------------------------------------------------
 # Conditions
@@ -296,10 +300,19 @@ Resources:
       SourceSecurityGroupId: !Ref LambdaSecurityGroup
       Description: PostgreSQL from the API Lambda
 
-  # (No S3 VPC endpoint yet.) The Lambda's only outbound dependency right now is the DB,
-  # reached privately within the VPC — no internet route needed, so no NAT and no gateway
-  # endpoint. When media/S3 is added to this stack, add an S3 gateway endpoint (free) so
-  # the VPC Lambda can reach the bucket.
+  # A VPC-attached Lambda has no internet route (no NAT), but the API makes server-side
+  # S3 calls (multipart upload create/list/complete/abort). A gateway endpoint routes S3
+  # traffic privately, at no cost, by adding S3's prefix-list route to the VPC's route
+  # tables. (Simple presigned-POST uploads go browser→S3 directly and are unaffected;
+  # this is what makes the Lambda's own S3 calls work.)
+  S3VpcEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Condition: HasImage
+    Properties:
+      VpcId: !Ref VpcId
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.s3"
+      VpcEndpointType: Gateway
+      RouteTableIds: !Ref RouteTableIds
 
   LambdaExecutionRole:
     Type: AWS::IAM::Role
@@ -314,9 +327,31 @@ Resources:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
       # Managed policy for CloudWatch Logs + creating/attaching the VPC ENIs a VPC Lambda
-      # needs. No S3 statement yet (media isn't wired up); add one when the bucket lands.
+      # needs.
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+      # Least-privilege access to the media bucket — the app authenticates to S3 with
+      # this role (no static keys). Object ops (incl. multipart) on the objects, and the
+      # bucket-level list actions multipart needs. Reads are public via the bucket
+      # policy, but GetObject is included for any server-side read.
+      Policies:
+        - PolicyName: media-s3-access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:AbortMultipartUpload
+                  - s3:ListMultipartUploadParts
+                Resource: !Sub "${MediaBucket.Arn}/*"
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:ListBucketMultipartUploads
+                Resource: !GetAtt MediaBucket.Arn
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}-api-lambda-role"
@@ -360,9 +395,17 @@ Resources:
               Name: !Ref DBName
           SECRET_KEY: !Ref SecretKey
           COOKIE_SECURE: "true"
-          # No S3_* or CORS_ORIGINS yet — see the parameters note. Media endpoints are
-          # inert until a bucket is added to this stack; the app's localhost CORS default
-          # is harmless while we test the API directly.
+          # Media (S3). Bucket/region/URL come from the in-stack bucket. The key/secret
+          # and endpoint are set EMPTY to override the app's MinIO-oriented defaults:
+          # empty keys → boto3 uses the execution role; empty endpoint → the real
+          # regional S3 endpoint.
+          S3_BUCKET: !Ref MediaBucket
+          S3_REGION: !Ref AWS::Region
+          S3_PUBLIC_BASE_URL: !Sub "https://${MediaBucket.RegionalDomainName}"
+          S3_ENDPOINT_URL: ""
+          S3_ACCESS_KEY_ID: ""
+          S3_SECRET_ACCESS_KEY: ""
+          # No CORS_ORIGINS yet — comes from the in-stack front-end URL once it's added.
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}-api"
