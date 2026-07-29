@@ -102,6 +102,15 @@ shouldn't be able to grant itself more power than it already has).
       "Resource": "arn:aws:ecr:*:*:repository/uwr-training-*"
     },
     {
+      "Sid": "S3ManageProjectBuckets",
+      "Effect": "Allow",
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::uwr-training-*",
+        "arn:aws:s3:::uwr-training-*/*"
+      ]
+    },
+    {
       "Sid": "LambdaAndApiGateway",
       "Effect": "Allow",
       "Action": [
@@ -172,6 +181,10 @@ What it allows, and why:
   repo APIs across create/update (lifecycle policy, repo policy, tag mutability, …) —
   scoping by *resource* to the project's repos avoids chasing each one, without granting
   access to any other repository.
+- **S3** — full management (`s3:*`) of **this project's buckets only**
+  (`uwr-training-*`), same resource-scoped reasoning as ECR (CloudFormation touches many
+  `PutBucket*` config APIs). Bounded to the project prefix — no access to any other
+  bucket in the account.
 - **Lambda + API Gateway** — create/update the API function and its HTTP API.
 - **CloudWatch Logs** — create the function's log group with a retention policy.
 - **IAM** — create and pass the Lambda's execution role. This is the one privileged
@@ -319,5 +332,8 @@ stack. So the API comes up in two passes:
   thing that would bill.
 - **VPC cost:** none. RDS and the Lambda are in the default VPC; a VPC/subnets/SGs are
   all free. (An S3 gateway endpoint — also free — gets added when media is wired up.)
-- **Media/S3 is not connected yet.** Media endpoints won't work until a bucket is added
-  to this stack; everything else (auth, trainings, logs, tests) works.
+- **Media/S3:** the media bucket now exists in the stack (`MediaBucketName` output), but
+  the app isn't repointed at it yet — that's a follow-up (Lambda env + exec-role S3
+  perms + S3 gateway endpoint + the `storage.py` credentials change). Until then media
+  endpoints still won't work; everything else (auth, trainings, logs, tests) does. The
+  order is: deploy the bucket → `aws s3 sync` old→new → reconnect the app.

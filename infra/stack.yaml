@@ -391,6 +391,59 @@ Resources:
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*"
 
+  # --- Media storage (S3) ----------------------------------------------------
+  # New home for exercise/material media, replacing the old eu-west-1 bucket. Created
+  # unconditionally (independent of the API image) so data can be migrated into it
+  # before the app is repointed at it. Config mirrors the old bucket: publicly readable
+  # objects (the app builds plain public URLs), ACLs disabled, AES256 at rest, and CORS
+  # allowing the browser-direct presigned uploads.
+  MediaBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub "${AWS::StackName}-media-${AWS::Region}"
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        # All false so the public-read bucket policy below can take effect.
+        BlockPublicAcls: false
+        IgnorePublicAcls: false
+        BlockPublicPolicy: false
+        RestrictPublicBuckets: false
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      CorsConfiguration:
+        CorsRules:
+          - AllowedMethods: [GET, POST, PUT]
+            AllowedOrigins:
+              # Update to the AWS front-end origin when the SPA moves off Render.
+              - https://uwr-training-frontend.onrender.com
+            AllowedHeaders: ["*"]
+            ExposedHeaders: [ETag]
+            MaxAge: 3000
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-media"
+        - Key: Project
+          Value: uwr-training
+
+  MediaBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref MediaBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: PublicReadMedia
+            Effect: Allow
+            Principal: "*"
+            Action: s3:GetObject
+            Resource: !Sub "${MediaBucket.Arn}/*"
+
 # ---------------------------------------------------------------------------
 # Outputs — for the deploy job / migrations / local debugging. No secrets echoed.
 # Everything lives in this one stack, so resources reference each other directly
@@ -427,3 +480,13 @@ Outputs:
     Condition: HasImage
     Description: Base URL of the HTTP API (the $default auto stage). Test the API here.
     Value: !GetAtt HttpApi.ApiEndpoint
+
+  MediaBucketName:
+    Description: New media bucket — the `aws s3 sync` destination when migrating.
+    Value: !Ref MediaBucket
+
+  MediaPublicBaseUrl:
+    Description: >-
+      Public base URL for reading media (app S3_PUBLIC_BASE_URL when we repoint it).
+      public_url() appends the object key to this.
+    Value: !Sub "https://${MediaBucket.RegionalDomainName}"
