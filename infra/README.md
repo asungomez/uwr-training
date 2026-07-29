@@ -90,28 +90,16 @@ shouldn't be able to grant itself more power than it already has).
       "Resource": "*"
     },
     {
-      "Sid": "EcrPushPull",
+      "Sid": "EcrAuthToken",
       "Effect": "Allow",
-      "Action": [
-        "ecr:CreateRepository",
-        "ecr:DeleteRepository",
-        "ecr:DescribeRepositories",
-        "ecr:DescribeImages",
-        "ecr:PutLifecyclePolicy",
-        "ecr:GetLifecyclePolicy",
-        "ecr:SetRepositoryPolicy",
-        "ecr:GetRepositoryPolicy",
-        "ecr:TagResource",
-        "ecr:GetAuthorizationToken",
-        "ecr:BatchCheckLayerAvailability",
-        "ecr:InitiateLayerUpload",
-        "ecr:UploadLayerPart",
-        "ecr:CompleteLayerUpload",
-        "ecr:PutImage",
-        "ecr:BatchGetImage",
-        "ecr:GetDownloadUrlForLayer"
-      ],
+      "Action": "ecr:GetAuthorizationToken",
       "Resource": "*"
+    },
+    {
+      "Sid": "EcrManageProjectRepo",
+      "Effect": "Allow",
+      "Action": "ecr:*",
+      "Resource": "arn:aws:ecr:*:*:repository/uwr-training-*"
     },
     {
       "Sid": "LambdaAndApiGateway",
@@ -178,7 +166,12 @@ What it allows, and why:
 - **EC2 (security groups + VPC read)** — create the DB + Lambda security groups and read
   the VPC/subnets. No instance creation is granted. (When media/S3 is added, this will
   also need VPC-endpoint actions for the S3 gateway endpoint.)
-- **ECR** — create the image repository and push/pull the API image.
+- **ECR** — `GetAuthorizationToken` (account-level, must be `Resource: "*"`) plus full
+  management (`ecr:*`) of **this project's repos only** (`repository/uwr-training-*`).
+  It's `ecr:*` rather than an action list because CloudFormation calls a shifting set of
+  repo APIs across create/update (lifecycle policy, repo policy, tag mutability, …) —
+  scoping by *resource* to the project's repos avoids chasing each one, without granting
+  access to any other repository.
 - **Lambda + API Gateway** — create/update the API function and its HTTP API.
 - **CloudWatch Logs** — create the function's log group with a retention policy.
 - **IAM** — create and pass the Lambda's execution role. This is the one privileged
