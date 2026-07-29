@@ -255,8 +255,9 @@ For the **API Lambda** (used once the API deploy runs — see below):
 - `APP_SECRET_KEY` — signs session-cookie JWTs (`NoEcho`). Generate once and keep stable
   so existing sessions survive redeploys.
 
-(No S3 or CORS secrets yet — media isn't wired up, and CORS will come from the in-stack
-front-end's URL once that's added. See the parameters note in `stack.yaml`.)
+(No S3 or CORS secrets — media auth uses the Lambda's execution role, bucket details come
+from the in-stack bucket, and CloudFront serves the SPA + `/api` same-origin so there's no
+CORS to configure. See the parameters note in `stack.yaml`.)
 
 ## Deploying
 
@@ -273,7 +274,15 @@ template's DB/networking changes.
 the pushed **digest** (immutable — CloudFormation reliably sees the change). Run it to
 ship API code changes. Prints the API URL to test.
 
-Both share a `concurrency` group so they can't run at once (they mutate the same stack).
+`deploy-infra` and `deploy-api` share a `concurrency` group so they can't run at once
+(they mutate the same stack).
+
+**`deploy-frontend.yml`** — the SPA. Builds the Vite app (`npm ci && npm run build`, Node
+22), syncs `dist/` to the frontend bucket (hashed assets cached a year, `index.html`
+`no-cache`, `--delete` to prune old files), and invalidates the CloudFront cache. It only
+reads stack outputs — it doesn't run `cloudformation deploy`, so it doesn't touch stack
+parameters. No build-time API URL needed (same-origin via CloudFront). Run it to ship
+front-end changes.
 
 > **Why both pass every parameter:** `aws cloudformation deploy` resets any parameter you
 > omit back to its template default. So each workflow passes the full set — `deploy-api`
@@ -287,7 +296,10 @@ Both share a `concurrency` group so they can't run at once (they mutate the same
    add `APP_SECRET_KEY` before the API deploy).
 2. Run **Deploy infrastructure** — bootstraps the DB + ECR repo (no image yet).
 3. Run **Migrate database** — creates the schema (see below).
-4. Run **Deploy API** — builds/pushes the image and brings up the Lambda + HTTP API.
+4. Run **Deploy API** — builds/pushes the image and brings up the Lambda + HTTP API
+   (and, since an image now exists, the CloudFront distribution — allow ~5–15 min).
+5. Run **Deploy frontend** — builds the SPA and publishes it. The `CloudFrontUrl` output
+   is the live site.
 
 ## Migrations
 

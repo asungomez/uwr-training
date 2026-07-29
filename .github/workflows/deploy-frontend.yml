@@ -1,0 +1,90 @@
+# Builds the Vite/React SPA and publishes it: syncs the built assets to the frontend S3
+# bucket and invalidates the CloudFront cache. Manual-only.
+#
+# Prerequisite: the stack must already have the frontend bucket + CloudFront distribution
+# (run "Deploy infrastructure"/"Deploy API" first — CloudFront exists once the API image
+# does). The SPA needs no build-time API URL: CloudFront serves it same-origin and proxies
+# /api/* to the API Gateway, so the app's default relative "/api" base is correct.
+#
+# Required repo secrets:
+#   AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_REGION  — the scoped CI user
+name: Deploy frontend
+
+on:
+  workflow_dispatch: {} # manual runs only
+
+concurrency:
+  group: deploy-frontend
+  cancel-in-progress: true # a newer build supersedes an in-flight one
+
+permissions:
+  contents: read
+
+env:
+  STACK_NAME: uwr-training
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Read stack outputs (bucket + distribution)
+        id: ctx
+        run: |
+          set -euo pipefail
+          out() { aws cloudformation describe-stacks --stack-name "$STACK_NAME" \
+            --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" --output text; }
+          bucket=$(out FrontendBucketName)
+          dist=$(out CloudFrontDistributionId)
+          if [ -z "$bucket" ] || [ "$bucket" = "None" ] || [ -z "$dist" ] || [ "$dist" = "None" ]; then
+            echo "::error::Frontend bucket / distribution not found — deploy the stack first." >&2
+            exit 1
+          fi
+          echo "bucket=$bucket" >> "$GITHUB_OUTPUT"
+          echo "dist=$dist" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: front-end/package-lock.json
+
+      - name: Build the SPA
+        working-directory: front-end
+        run: |
+          npm ci
+          npm run build
+
+      - name: Publish to S3 + invalidate CloudFront
+        working-directory: front-end
+        env:
+          BUCKET: ${{ steps.ctx.outputs.bucket }}
+          DIST: ${{ steps.ctx.outputs.dist }}
+        run: |
+          set -euo pipefail
+          # Hashed assets are immutable — cache them for a year. --delete prunes files
+          # from previous builds. index.html is excluded here and handled next.
+          aws s3 sync dist "s3://$BUCKET" --delete \
+            --cache-control "public,max-age=31536000,immutable" \
+            --exclude index.html
+          # index.html must never be cached, so a deploy is picked up immediately.
+          aws s3 cp dist/index.html "s3://$BUCKET/index.html" \
+            --cache-control "no-cache"
+          # Drop CloudFront's edge cache so the new index.html (and any changed paths)
+          # serve right away.
+          aws cloudfront create-invalidation --distribution-id "$DIST" --paths "/*"
+
+      - name: Show the site URL
+        run: |
+          aws cloudformation describe-stacks --stack-name "$STACK_NAME" \
+            --query "Stacks[0].Outputs[?OutputKey=='CloudFrontUrl'].OutputValue" --output text
