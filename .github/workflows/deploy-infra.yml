@@ -1,6 +1,7 @@
 # Deploys the AWS CloudFormation stack (infra/stack.yaml): the RDS database, the ECR
-# repo, and — once an image exists — the API Lambda + HTTP API. Manual-only: infra
-# changes shouldn't fire on every push, and the DB is stateful.
+# repo, and — once an image exists — the API Lambda + HTTP API. Runs on push to main
+# when infra/ changes, or manually. The DB is stateful, so deploys are idempotent and
+# never cancelled mid-flight (see concurrency below).
 #
 # This and the API deploy (deploy-api.yml) target the SAME stack. `aws cloudformation
 # deploy` resets any parameter you DON'T pass to its template default, so both workflows
@@ -22,7 +23,14 @@
 name: Deploy infrastructure
 
 on:
-  workflow_dispatch: {} # manual runs only, from the Actions tab
+  workflow_dispatch: {} # manual runs, from the Actions tab
+  push:
+    branches: [main]
+    # Auto-deploy when the template (or anything else in infra/) changes. README-only
+    # changes are excluded so docs edits don't trigger a (no-op) stack deploy.
+    paths:
+      - "infra/**"
+      - "!infra/README.md"
 
 # Never let two deploys of the same stack overlap.
 concurrency:

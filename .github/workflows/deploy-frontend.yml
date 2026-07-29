@@ -1,5 +1,6 @@
 # Builds the Vite/React SPA and publishes it: syncs the built assets to the frontend S3
-# bucket and invalidates the CloudFront cache. Manual-only.
+# bucket and invalidates the CloudFront cache. Runs on push to main when front-end/
+# changes, or manually.
 #
 # Prerequisite: the stack must already have the frontend bucket + CloudFront distribution
 # (run "Deploy infrastructure"/"Deploy API" first — CloudFront exists once the API image
@@ -11,7 +12,12 @@
 name: Deploy frontend
 
 on:
-  workflow_dispatch: {} # manual runs only
+  workflow_dispatch: {} # manual runs, from the Actions tab
+  push:
+    branches: [main]
+    paths:
+      - "front-end/**"
+      - "!front-end/README.md"
 
 concurrency:
   group: deploy-frontend

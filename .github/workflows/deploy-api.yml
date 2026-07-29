@@ -1,6 +1,7 @@
 # Builds the API container image, pushes it to the stack's ECR repo, and deploys the
 # CloudFormation stack (infra/stack.yaml) with ApiImageUri pointing at the pushed image
-# — which brings up / updates the API Lambda + HTTP API. Manual-only.
+# — which brings up / updates the API Lambda + HTTP API. Runs on push to main when api/
+# (or the Lambda Dockerfile) changes, or manually.
 #
 # Prerequisite: the stack must already exist with its ECR repo (run "Deploy
 # infrastructure" once first — the imageless bootstrap creates the repo).
@@ -21,7 +22,15 @@
 name: Deploy API
 
 on:
-  workflow_dispatch: {} # manual runs only
+  workflow_dispatch: {} # manual runs, from the Actions tab
+  push:
+    branches: [main]
+    # Auto-deploy on API code / dependency / image changes. (New Alembic revisions still
+    # need a manual "Migrate database" run — this only ships the image.)
+    paths:
+      - "api/**"
+      - "!api/README.md"
+      - "docker/dockerfiles/lambda.Dockerfile"
 
 concurrency:
   group: deploy-infra # share the infra lock — both mutate the same stack

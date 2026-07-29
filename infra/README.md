@@ -261,28 +261,37 @@ CORS to configure. See the parameters note in `stack.yaml`.)
 
 ## Deploying
 
-Two **manual** workflows (Actions tab → *Run workflow*), both targeting the same stack:
+Three workflows, all targeting the same stack. Each runs **on push to `main` scoped to
+its own area**, and can also be run manually (Actions tab → *Run workflow*):
+
+| Workflow | Auto-triggers on changes to | Also runnable manually |
+| --- | --- | --- |
+| `deploy-infra.yml` | `infra/**` (excl. its README) | yes |
+| `deploy-api.yml` | `api/**` (excl. README) + `docker/dockerfiles/lambda.Dockerfile` | yes |
+| `deploy-frontend.yml` | `front-end/**` (excl. README) | yes |
 
 **`deploy-infra.yml`** — the DB/ECR/networking side. Configures credentials, discovers
 the default VPC + subnets (no IDs hand-entered), reads the currently-live `ApiImageUri`
 so it isn't reset, and runs `aws cloudformation deploy` (idempotent;
-`--no-fail-on-empty-changeset`). Run it for the initial bootstrap and whenever the
-template's DB/networking changes.
+`--no-fail-on-empty-changeset`).
 
 **`deploy-api.yml`** — the API side. Reads the ECR repo from the stack, builds
 `docker/dockerfiles/lambda.Dockerfile`, pushes it, then deploys with `ApiImageUri` set to
-the pushed **digest** (immutable — CloudFormation reliably sees the change). Run it to
-ship API code changes. Prints the API URL to test.
+the pushed **digest** (immutable — CloudFormation reliably sees the change). Prints the
+API URL. ⚠️ **A push with a new Alembic revision ships the image but does NOT migrate** —
+run **Migrate database** manually after.
 
 `deploy-infra` and `deploy-api` share a `concurrency` group so they can't run at once
-(they mutate the same stack).
+(they mutate the same stack); neither cancels a run mid-flight. If one push touches both
+areas, both fire and queue — they converge in either order, since `deploy-infra` reads
+and preserves whatever image is live.
 
 **`deploy-frontend.yml`** — the SPA. Builds the Vite app (`npm ci && npm run build`, Node
 22), syncs `dist/` to the frontend bucket (hashed assets cached a year, `index.html`
 `no-cache`, `--delete` to prune old files), and invalidates the CloudFront cache. It only
 reads stack outputs — it doesn't run `cloudformation deploy`, so it doesn't touch stack
-parameters. No build-time API URL needed (same-origin via CloudFront). Run it to ship
-front-end changes.
+parameters. No build-time API URL needed (same-origin via CloudFront). Its own
+`concurrency` group cancels an in-flight build when a newer push lands.
 
 > **Why both pass every parameter:** `aws cloudformation deploy` resets any parameter you
 > omit back to its template default. So each workflow passes the full set — `deploy-api`
