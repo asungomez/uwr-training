@@ -117,6 +117,12 @@ shouldn't be able to grant itself more power than it already has).
       ]
     },
     {
+      "Sid": "CloudFront",
+      "Effect": "Allow",
+      "Action": "cloudfront:*",
+      "Resource": "*"
+    },
+    {
       "Sid": "LambdaAndApiGateway",
       "Effect": "Allow",
       "Action": [
@@ -195,6 +201,11 @@ What it allows, and why:
   `PutBucket*` config APIs). Bounded to the project prefix — no access to any other
   bucket in the account.
 - **Lambda + API Gateway** — create/update the API function and its HTTP API.
+- **CloudFront** — create/update the SPA distribution, its origin access control, the
+  `/api`-rewrite function, and cache invalidations. It's `cloudfront:*` on `*` because
+  CloudFront largely doesn't support resource-level scoping (especially `CreateDistribution`
+  on a resource that doesn't exist yet). It's still bounded to the CloudFront service —
+  no cross-service reach — and this account hosts only this project.
 - **CloudWatch Logs** — create the function's log group with a retention policy.
 - **IAM** — create/pass the Lambda's execution role and manage its inline policy (the
   role's S3 access). This is the one privileged addition: it's **scoped to
@@ -335,15 +346,17 @@ stack. So the API comes up in two passes:
   account still qualifies before relying on "free".
 - **Region:** `db.t4g.micro` isn't offered in every region — the `db.t3.micro` fallback
   covers that.
-- The stack builds the **database + API** (RDS, ECR, Lambda, HTTP API). The front-end
-  stays on Render for now and moves to AWS in a later slice.
-- **Cost:** stays in free tier. RDS/subnets/security groups are free; Lambda + HTTP API
-  have generous free tiers (1M requests/mo). No NAT Gateway anywhere — that's the one
-  thing that would bill.
-- **VPC cost:** none. RDS and the Lambda are in the default VPC; a VPC/subnets/SGs are
-  all free. (An S3 gateway endpoint — also free — gets added when media is wired up.)
-- **Media/S3:** the media bucket now exists in the stack (`MediaBucketName` output), but
-  the app isn't repointed at it yet — that's a follow-up (Lambda env + exec-role S3
-  perms + S3 gateway endpoint + the `storage.py` credentials change). Until then media
-  endpoints still won't work; everything else (auth, trainings, logs, tests) does. The
-  order is: deploy the bucket → `aws s3 sync` old→new → reconnect the app.
+- The stack builds the **database, API, media, and front-end hosting** (RDS, ECR, Lambda,
+  HTTP API, media S3 bucket, and a private frontend S3 bucket behind CloudFront).
+- **Cost:** stays in free tier. RDS/subnets/security groups/S3-gateway-endpoint are free;
+  Lambda + HTTP API + CloudFront have generous free tiers (CloudFront: 1 TB egress + 10M
+  requests/mo, perpetual). No NAT Gateway anywhere — that's the one thing that would bill.
+- **VPC cost:** none. RDS and the Lambda are in the default VPC; VPC/subnets/SGs and the
+  S3 gateway endpoint are all free.
+- **Front-end serving model:** the SPA bucket is private; CloudFront serves it (via OAC)
+  and also proxies `/api/*` to the API Gateway. So the browser sees one origin — no CORS,
+  session cookie stays `SameSite=lax`, and the SPA keeps its relative `/api` base. Deploy
+  the stack → `CloudFrontUrl` output is the SPA URL (the front-end deploy that syncs the
+  built assets is the next slice).
+- **CloudFront deploys are slow** (~5–15 min to propagate) — expect the deploy step to
+  sit on the distribution for a while.

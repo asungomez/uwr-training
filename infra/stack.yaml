@@ -487,6 +487,143 @@ Resources:
             Action: s3:GetObject
             Resource: !Sub "${MediaBucket.Arn}/*"
 
+  # --- Front-end hosting (S3 + CloudFront) -----------------------------------
+  # The SPA's built assets live in a PRIVATE bucket, served only through CloudFront
+  # (via Origin Access Control). CloudFront also proxies /api/* to the API Gateway, so
+  # the browser sees ONE origin for both app and API — same-origin, exactly like the old
+  # Render setup: no CORS, and the session cookie stays SameSite=lax. The SPA keeps
+  # calling its relative "/api" base unchanged.
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub "${AWS::StackName}-frontend-${AWS::Region}"
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      # Fully private — CloudFront reads it via OAC; nothing is world-accessible.
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-frontend"
+        - Key: Project
+          Value: uwr-training
+
+  # Lets CloudFront (and only CloudFront) sign requests to the private bucket.
+  FrontendOAC:
+    Type: AWS::CloudFront::OriginAccessControl
+    Condition: HasImage
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub "${AWS::StackName}-frontend-oac"
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  # Strips the "/api" prefix before requests hit the API Gateway origin (which serves
+  # routes at the root, e.g. /health). Equivalent to the old Render rewrite. Plain
+  # string ops (no regex) to stay within the CloudFront Functions runtime.
+  ApiPathRewriteFunction:
+    Type: AWS::CloudFront::Function
+    Condition: HasImage
+    Properties:
+      Name: !Sub "${AWS::StackName}-strip-api-prefix"
+      AutoPublish: true
+      FunctionConfig:
+        Comment: Strip the /api prefix before forwarding to the API Gateway origin
+        Runtime: cloudfront-js-2.0
+      FunctionCode: |
+        function handler(event) {
+          var request = event.request;
+          // Behavior only routes /api/* here; drop the 4-char "/api" prefix.
+          request.uri = request.uri.substring(4);
+          if (request.uri === '') { request.uri = '/'; }
+          return request;
+        }
+
+  FrontendDistribution:
+    Type: AWS::CloudFront::Distribution
+    Condition: HasImage
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub "${AWS::StackName} SPA + /api proxy"
+        DefaultRootObject: index.html
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        PriceClass: PriceClass_100 # cheapest edge set (NA + EU); fine for a hobby app
+        Origins:
+          - Id: s3-frontend
+            DomainName: !GetAtt FrontendBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt FrontendOAC.Id
+            S3OriginConfig:
+              OriginAccessIdentity: "" # empty: using OAC, not the legacy OAI
+          - Id: api-gateway
+            # ApiEndpoint is "https://<host>"; take just the host for the origin.
+            DomainName: !Select [2, !Split ["/", !GetAtt HttpApi.ApiEndpoint]]
+            CustomOriginConfig:
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols: [TLSv1.2]
+        DefaultCacheBehavior:
+          TargetOriginId: s3-frontend
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD]
+          # Managed "CachingOptimized" — honors the assets' Cache-Control.
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+        CacheBehaviors:
+          - PathPattern: /api/*
+            TargetOriginId: api-gateway
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods: [GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE]
+            # Managed "CachingDisabled" — the API is dynamic.
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+            # Managed "AllViewerExceptHostHeader" — forward cookies/headers/query but
+            # let CloudFront set the Host to the API Gateway origin (it rejects others).
+            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
+            FunctionAssociations:
+              - EventType: viewer-request
+                FunctionARN: !GetAtt ApiPathRewriteFunction.FunctionMetadata.FunctionARN
+        # SPA deep links: S3 returns 403/404 for unknown keys → serve index.html so the
+        # client router handles the route.
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+        ViewerCertificate:
+          # Default *.cloudfront.net cert (HTTPS out of the box). Swap for an ACM cert
+          # in us-east-1 + Aliases when a custom domain is added.
+          CloudFrontDefaultCertificate: true
+
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Condition: HasImage
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowCloudFrontRead
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub "${FrontendBucket.Arn}/*"
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${FrontendDistribution}"
+
 # ---------------------------------------------------------------------------
 # Outputs — for the deploy job / migrations / local debugging. No secrets echoed.
 # Everything lives in this one stack, so resources reference each other directly
@@ -533,3 +670,17 @@ Outputs:
       Public base URL for reading media (app S3_PUBLIC_BASE_URL when we repoint it).
       public_url() appends the object key to this.
     Value: !Sub "https://${MediaBucket.RegionalDomainName}"
+
+  FrontendBucketName:
+    Description: SPA asset bucket — the frontend deploy syncs the built dist/ here.
+    Value: !Ref FrontendBucket
+
+  CloudFrontUrl:
+    Condition: HasImage
+    Description: Public URL of the SPA (also proxies /api). Visit this / point DNS here.
+    Value: !Sub "https://${FrontendDistribution.DomainName}"
+
+  CloudFrontDistributionId:
+    Condition: HasImage
+    Description: Distribution id — the frontend deploy invalidates the cache with it.
+    Value: !Ref FrontendDistribution
