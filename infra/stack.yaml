@@ -461,10 +461,13 @@ Resources:
               SSEAlgorithm: AES256
       CorsConfiguration:
         CorsRules:
+          # Uploads are browser→S3 direct (presigned POST/PUT) from the front-end origin,
+          # which is a cross-origin request. Allow any origin: an upload still requires a
+          # presigned URL that only the authenticated API issues, so restricting the CORS
+          # origin adds no real protection — and "*" avoids re-touching this every time
+          # the front-end URL changes (CloudFront default domain, later a custom domain).
           - AllowedMethods: [GET, POST, PUT]
-            AllowedOrigins:
-              # Update to the AWS front-end origin when the SPA moves off Render.
-              - https://uwr-training-frontend.onrender.com
+            AllowedOrigins: ["*"]
             AllowedHeaders: ["*"]
             ExposedHeaders: [ETag]
             MaxAge: 3000

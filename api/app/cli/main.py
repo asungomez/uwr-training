@@ -1,8 +1,8 @@
 """Admin CLI dispatcher. Run via `make admin command='...'` or `python -m app.cli`.
 
 Connects to the database in settings.database_url by default, or to --database-url
-if given (use Render's external connection string to manage the deployed DB from
-your laptop). One module per command lives alongside this file.
+if given (e.g. the RDS endpoint, to manage the deployed DB from your laptop — open its
+security group to your IP first). One module per command lives alongside this file.
 """
 
 import argparse
@@ -19,7 +19,7 @@ def main() -> None:
     parser.add_argument(
         "--database-url",
         default=settings.database_url,
-        help="Override the target database (e.g. Render's external connection string).",
+        help="Override the target database (e.g. the RDS external connection string).",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 

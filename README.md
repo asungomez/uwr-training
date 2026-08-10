@@ -9,8 +9,8 @@ Postgres database.
 ├── api/          # FastAPI back-end (uv + ruff + mypy + SQLAlchemy/Alembic)
 ├── tests/        # Playwright + testcontainers e2e suite (Python)
 ├── docker/       # Dockerfiles + compose for the dev stack and checker
-├── Makefile      # entry points: make run / make check / make test
-└── render.yaml   # Render Blueprint (front-end, api, database)
+├── infra/        # AWS CloudFormation stack (RDS, Lambda API, S3 + CloudFront)
+└── Makefile      # entry points: make run / make check / make test
 ```
 
 ## Prerequisites
@@ -226,15 +226,15 @@ delay, while a genuine new migration still applies before any request is served.
 Auth is **invitation-only**: there's no public sign-up. Admins invite other users;
 the `users` and `invitations` tables back this. Passwords are hashed with bcrypt.
 
-Because there's no first admin to send the first invite (and Render's free tier has
-no shell), bootstrap an admin with the `make admin` CLI, which runs in a one-off
-container:
+Because there's no first admin to send the first invite, bootstrap one with the
+`make admin` CLI, which runs in a one-off container:
 
 ```bash
 # Against the local dev database (prompts for a password):
 make admin command='create-admin you@example.com'
 
-# Against a remote database (e.g. Render's *external* connection string):
+# Against a remote database (e.g. the RDS endpoint — open its security group to your
+# IP first, as the migrate workflow does):
 make admin command='create-admin you@example.com' \
   db-connection-string='postgresql://user:pass@host/db'
 ```
@@ -321,10 +321,10 @@ def test_admin_thing(create_user):
 ## Configuration
 
 The front-end calls the API at the **same-origin `/api` path**, which is proxied to
-the back-end — by the Vite dev server locally, and by a Render rewrite in production.
-This means the front-end needs no API URL and there's no cross-origin request (so no
-CORS to configure). Every variable has a sensible default, so **no setup is needed
-for local Docker dev**.
+the back-end — by the Vite dev server locally, and by CloudFront in production. This
+means the front-end needs no API URL and there's no cross-origin request (so no CORS
+to configure). Every variable has a sensible default, so **no setup is needed for
+local Docker dev**.
 
 | Variable            | Service    | Default                                           | Purpose                                                                 |
 | ------------------- | ---------- | ------------------------------------------------- | ----------------------------------------------------------------------- |
@@ -332,7 +332,7 @@ for local Docker dev**.
 | `VITE_API_URL`      | front-end  | `/api`                                            | Optional override to call an absolute API URL instead of the proxy.     |
 | `CORS_ORIGINS`      | api        | `http://localhost:5173`                           | Comma-separated origins allowed by CORS (only matters for direct, cross-origin calls; unused in the proxy setup). |
 | `DATABASE_URL`      | api        | `postgresql+asyncpg://uwr:uwr@localhost:5432/uwr` | Postgres connection string. A `postgresql://` scheme is auto-rewritten for asyncpg. |
-| `SECRET_KEY`        | api        | `dev-secret-change-me`                            | Signs session-cookie JWTs. On Render, generated and kept stable. **Set a real value in any non-local env.** |
+| `SECRET_KEY`        | api        | `dev-secret-change-me`                            | Signs session-cookie JWTs. In AWS, from the `APP_SECRET_KEY` secret (a stable `NoEcho` stack parameter). **Set a real value in any non-local env.** |
 | `COOKIE_SECURE`     | api        | `true`                                            | When `true`, the session cookie is `Secure` (HTTPS only). Set `false` for local plain-HTTP browser testing. |
 | `S3_BUCKET`         | api        | `uwr-media`                                       | Bucket for exercise media (thumbnails + videos).                        |
 | `S3_REGION`         | api        | `us-east-1`                                        | Bucket region.                                                          |
@@ -346,74 +346,30 @@ The api's settings are centralized and typed in
 above maps to a field there with its type and default.
 
 For local overrides, copy [`front-end/.env.example`](front-end/.env.example) to
-`front-end/.env`. On Render, these are set in [`render.yaml`](render.yaml).
+`front-end/.env`. In AWS, the api's runtime values come from the CloudFormation stack
+(Lambda environment) — see [`infra/`](infra/).
 
 ## Deployment
 
-Everything deploys to [Render](https://render.com) via the
-[`render.yaml`](render.yaml) Blueprint, auto-deploying on push to the default branch:
+Everything runs on **AWS**, defined as one CloudFormation stack in
+[`infra/stack.yaml`](infra/stack.yaml) and deployed from GitHub Actions. See
+[`infra/README.md`](infra/README.md) for the full setup (IAM, secrets, run order).
 
-- **`uwr-training-frontend`** — static site built from `front-end/`. A rewrite rule
-  proxies `/api/*` to the API service, so the SPA stays same-origin and needs no API
-  URL of its own.
-- **`uwr-training-api`** — Python web service from `api/`, built with `uv sync` and served
-  by uvicorn on Render's `$PORT` (health check at `/health`). `DATABASE_URL` is injected
-  from the database. The start command runs `alembic upgrade head` before launching, so
-  migrations apply on each deploy.
-- **`uwr-training-db`** — managed Postgres (free plan). `DATABASE_URL` is wired into
-  the api automatically via `fromDatabase`.
+- **Database** — RDS PostgreSQL (free-tier `db.t4g.micro`).
+- **API** — the FastAPI app on **Lambda** (container image via Mangum) behind an **HTTP
+  API Gateway**. `app.lambda_handler` adapts the same ASGI app that runs under uvicorn
+  locally.
+- **Media** — a private-ish **S3** bucket; the API mints presigned URLs so the browser
+  uploads straight to S3.
+- **Front-end** — the built SPA in a private **S3** bucket served by **CloudFront**,
+  which also proxies `/api/*` to the API Gateway. So the browser sees one origin —
+  same-origin as in dev, no CORS, `SameSite=lax` cookies, and the SPA keeps its `/api`
+  base.
 
-### Keeping the API warm
-
-The free API web service spins down after ~15 min idle, so the next request pays a
-cold-start delay. Render's own Cron Jobs are paid, so a free GitHub Actions schedule
-([`.github/workflows/keep-api-warm.yml`](.github/workflows/keep-api-warm.yml)) pings
-the DB-free `/health` endpoint every ~10 min during the day to keep it awake. Only
-the API counts against Render's 750 free instance-hours/month (the static site is
-CDN-served and doesn't).
-
-The window is **08:00–20:00 CET**, pinned in UTC as `07:00–19:00` since GitHub cron
-is UTC-only and ignores daylight saving — so in summer (CEST) it effectively runs
-09:00–21:00 local. Outside that window the service sleeps; the first morning request
-still pays one cold start. Widen the `cron:` hour range to cover more of the day.
-
-### Media storage (S3) in production
-
-Exercise thumbnails/videos live in S3. Locally this is the `minio` container; in
-production it's a real bucket you provision once in AWS. The API never proxies file
-bytes — it mints a presigned upload URL and the browser uploads straight to S3.
-
-The `S3_*` vars in [`render.yaml`](render.yaml) are declared with **`sync: false`**,
-which means Render creates them **empty** on the first Blueprint sync and you fill them
-in the **dashboard** (api service → Environment). They persist across deploys and are
-never overwritten from the yaml — so secrets (and the bucket name) stay out of source.
-`S3_ENDPOINT_URL` is hard-coded empty so production talks to real AWS, not MinIO.
-
-One-time AWS setup for the bucket:
-
-1. **Create the bucket** in your chosen region.
-2. **Public read** — bucket policy allowing `s3:GetObject` on `arn:aws:s3:::<bucket>/*`
-   (objects are served directly to `<video>`/`<img>` via stable public URLs).
-3. **CORS** — allow `GET`, `POST` and `PUT` from the front-end origin
-   (`https://uwr-training-frontend.onrender.com`); without it the browser's direct
-   upload is blocked. `PUT` is needed because large files (materials, e.g. session
-   videos) upload via **multipart**, sending each part with a presigned `PUT`. No
-   special response-header exposure is required — the API reads each part's ETag
-   server-side (via `ListParts`) to complete the upload.
-4. **IAM user** with `s3:PutObject` on the bucket (covers the multipart
-   initiate/upload-part/complete actions), plus `s3:AbortMultipartUpload` and
-   `s3:ListMultipartUploadParts` so the API can finalize and clean up multipart
-   uploads; use its keys for `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY`.
-5. Set `S3_PUBLIC_BASE_URL` to the bucket's public base
-   (`https://<bucket>.s3.<region>.amazonaws.com`).
-
-> [!NOTE]
-> The front-end's `/api/*` rewrite destination in `render.yaml` is the one place the
-> API's public URL is referenced. Render can't inject a service's public URL into a
-> static site, so if you rename the API service or its URL changes, update that
-> destination.
-
-> [!NOTE]
-> On Render's free tier the web service spins down when idle (slow first request),
-> and free Postgres databases expire after a set period — fine for dev/demo, not
-> production.
+Three path-scoped workflows deploy on push to `main` (or manually):
+[`deploy-infra`](.github/workflows/deploy-infra.yml) (`infra/**`),
+[`deploy-api`](.github/workflows/deploy-api.yml) (`api/**`), and
+[`deploy-frontend`](.github/workflows/deploy-frontend.yml) (`front-end/**`). Database
+migrations run separately and deliberately via
+[`migrate-db`](.github/workflows/migrate-db.yml). Full details, the IAM policy, and
+first-time order are in [`infra/README.md`](infra/README.md).

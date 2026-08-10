@@ -1,11 +1,9 @@
 """`migrate` command: bring the database up to head, skipping work when already current.
 
-Run before the server starts (see render.yaml). A plain `alembic upgrade head` is
-safe but pays a connection + version-check cost on every boot; on Render's free tier
-(single instance, no rolling deploy) that lengthens restart downtime. This compares
-the DB's applied revision against the script head and only upgrades on a mismatch, so
-routine restarts (cold-start wake-ups, crashes) start the server immediately while a
-genuine new migration still applies before traffic is served.
+Run by the "Migrate database" GitHub Actions workflow against the RDS instance. A plain
+`alembic upgrade head` is safe but pays a connection + version-check cost every time;
+this compares the DB's applied revision against the script head and only upgrades on a
+mismatch, so a no-op run returns immediately while a genuine new migration still applies.
 """
 
 import argparse
