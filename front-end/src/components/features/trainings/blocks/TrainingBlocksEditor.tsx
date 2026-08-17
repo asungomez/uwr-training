@@ -44,6 +44,8 @@ export interface SeriesDraft {
   effort: string
   // Load as a % of the latest strength-test result (only for tested exercises).
   load: string
+  // Target-time formula over `pb` (latest lactic personal best); pool exercises only.
+  targetTime: string
   notes: string
 }
 

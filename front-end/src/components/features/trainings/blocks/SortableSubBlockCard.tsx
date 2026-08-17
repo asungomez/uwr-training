@@ -56,6 +56,7 @@ function newSeries(): SeriesDraft {
     distance: '',
     effort: '',
     load: '',
+    targetTime: '',
     notes: '',
   }
 }

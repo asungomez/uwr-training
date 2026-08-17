@@ -21,6 +21,9 @@ function RegisterSpeedTestPage() {
   const [weekId, setWeekId] = useState('')
 
   const form = useQuery('/speed-test-logs/form', {})
+  // Latest personal best (seconds) — computes any pool target times in the warmup PDF.
+  const { data: latestPb } = useQuery('/lactic-acid-test-logs/latest-personal-best', {})
+  const personalBest = latestPb?.seconds ?? null
 
   // Pre-select the recommended week once the form loads (resynced if it changes).
   const [syncedForm, setSyncedForm] = useState(form.data)
@@ -80,7 +83,7 @@ function RegisterSpeedTestPage() {
               <h2 className="text-lg font-semibold text-slate-100">Calentamiento</h2>
               <button
                 type="button"
-                onClick={() => warmup && openTrainingPdf(warmup)}
+                onClick={() => warmup && openTrainingPdf(warmup, personalBest)}
                 className="inline-flex items-center gap-2 rounded-md border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
               >
                 <FileText size={16} />

@@ -2156,6 +2156,8 @@ export interface components {
             effort?: string | null;
             /** Load Percentage */
             load_percentage?: number | null;
+            /** Target Time Formula */
+            target_time_formula?: string | null;
         };
         /** ItemResponse */
         ItemResponse: {
@@ -2180,6 +2182,8 @@ export interface components {
             effort?: string | null;
             /** Load Percentage */
             load_percentage?: number | null;
+            /** Target Time Formula */
+            target_time_formula?: string | null;
         };
         /**
          * LacticAcidTestLogFormResponse

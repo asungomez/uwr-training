@@ -201,6 +201,17 @@ function SortableExerciseItem({
                   inputMode="decimal"
                 />
               )}
+              {/* Pool exercises: a target-time formula over `pb` (latest lactic
+                  personal best), e.g. "pb + 2". Computed per-athlete at view time. */}
+              {exerciseType === 'pool' && (
+                <SeriesField
+                  label="Tiempo objetivo (fórmula)"
+                  value={item.targetTime}
+                  onChange={(value) => onChange({ ...item, targetTime: value })}
+                  placeholder="p. ej. pb + 2"
+                  inputMode="text"
+                />
+              )}
             </div>
             <textarea
               value={item.notes}

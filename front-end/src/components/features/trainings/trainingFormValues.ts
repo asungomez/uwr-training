@@ -26,6 +26,7 @@ function itemToFormValue(item: ItemResponse) {
       distance: item.distance_meters != null ? String(item.distance_meters) : '',
       effort: item.effort ?? '',
       load: item.load_percentage != null ? String(item.load_percentage) : '',
+      targetTime: item.target_time_formula ?? '',
       notes: item.text ?? '',
     }
   }
@@ -45,6 +46,7 @@ function itemToBody(
       distance_meters: parseOptionalNumber(item.distance),
       effort: item.effort.trim() || null,
       load_percentage: parseOptionalNumber(item.load),
+      target_time_formula: item.targetTime.trim() || null,
       text: item.notes.trim() || null,
     }
   }

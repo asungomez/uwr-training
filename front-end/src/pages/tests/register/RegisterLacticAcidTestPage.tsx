@@ -22,6 +22,10 @@ function RegisterLacticAcidTestPage() {
   const [weekId, setWeekId] = useState('')
 
   const form = useQuery('/lactic-acid-test-logs/form', {})
+  // Latest personal best (seconds) — computes pool items' target times in the warmup PDF.
+  // (Distinct from the `personalBest` form field for the test being recorded below.)
+  const { data: latestPb } = useQuery('/lactic-acid-test-logs/latest-personal-best', {})
+  const latestPbSeconds = latestPb?.seconds ?? null
 
   // Pre-select the recommended week once the form loads (resynced if it changes).
   const [syncedForm, setSyncedForm] = useState(form.data)
@@ -94,7 +98,7 @@ function RegisterLacticAcidTestPage() {
               <h2 className="text-lg font-semibold text-slate-100">Calentamiento</h2>
               <button
                 type="button"
-                onClick={() => form.data && openTrainingPdf(form.data.warmup)}
+                onClick={() => form.data && openTrainingPdf(form.data.warmup, latestPbSeconds)}
                 className="inline-flex items-center gap-2 rounded-md border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
               >
                 <FileText size={16} />

@@ -223,6 +223,10 @@ function RegisterSessionPage() {
   const testWeightByExercise = new Map(
     (latestResults?.results ?? []).map((result) => [result.exercise_id, result.weight_kg]),
   )
+  // The athlete's latest lactic-test personal best (seconds), to compute pool items'
+  // target times from their formulas (same as the detail view).
+  const { data: latestPb } = useQuery('/lactic-acid-test-logs/latest-personal-best', {})
+  const personalBest = latestPb?.seconds ?? null
 
   const isLoading = training.isLoading || form.isLoading
   const error = training.error ?? form.error
@@ -685,6 +689,7 @@ function RegisterSessionPage() {
                                     ? (testWeightByExercise.get(item.exercise_id) ?? null)
                                     : null
                                 }
+                                personalBest={personalBest}
                                 state={
                                   entries[item.id] ?? {
                                     action: 'pending',
