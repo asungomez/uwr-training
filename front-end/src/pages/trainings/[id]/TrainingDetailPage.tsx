@@ -40,10 +40,12 @@ function TrainingDetailPage() {
   const testWeightByExercise = new Map(
     (latestResults?.results ?? []).map((result) => [result.exercise_id, result.weight_kg]),
   )
-  // The athlete's latest lactic-test personal best (seconds), to compute a pool item's
-  // target time from its formula. A single per-athlete value (null = no result yet).
+  // The athlete's latest lactic personal best + speed-test result (seconds), to compute
+  // a pool item's target time from its pb/st formula (null = no result yet).
   const { data: latestPb } = useQuery('/lactic-acid-test-logs/latest-personal-best', {})
   const personalBest = latestPb?.seconds ?? null
+  const { data: latestSt } = useQuery('/speed-test-logs/latest-result', {})
+  const speedResult = latestSt?.seconds ?? null
 
   // ?ejercicio=<id> opens that exercise in the side panel; selecting another just
   // replaces the param (no history entry, so Back leaves the training cleanly).
@@ -154,7 +156,7 @@ function TrainingDetailPage() {
                 </Link>
                 <button
                   type="button"
-                  onClick={() => openTrainingPdf(data, personalBest)}
+                  onClick={() => openTrainingPdf(data, { pb: personalBest, st: speedResult })}
                   className="inline-flex items-center gap-2 rounded-md border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800 focus:ring-2 focus:ring-indigo-400 focus:outline-none"
                 >
                   <FileText size={16} />
@@ -189,6 +191,7 @@ function TrainingDetailPage() {
                                           : null
                                       }
                                       personalBest={personalBest}
+                                      speedResult={speedResult}
                                     />
                                   ))}
                                 </ol>

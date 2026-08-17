@@ -146,6 +146,24 @@ async def recent_speed_test_logs(
     return list(reversed(rows.all()))
 
 
+@router.get("/latest-result", response_model=SpeedTestLogResponse | None)
+async def get_latest_speed_test_result(
+    user: Annotated[User, Depends(current_user)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> SpeedTestLogResponse | None:
+    """The athlete's most recent speed-test time, or null if they've never done one.
+    Used to compute a pool exercise's target time from an `st` formula (mirrors the
+    lactic personal-best endpoint used for `pb` formulas)."""
+    log: SpeedTestLog | None = await session.scalar(
+        select(SpeedTestLog)
+        .where(SpeedTestLog.athlete_id == user.id)
+        .order_by(SpeedTestLog.performed_at.desc())
+        .options(selectinload(SpeedTestLog.week))
+        .limit(1)
+    )
+    return _serialize(log) if log is not None else None
+
+
 @router.get("/{log_id}", response_model=SpeedTestLogResponse)
 async def get_speed_test_log(
     log_id: uuid.UUID,

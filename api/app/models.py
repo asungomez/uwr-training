@@ -400,9 +400,10 @@ class TrainingItem(Base):
     # athlete's latest strength-test result for this exercise. Only meaningful for
     # exercises in the strength test; the absolute kg is computed per-athlete at view time.
     load_percentage: Mapped[float | None] = mapped_column(default=None)
-    # Target time for a pool exercise, as an arithmetic formula over `pb` (the athlete's
-    # latest lactic-acid-test personal best, in seconds) — e.g. "pb + 2" or "pb * 2 + 1".
-    # Validated on save; the absolute seconds are computed per-athlete at view time.
+    # Target time for a pool exercise, as an arithmetic formula over exactly one test
+    # variable (both in seconds): `pb` (latest lactic-acid-test personal best) or `st`
+    # (latest speed-test result) — e.g. "pb + 2" or "st * 2 + 1". Validated on save; the
+    # absolute seconds are computed per-athlete at view time.
     target_time_formula: Mapped[str | None] = mapped_column(default=None)
 
     # kind == note: free text shown between series.

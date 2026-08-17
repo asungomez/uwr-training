@@ -71,9 +71,11 @@ function TrainingSubtypePage() {
     },
     { keepPreviousData: true },
   )
-  // Latest personal best (seconds) — computes pool items' target times in the export PDF.
+  // Latest lactic pb + speed result (seconds) — compute pool target times in the export.
   const { data: latestPb } = useQuery('/lactic-acid-test-logs/latest-personal-best', {})
   const personalBest = latestPb?.seconds ?? null
+  const { data: latestSt } = useQuery('/speed-test-logs/latest-result', {})
+  const speedResult = latestSt?.seconds ?? null
 
   // Local copy so a drag reorders instantly; resynced whenever server data
   // changes. Adjusting state during render (vs. an effect) avoids a cascading
@@ -133,7 +135,7 @@ function TrainingSubtypePage() {
       toast.error('No se han podido cargar los entrenamientos.')
       return
     }
-    openTrainingsPdf(ok, personalBest)
+    openTrainingsPdf(ok, { pb: personalBest, st: speedResult })
   }
 
   // Unknown category → landing; unknown subtype (for a valid category) → its category.

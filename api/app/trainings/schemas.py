@@ -24,8 +24,9 @@ class ItemInput(BaseModel):
     # Load as a % (out of 100, may be fractional) of the athlete's latest
     # strength-test result for this exercise.
     load_percentage: float | None = None
-    # Target time for a pool exercise: an arithmetic formula over `pb` (the athlete's
-    # latest lactic personal best in seconds), e.g. "pb + 2". Validated server-side.
+    # Target time for a pool exercise: an arithmetic formula over one test variable —
+    # `pb` (lactic personal best) or `st` (speed-test result), both seconds — e.g.
+    # "pb + 2" or "st * 2". Validated server-side.
     target_time_formula: str | None = None
 
 
@@ -110,8 +111,8 @@ class ItemResponse(BaseModel):
     # Target load as a % (out of 100, may be fractional) of the latest strength-test
     # result for this exercise. The absolute kg is computed per-athlete by the client.
     load_percentage: float | None = None
-    # Target-time formula over `pb` (latest lactic personal best, seconds) for pool
-    # exercises. The absolute seconds are computed per-athlete by the client.
+    # Target-time formula over one test variable — `pb` (lactic personal best) or `st`
+    # (speed-test result) — for pool exercises. Computed per-athlete by the client.
     target_time_formula: str | None = None
 
     @field_serializer("id")

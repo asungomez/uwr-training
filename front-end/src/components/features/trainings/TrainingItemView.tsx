@@ -4,7 +4,7 @@ import type { components } from '@/api/schema'
 import Tooltip from '@/components/molecules/Tooltip'
 
 import { prescriptionFields } from './prescription'
-import { evaluateTargetTime, formatTargetTime } from './targetTime'
+import TargetTimeValue from './TargetTimeValue'
 
 type ItemResponse = components['schemas']['ItemResponse']
 
@@ -16,10 +16,10 @@ interface TrainingItemViewProps {
    *  to turn the load % into an absolute load. `null`/`undefined` = no result yet,
    *  so the load shows as a bare % with a warning. */
   latestTestWeight?: number | null
-  /** The athlete's latest lactic-test personal best (seconds), used to compute a pool
-   *  item's target time from its formula. `null`/`undefined` = no result yet, so the
-   *  target shows as the bare formula with a warning. */
+  /** Athlete's latest lactic personal best / speed-test result (seconds), for computing
+   *  a pool item's target time from its `pb` / `st` formula. `null` = no result yet. */
   personalBest?: number | null
+  speedResult?: number | null
 }
 
 /** Render one sub-block item on the detail page: a note as plain text, a series
@@ -30,6 +30,7 @@ function TrainingItemView({
   onSelectExercise,
   latestTestWeight,
   personalBest,
+  speedResult,
 }: TrainingItemViewProps) {
   if (item.kind === 'note') {
     return <li className="text-slate-300">{item.text}</li>
@@ -42,12 +43,6 @@ function TrainingItemView({
   const loadKg =
     hasLoad && latestTestWeight != null
       ? Math.round((item.load_percentage! / 100) * latestTestWeight)
-      : null
-  // A target time is shown when the admin set a formula (pool items). With a personal
-  // best, compute the absolute seconds; otherwise show the formula with a warning.
-  const targetSeconds =
-    item.target_time_formula != null && personalBest != null
-      ? evaluateTargetTime(item.target_time_formula, personalBest)
       : null
 
   return (
@@ -95,24 +90,11 @@ function TrainingItemView({
       {item.target_time_formula != null && (
         <span className="ml-2 inline-flex items-center gap-1 text-slate-400">
           Tiempo objetivo:{' '}
-          {targetSeconds != null ? (
-            <Tooltip
-              label={`Calculado a partir de tu última marca personal (${formatTargetTime(personalBest!)})`}
-            >
-              <span className="inline-flex items-center gap-1 text-slate-200">
-                {formatTargetTime(targetSeconds)}{' '}
-                <span className="text-slate-500">({item.target_time_formula})</span>
-                <Info size={14} className="text-slate-500" />
-              </span>
-            </Tooltip>
-          ) : (
-            <Tooltip label="Haz una prueba de ácido láctico para calcular el tiempo objetivo">
-              <span className="inline-flex items-center gap-1 text-amber-300">
-                {item.target_time_formula}
-                <TriangleAlert size={14} />
-              </span>
-            </Tooltip>
-          )}
+          <TargetTimeValue
+            formula={item.target_time_formula}
+            personalBest={personalBest ?? null}
+            speedResult={speedResult ?? null}
+          />
         </span>
       )}
       {item.text && <p className="mt-0.5 text-slate-400">{item.text}</p>}

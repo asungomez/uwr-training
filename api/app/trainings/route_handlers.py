@@ -110,13 +110,14 @@ def _build_items(items: list[ItemInput]) -> list[TrainingItem]:
             text = item.text.strip() if item.text else None
             # A load only makes sense as a positive percentage; drop 0/negatives.
             load = item.load_percentage if (item.load_percentage or 0) > 0 else None
-            # A target-time formula must be valid arithmetic over `pb`; blank → none.
+            # A target-time formula must be valid arithmetic over exactly one of pb/st;
+            # blank → none.
             formula = item.target_time_formula.strip() if item.target_time_formula else None
             if formula and not is_valid_formula(formula):
                 raise api_error(
                     status.HTTP_400_BAD_REQUEST,
                     ErrorCode.invalid_item,
-                    "Target time must be an arithmetic formula over pb (e.g. pb + 2)",
+                    "Target time must be an arithmetic formula over pb or st (e.g. pb + 2)",
                 )
             rows.append(
                 TrainingItem(
