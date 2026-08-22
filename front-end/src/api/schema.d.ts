@@ -643,7 +643,7 @@ export interface paths {
         /**
          * Reorder Week
          * @description Move a week to a new 0-based position; the rest of the calendar shifts to
-         *     stay a contiguous 0..n-1 sequence.
+         *     stay a contiguous 0..n-1 sequence. Returns no body (the client refetches the list).
          */
         patch: operations["reorder_week_weeks__week_id__position_patch"];
         trace?: never;
@@ -4931,13 +4931,11 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            200: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["WeekResponse"];
-                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

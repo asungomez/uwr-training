@@ -237,15 +237,15 @@ async def update_week(
     return _week_detail(reloaded, grouped)
 
 
-@router.patch("/{week_id}/position", response_model=WeekResponse)
+@router.patch("/{week_id}/position", status_code=status.HTTP_204_NO_CONTENT)
 async def reorder_week(
     week_id: uuid.UUID,
     body: UpdateWeekPositionRequest,
     _admin: Annotated[User, Depends(require_admin)],
     session: Annotated[AsyncSession, Depends(get_session)],
-) -> Week:
+) -> None:
     """Move a week to a new 0-based position; the rest of the calendar shifts to
-    stay a contiguous 0..n-1 sequence."""
+    stay a contiguous 0..n-1 sequence. Returns no body (the client refetches the list)."""
     week = await session.get(Week, week_id)
     if week is None:
         raise api_error(status.HTTP_404_NOT_FOUND, ErrorCode.week_not_found, "Week not found")
@@ -262,8 +262,6 @@ async def reorder_week(
     # The deferrable unique constraint is checked at commit, so the renumber above
     # can transiently repeat positions without erroring.
     await session.commit()
-    await session.refresh(week)
-    return week
 
 
 @router.delete("/{week_id}", status_code=status.HTTP_204_NO_CONTENT)

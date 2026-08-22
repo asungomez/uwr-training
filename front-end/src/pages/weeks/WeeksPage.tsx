@@ -22,7 +22,6 @@ import { errorMessage } from '@/api/errors'
 import type { components } from '@/api/schema'
 import { useAuth } from '@/auth/context'
 import SortableWeekRow from '@/components/features/weeks/SortableWeekRow'
-import Pagination from '@/components/molecules/Pagination'
 import SearchInput from '@/components/molecules/SearchInput'
 import { useToast } from '@/components/toast/context'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
@@ -30,7 +29,10 @@ import { useUrlListState } from '@/hooks/useUrlListState'
 
 type Week = components['schemas']['WeekResponse']
 
-const PAGE_SIZE = 10
+// The calendar is a bounded season (~50 weeks), so we load it in one page instead of
+// paginating — that way a drag can reorder across the whole calendar, not just a page.
+// Capped at the API's MAX_PAGE_SIZE (100), which leaves plenty of headroom over 50.
+const WEEKS_LIMIT = 100
 
 function WeeksPage() {
   const { user } = useAuth()
@@ -39,7 +41,7 @@ function WeeksPage() {
   const toast = useToast()
   const mutate = useMutate()
 
-  const { page, search, setPage, setSearch } = useUrlListState()
+  const { search, setSearch } = useUrlListState()
   const debouncedSearch = useDebouncedValue(search.trim(), 300)
 
   const { data, isLoading, error } = useQuery(
@@ -47,8 +49,8 @@ function WeeksPage() {
     {
       params: {
         query: {
-          page,
-          page_size: PAGE_SIZE,
+          page: 1,
+          page_size: WEEKS_LIMIT,
           ...(debouncedSearch ? { search: debouncedSearch } : {}),
         },
       },
@@ -74,7 +76,6 @@ function WeeksPage() {
   )
 
   const canReorder = isAdmin && !debouncedSearch
-  const pageCount = Math.ceil((data?.total_count ?? 0) / PAGE_SIZE)
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
@@ -86,10 +87,10 @@ function WeeksPage() {
     const previous = ordered
     setOrdered(arrayMove(ordered, from, to)) // optimistic
 
-    const absolutePosition = (page - 1) * PAGE_SIZE + to
+    // The whole calendar is on one page, so the row index is the absolute position.
     const { error: patchError } = await api.PATCH('/weeks/{week_id}/position', {
       params: { path: { week_id: String(active.id) } },
-      body: { position: absolutePosition },
+      body: { position: to },
     })
     if (patchError) {
       setOrdered(previous) // roll back
@@ -132,31 +133,24 @@ function WeeksPage() {
       )}
 
       {ordered.length > 0 && (
-        <>
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={(event) => void handleDragEnd(event)}
-          >
-            <SortableContext
-              items={ordered.map((w) => w.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <ul className="mt-6 flex flex-col gap-3">
-                {ordered.map((week) => (
-                  <SortableWeekRow
-                    key={week.id}
-                    week={week}
-                    draggable={canReorder}
-                    onOpen={() => void navigate(`/calendario/${week.id}`)}
-                  />
-                ))}
-              </ul>
-            </SortableContext>
-          </DndContext>
-
-          <Pagination page={page} pageCount={pageCount} onPageChange={setPage} />
-        </>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={(event) => void handleDragEnd(event)}
+        >
+          <SortableContext items={ordered.map((w) => w.id)} strategy={verticalListSortingStrategy}>
+            <ul className="mt-6 flex flex-col gap-3">
+              {ordered.map((week) => (
+                <SortableWeekRow
+                  key={week.id}
+                  week={week}
+                  draggable={canReorder}
+                  onOpen={() => void navigate(`/calendario/${week.id}`)}
+                />
+              ))}
+            </ul>
+          </SortableContext>
+        </DndContext>
       )}
     </section>
   )
