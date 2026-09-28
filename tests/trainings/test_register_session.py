@@ -107,7 +107,7 @@ def test_register_done_with_alternative_and_param(
     expect(page.get_by_text("Zancada")).to_be_visible()
 
     # Mark the squat done → its Peso input appears.
-    page.get_by_role("button", name="Hecho").first.click()
+    page.get_by_role("button", name="Hecho", exact=True).first.click()
     peso = page.get_by_label("Peso", exact=False)
     expect(peso).to_be_visible()
     peso.fill("80kg")

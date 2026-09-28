@@ -64,7 +64,7 @@ def _week(create_week: Callable[..., Week]) -> Week:
 def _register_linked(page: Page, app_url: str, training_id: str) -> None:
     """Log the session, marking the exercise done and linking it to 'Semana Prog'."""
     page.goto(f"{app_url}/entrenamientos/{training_id}/registrar")
-    page.get_by_role("button", name="Hecho").first.click()
+    page.get_by_role("button", name="Hecho", exact=True).first.click()
     page.get_by_label("Semana", exact=True).select_option(label="Semana Prog")
     page.get_by_role("button", name="Finalizar sesión").click()
     expect(page.get_by_role("status").filter(has_text="Sesión registrada.")).to_be_visible()

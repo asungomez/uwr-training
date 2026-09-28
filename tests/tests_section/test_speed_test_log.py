@@ -79,7 +79,7 @@ def test_register_shows_warmup_without_logging_controls(
     expect(main.get_by_role("heading", name="Activación")).to_be_visible()
     expect(main.get_by_role("button", name="Nado calentamiento")).to_be_visible()
     # No logging controls from the register-session flow (no "Hecho" buttons).
-    expect(main.get_by_role("button", name="Hecho")).to_have_count(0)
+    expect(main.get_by_role("button", name="Hecho", exact=True)).to_have_count(0)
     # The time input is present.
     expect(main.get_by_label("Tiempo en segundos")).to_be_visible()
 

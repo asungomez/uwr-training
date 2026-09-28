@@ -144,23 +144,22 @@ function TrainingSubtypePage() {
 
   // Reordering only makes sense on an unfiltered, admin view.
   const canReorder = isAdmin && !debouncedSearch
-  const pageCount = Math.ceil((data?.total_count ?? 0) / PAGE_SIZE)
+  const totalCount = data?.total_count ?? 0
+  const pageCount = Math.ceil(totalCount / PAGE_SIZE)
 
-  async function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event
-    if (!over || active.id === over.id) return
-    const from = ordered.findIndex((s) => s.id === active.id)
-    const to = ordered.findIndex((s) => s.id === over.id)
-    if (from === -1 || to === -1) return
-
+  /** Sends a training to an absolute position (0-based across all pages) and
+   *  refetches. `optimistic` is the list to show meanwhile, omitted when the
+   *  training leaves this page — there is no correct local order to show then. */
+  async function moveToPosition(
+    id: string,
+    absolutePosition: number,
+    optimistic?: TrainingSession[],
+  ) {
     const previous = ordered
-    const reordered = arrayMove(ordered, from, to)
-    setOrdered(reordered) // optimistic
+    if (optimistic) setOrdered(optimistic)
 
-    // Absolute position across pages = offset of this page + index within it.
-    const absolutePosition = (page - 1) * PAGE_SIZE + to
     const { error: patchError } = await api.PATCH('/trainings/{training_id}/position', {
-      params: { path: { training_id: String(active.id) } },
+      params: { path: { training_id: id } },
       body: { position: absolutePosition },
     })
     if (patchError) {
@@ -169,6 +168,34 @@ function TrainingSubtypePage() {
       return
     }
     await mutate(['/trainings'])
+  }
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const from = ordered.findIndex((s) => s.id === active.id)
+    const to = ordered.findIndex((s) => s.id === over.id)
+    if (from === -1 || to === -1) return
+
+    // Absolute position across pages = offset of this page + index within it.
+    await moveToPosition(
+      String(active.id),
+      (page - 1) * PAGE_SIZE + to,
+      arrayMove(ordered, from, to),
+    )
+  }
+
+  /** Moves a training one position up (-1) or down (+1). At a page edge the move
+   *  crosses over: the training lands on the neighbouring page and the training
+   *  that was there takes its place on this one. */
+  async function handleMove(index: number, delta: -1 | 1) {
+    const target = index + delta
+    const staysOnPage = target >= 0 && target < ordered.length
+    await moveToPosition(
+      ordered[index].id,
+      (page - 1) * PAGE_SIZE + target,
+      staysOnPage ? arrayMove(ordered, index, target) : undefined,
+    )
   }
 
   return (
@@ -251,7 +278,7 @@ function TrainingSubtypePage() {
               strategy={verticalListSortingStrategy}
             >
               <ul className="mt-6 flex flex-col gap-3">
-                {ordered.map((session) => (
+                {ordered.map((session, index) => (
                   <SortableTrainingRow
                     key={session.id}
                     session={session}
@@ -259,6 +286,10 @@ function TrainingSubtypePage() {
                     onOpen={() => void navigate(`/entrenamientos/${session.id}`)}
                     selected={selected.has(session.id)}
                     onToggleSelected={() => toggleSelected(session.id)}
+                    canMoveUp={page > 1 || index > 0}
+                    canMoveDown={(page - 1) * PAGE_SIZE + index < totalCount - 1}
+                    onMoveUp={() => void handleMove(index, -1)}
+                    onMoveDown={() => void handleMove(index, 1)}
                   />
                 ))}
               </ul>

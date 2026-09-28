@@ -68,6 +68,79 @@ def test_admin_reorders_trainings_and_persists(
     expect(page.get_by_role("listitem")).to_have_text(["B", "C", "A"])
 
 
+def test_admin_moves_training_with_arrows(
+    page: Page,
+    app_url: str,
+    create_user: Callable[..., User],
+    create_training: Callable[..., TrainingSession],
+    log_in_as: Callable[[User], None],
+) -> None:
+    # Given three trainings in one subtype (seeded in order A, B, C).
+    admin = create_user(role="admin", email="admin@example.com")
+    for title in ("A", "B", "C"):
+        create_training(title=title, category="gym", subtype="accumulation")
+    log_in_as(admin)
+    page.goto(f"{app_url}/entrenamientos/gimnasio/acumulacion")
+    expect(page.get_by_role("listitem")).to_have_count(3)
+
+    # When I move the first one down.
+    page.get_by_role("button", name="Bajar entrenamiento").first.click()
+
+    # Then it swaps with the second, and the change persists after reload.
+    expect(page.get_by_role("listitem")).to_have_text(["B", "A", "C"])
+    page.reload()
+    expect(page.get_by_role("listitem")).to_have_text(["B", "A", "C"])
+
+
+def test_arrows_move_training_across_pages(
+    page: Page,
+    app_url: str,
+    create_user: Callable[..., User],
+    create_training: Callable[..., TrainingSession],
+    log_in_as: Callable[[User], None],
+) -> None:
+    # Given 11 trainings — one more than a page holds, so T11 sits alone on page 2.
+    admin = create_user(role="admin", email="admin@example.com")
+    for index in range(1, 12):
+        create_training(title=f"T{index:02d}", category="gym", subtype="accumulation")
+    log_in_as(admin)
+    page.goto(f"{app_url}/entrenamientos/gimnasio/acumulacion")
+    expect(page.get_by_role("listitem")).to_have_count(10)
+
+    # When I move the last training of page 1 (T10) down.
+    page.get_by_role("button", name="Bajar entrenamiento").last.click()
+
+    # Then T11 takes its place at the end of page 1…
+    expect(page.get_by_role("listitem").last).to_have_text("T11")
+    # …and T10 is now the one on page 2.
+    page.get_by_role("button", name="Página siguiente").click()
+    expect(page.get_by_role("listitem")).to_have_text(["T10"])
+
+    # And moving it back up returns it to the end of page 1.
+    page.get_by_role("button", name="Subir entrenamiento").click()
+    page.get_by_role("button", name="Página anterior").click()
+    expect(page.get_by_role("listitem").last).to_have_text("T10")
+
+
+def test_edge_arrows_are_disabled(
+    page: Page,
+    app_url: str,
+    create_user: Callable[..., User],
+    create_training: Callable[..., TrainingSession],
+    log_in_as: Callable[[User], None],
+) -> None:
+    # Given two trainings on a single page.
+    admin = create_user(role="admin", email="admin@example.com")
+    for title in ("A", "B"):
+        create_training(title=title, category="gym", subtype="accumulation")
+    log_in_as(admin)
+    page.goto(f"{app_url}/entrenamientos/gimnasio/acumulacion")
+
+    # Then the very first cannot move up and the very last cannot move down.
+    expect(page.get_by_role("button", name="Subir entrenamiento").first).to_be_disabled()
+    expect(page.get_by_role("button", name="Bajar entrenamiento").last).to_be_disabled()
+
+
 def test_member_cannot_reorder(
     page: Page,
     app_url: str,

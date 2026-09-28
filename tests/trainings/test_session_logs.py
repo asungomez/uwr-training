@@ -81,7 +81,7 @@ def _register_a_session(page: Page, app_url: str, training_id: str) -> None:
     plank skipped, with a note."""
     page.goto(f"{app_url}/entrenamientos/{training_id}/registrar")
     page.get_by_role("button", name="Cambiar a ejercicio alternativo").click()
-    page.get_by_role("button", name="Hecho").first.click()
+    page.get_by_role("button", name="Hecho", exact=True).first.click()
     page.get_by_label("Peso", exact=False).fill("80kg")
     page.get_by_role("button", name="No hecho").nth(1).click()
     page.get_by_label("Nota de la sesión", exact=False).fill("buena sesión")
@@ -225,8 +225,8 @@ def test_first_input_creates_hidden_partial_log(
     assert _session_log_rows(_db_engine, str(training.id)) == []
 
     # Marking the first exercise done seeds exactly one partial (complete = false).
-    page.get_by_role("button", name="Hecho").first.click()
-    expect(page.get_by_role("button", name="Hecho").first).to_have_attribute(
+    page.get_by_role("button", name="Hecho", exact=True).first.click()
+    expect(page.get_by_role("button", name="Hecho", exact=True).first).to_have_attribute(
         "aria-pressed", "true"
     )
 
@@ -271,8 +271,8 @@ def test_list_shows_in_progress_for_partial_then_clears_on_submit(
 
     # Touch one exercise to seed a partial, then check the subtype list.
     page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
-    page.get_by_role("button", name="Hecho").first.click()
-    expect(page.get_by_role("button", name="Hecho").first).to_have_attribute(
+    page.get_by_role("button", name="Hecho", exact=True).first.click()
+    expect(page.get_by_role("button", name="Hecho", exact=True).first).to_have_attribute(
         "aria-pressed", "true"
     )
     # Give the debounced auto-save time to land before navigating away.
@@ -315,8 +315,8 @@ def test_register_prefills_from_partial_with_banner_and_clear(
     expect(page.get_by_text("Seguimos donde lo dejaste", exact=False)).to_have_count(0)
 
     # Mark the squat done, then let the debounced auto-save land.
-    page.get_by_role("button", name="Hecho").first.click()
-    expect(page.get_by_role("button", name="Hecho").first).to_have_attribute(
+    page.get_by_role("button", name="Hecho", exact=True).first.click()
+    expect(page.get_by_role("button", name="Hecho", exact=True).first).to_have_attribute(
         "aria-pressed", "true"
     )
     page.wait_for_timeout(1200)
@@ -324,7 +324,7 @@ def test_register_prefills_from_partial_with_banner_and_clear(
     # Reopen the page (as a lock+reload would): the draft is restored + the banner shows.
     page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
     expect(page.get_by_text("Seguimos donde lo dejaste", exact=False)).to_be_visible()
-    expect(page.get_by_role("button", name="Hecho").first).to_have_attribute(
+    expect(page.get_by_role("button", name="Hecho", exact=True).first).to_have_attribute(
         "aria-pressed", "true"
     )
 
@@ -332,14 +332,14 @@ def test_register_prefills_from_partial_with_banner_and_clear(
     page.get_by_role("button", name="Empezar de nuevo").click()
     expect(page.get_by_role("status").filter(has_text="Progreso descartado.")).to_be_visible()
     expect(page.get_by_text("Seguimos donde lo dejaste", exact=False)).to_have_count(0)
-    expect(page.get_by_role("button", name="Hecho").first).to_have_attribute(
+    expect(page.get_by_role("button", name="Hecho", exact=True).first).to_have_attribute(
         "aria-pressed", "false"
     )
 
     # And the draft is really gone: a reload shows a fresh form (no banner).
     page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
     expect(page.get_by_text("Seguimos donde lo dejaste", exact=False)).to_have_count(0)
-    expect(page.get_by_role("button", name="Hecho").first).to_have_attribute(
+    expect(page.get_by_role("button", name="Hecho", exact=True).first).to_have_attribute(
         "aria-pressed", "false"
     )
 
@@ -359,7 +359,7 @@ def test_live_updates_persist_parameter_across_reload(
     log_in_as(member)
 
     page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
-    page.get_by_role("button", name="Hecho").first.click()
+    page.get_by_role("button", name="Hecho", exact=True).first.click()
     # The Peso field appears once done; type a value and let the debounced save land.
     peso = page.get_by_label("Peso", exact=False)
     peso.fill("72kg")
@@ -368,7 +368,7 @@ def test_live_updates_persist_parameter_across_reload(
     # Reload as a lock+reopen would: the done state AND the typed value come back.
     page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
     expect(page.get_by_text("Seguimos donde lo dejaste", exact=False)).to_be_visible()
-    expect(page.get_by_role("button", name="Hecho").first).to_have_attribute(
+    expect(page.get_by_role("button", name="Hecho", exact=True).first).to_have_attribute(
         "aria-pressed", "true"
     )
     expect(page.get_by_label("Peso", exact=False)).to_have_value("72kg")
@@ -397,7 +397,7 @@ def test_submit_promotes_partial_to_single_complete_log(
 
     # Seed a draft, then reload so we're submitting the resumed partial.
     page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
-    page.get_by_role("button", name="Hecho").first.click()
+    page.get_by_role("button", name="Hecho", exact=True).first.click()
     page.wait_for_timeout(1200)
     page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
     expect(page.get_by_text("Seguimos donde lo dejaste", exact=False)).to_be_visible()
@@ -437,7 +437,7 @@ def test_save_indicator_shows_saving_then_saved(
     # Nothing shown before any change.
     expect(page.get_by_text("Guardado", exact=True)).to_have_count(0)
 
-    page.get_by_role("button", name="Hecho").first.click()
+    page.get_by_role("button", name="Hecho", exact=True).first.click()
     # After the debounced save resolves, "Guardado" is shown (the transient "Guardando"
     # may be too brief to assert reliably, so we assert the settled state).
     expect(page.get_by_text("Guardado", exact=True)).to_be_visible()
@@ -472,7 +472,7 @@ def test_failed_save_shows_error_then_retries_to_success(
     page.route("**/api/trainings/*/logs/partial", handle)
 
     page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
-    page.get_by_role("button", name="Hecho").first.click()
+    page.get_by_role("button", name="Hecho", exact=True).first.click()
 
     # The first save fails → the error indicator shows.
     expect(page.get_by_text("Error al guardar", exact=True)).to_be_visible()
@@ -507,7 +507,7 @@ def test_discrete_action_saves_without_debounce_wait(
     log_in_as(member)
 
     page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
-    page.get_by_role("button", name="Hecho").first.click()
+    page.get_by_role("button", name="Hecho", exact=True).first.click()
 
     # "Guardado" confirms the immediate save (no 800ms wait needed before it fires).
     expect(page.get_by_text("Guardado", exact=True)).to_be_visible(timeout=3000)
@@ -531,7 +531,7 @@ def test_flush_saves_pending_edit_when_page_hidden(
 
     page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
     # Mark done (immediate save) so the Peso field appears and a partial exists.
-    page.get_by_role("button", name="Hecho").first.click()
+    page.get_by_role("button", name="Hecho", exact=True).first.click()
     expect(page.get_by_text("Guardado", exact=True)).to_be_visible(timeout=3000)
 
     # Type a weight but DON'T wait for the debounce — this edit is still pending.
@@ -646,7 +646,7 @@ def test_repeated_exercise_prefills_the_touched_slot(
 
     page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
     # Two "Hecho" buttons (one per slot). Mark ONLY the second done.
-    done_buttons = page.get_by_role("button", name="Hecho")
+    done_buttons = page.get_by_role("button", name="Hecho", exact=True)
     expect(done_buttons).to_have_count(2)
     done_buttons.nth(1).click()
     expect(page.get_by_text("Guardado", exact=True)).to_be_visible(timeout=3000)
@@ -654,6 +654,6 @@ def test_repeated_exercise_prefills_the_touched_slot(
     # Reopen: the SECOND slot is done, the FIRST is still pending.
     page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
     expect(page.get_by_text("Seguimos donde lo dejaste", exact=False)).to_be_visible()
-    done_buttons = page.get_by_role("button", name="Hecho")
+    done_buttons = page.get_by_role("button", name="Hecho", exact=True)
     expect(done_buttons.nth(0)).to_have_attribute("aria-pressed", "false")
     expect(done_buttons.nth(1)).to_have_attribute("aria-pressed", "true")

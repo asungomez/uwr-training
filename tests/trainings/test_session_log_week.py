@@ -95,7 +95,7 @@ def test_register_links_week_and_detail_can_change_it(
 
     # Register, choosing "Semana uno", with a note to find the log row by.
     page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
-    page.get_by_role("button", name="Hecho").first.click()
+    page.get_by_role("button", name="Hecho", exact=True).first.click()
     page.get_by_label("Semana", exact=True).select_option(label="Semana uno")
     page.get_by_label("Nota de la sesión", exact=False).fill("con semana")
     page.get_by_role("button", name="Finalizar sesión").click()
@@ -129,7 +129,7 @@ def test_completed_week_drops_from_register_but_stays_on_edit(
 
     # Log it, linking to "Semana llena" → that week is now complete (1/1).
     page.goto(f"{app_url}/entrenamientos/{training.id}/registrar")
-    page.get_by_role("button", name="Hecho").first.click()
+    page.get_by_role("button", name="Hecho", exact=True).first.click()
     page.get_by_label("Semana", exact=True).select_option(label="Semana llena")
     page.get_by_label("Nota de la sesión", exact=False).fill("llena")
     page.get_by_role("button", name="Finalizar sesión").click()
@@ -168,7 +168,7 @@ def test_register_preselects_latest_used_week(
     expect(page.get_by_label("Semana", exact=True)).to_have_value("")
 
     # Log one linked to "Semana dos" → it becomes the latest-used week with room.
-    page.get_by_role("button", name="Hecho").first.click()
+    page.get_by_role("button", name="Hecho", exact=True).first.click()
     page.get_by_label("Semana", exact=True).select_option(label="Semana dos")
     page.get_by_role("button", name="Finalizar sesión").click()
     expect(page.get_by_role("status").filter(has_text="Sesión registrada.")).to_be_visible()
@@ -226,7 +226,7 @@ def test_register_preselects_next_available_week(
     # Log the pool session into "Solo pool" → that becomes the latest-used week,
     # but it isn't selectable for the gym training.
     page.goto(f"{app_url}/entrenamientos/{pool.id}/registrar")
-    page.get_by_role("button", name="Hecho").first.click()
+    page.get_by_role("button", name="Hecho", exact=True).first.click()
     page.get_by_label("Semana", exact=True).select_option(label="Solo pool")
     page.get_by_role("button", name="Finalizar sesión").click()
     expect(page.get_by_role("status").filter(has_text="Sesión registrada.")).to_be_visible()
