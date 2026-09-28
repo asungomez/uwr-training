@@ -189,10 +189,12 @@ function TrainingSubtypePage() {
    *  crosses over: the training lands on the neighbouring page and the training
    *  that was there takes its place on this one. */
   async function handleMove(index: number, delta: -1 | 1) {
+    const session = ordered[index]
+    if (!session) return
     const target = index + delta
     const staysOnPage = target >= 0 && target < ordered.length
     await moveToPosition(
-      ordered[index].id,
+      session.id,
       (page - 1) * PAGE_SIZE + target,
       staysOnPage ? arrayMove(ordered, index, target) : undefined,
     )
